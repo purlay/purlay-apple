@@ -41,6 +41,38 @@ struct RootScreenTests {
         #expect(await harness.transport.requests.count == before)
     }
 
+    @Test("an account with no workspace reloads through a new connection, and can sign out")
+    func noWorkspaceAccount() async throws {
+        let harness = Harness([
+            Harness.clientInfo(), Harness.meWithoutWorkspace(),
+            Harness.clientInfo(), Harness.meWithoutWorkspace(),
+            ScriptedTransport.json(204, ""),
+        ])
+        try harness.rememberSession()
+        await harness.model.connect()
+        #expect(harness.model.phase == .ready)
+        #expect(RootScreen(harness.model) == .noWorkspace)
+
+        let before = await harness.transport.requests.count
+        await RootActions.reload(harness.model)
+        #expect(await harness.transport.requests.count > before, "a new handshake is made")
+        #expect(RootScreen(harness.model) == .noWorkspace)
+
+        await RootActions.signOut(harness.model, everywhere: false)
+        #expect(harness.model.phase == .signedOut)
+    }
+
+    @Test("an account held back for two-step is not reloaded: its screen refreshes the account instead")
+    func twoFactorNotReloaded() async throws {
+        let harness = Harness([Harness.clientInfo(), Harness.meWithoutWorkspace(mustEnrolTwoFactor: true)])
+        try harness.rememberSession()
+        await harness.model.connect()
+        #expect(RootScreen(harness.model) == .twoFactorRequired)
+        let before = await harness.transport.requests.count
+        await RootActions.reload(harness.model)
+        #expect(await harness.transport.requests.count == before)
+    }
+
     @Test("a server with no session kept asks the person to sign in")
     func signedOut() async {
         let harness = Harness([Harness.clientInfo()])

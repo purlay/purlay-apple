@@ -69,9 +69,11 @@ enum RootActions {
     }
 
     /// The No Workspace refresh: `refreshAccount` loads a workspace only for an account that was held back, so after an invitation
-    /// is accepted only a new connection finds it.
+    /// is accepted only a new connection finds it. It serves that one screen only: connecting again while a workspace and its
+    /// engine are open would replace the engine without stopping it, leaking it and its socket, and the two-step screen refreshes
+    /// the account instead.
     static func reload(_ model: AppModel) async {
-        guard model.phase == .ready else { return }
+        guard RootScreen(model) == .noWorkspace else { return }
         await model.connect()
     }
 }
