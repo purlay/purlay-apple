@@ -2,9 +2,9 @@
 # Everything the pipeline checks, in lanes, so that CI runs them side by side and a person runs them all.
 #
 #   scripts/verify               every lane, the Mac's Release build included (what a release runs)
-#   scripts/verify rules         branch name, the architecture rules and their demonstration, strings  (no Xcode; Swift for the layers)
+#   scripts/verify rules         branch name, the architecture rules and their demonstration, strings  (no Xcode, no Swift)
 #   scripts/verify generated     the pinned contract, the generated code, the generator                (needs Contract/bundle)
-#   scripts/verify packages      format, and every package test on macOS (TestPlans/macOS)             (needs Contract/bundle)
+#   scripts/verify packages      the layers, format, and every package test on macOS (TestPlans/macOS) (needs Contract/bundle)
 #   scripts/verify ios           the package and the iOS app, built for the simulator
 #   scripts/verify macos [CONFIGS]  the Mac app (Debug, or the configurations named): App Transport Security, entitlements
 #   scripts/verify simulator     the iOS tests on a simulator (TestPlans/PR, TestPlans/Simulator)
@@ -60,8 +60,9 @@ rules() {
   step "branch name"
   scripts/check-branch
   step "architecture rules, and the demonstration that each one refuses its violation"
-  scripts/enforcement
-  scripts/enforcement --demo
+  # The layer rule compiles the manifest, which needs Swift; it runs in packages, on macOS, so that this lane needs neither.
+  scripts/enforcement tree
+  scripts/enforcement --demo tree
   step "every string of the Mac app has its Turkish translation"
   scripts/localize --check
 }
@@ -81,6 +82,9 @@ format() {
 }
 
 packages() {
+  step "the layers, read from the manifest by SwiftPM, and the demonstration that the rule refuses each violation"
+  scripts/enforcement layers
+  scripts/enforcement --demo layers
   format
   step "every package test on macOS, and the Mac screens drawn from state, light and dark (pictures in a temporary folder)"
   local snapshots
