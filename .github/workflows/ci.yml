@@ -83,7 +83,8 @@ jobs:
       - name: No secret in the history
         run: scripts/verify security
 
-  # The architecture rules and their demonstration, and the Mac's strings. Linux: it needs Swift for the manifest, not Xcode.
+  # The tree's rules and their demonstration, and the strings: shell, grep and Python, so Linux and no Swift. The layer rule
+  # reads the manifest through SwiftPM and runs in the packages lane on macOS.
   rules:
     needs: changes
     if: needs.changes.outputs.rules == 'true'

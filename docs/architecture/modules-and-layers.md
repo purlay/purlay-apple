@@ -29,7 +29,9 @@ Contract, Kit, MacUI, Tokens and Sparkle.
 ## The rules a compiler does not state
 
 `scripts/enforcement` checks the tree, and `scripts/enforcement --demo` plants each violation in a copy and requires the check
-to refuse it, so a rule that stopped looking is seen at once. Both run in `scripts/verify rules`.
+to refuse it, so a rule that stopped looking is seen at once. The rules that read only files (`scripts/enforcement tree`) run in
+`scripts/verify rules`, on Linux; the layer rule reads the manifest through SwiftPM (`scripts/enforcement layers`) and runs in
+`scripts/verify packages`, on macOS.
 
 | Rule | Why |
 |---|---|
