@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# The app's strings and their translations: one catalog, App/Resources/Localizable.xcstrings, read by every package (SwiftUI and
-# String(localized:) look in the main bundle). English is the source language; Turkish is complete.
+# The Mac app's strings and their translations: one catalog, Apps/macOS/App/Resources/Localizable.xcstrings, read by the Mac app and
+# PurlayMacUI (SwiftUI and String(localized:) look in the main bundle). English is the source language; Turkish is complete. The
+# iOS app's catalog is held by scripts/enforcement.
 #
 #   scripts/localize            build with string extraction and add the strings the code now uses to the catalog
 #   scripts/localize --check    fail unless every string has a Turkish translation with the same format specifiers
@@ -8,7 +9,7 @@
 # A new string is added by `scripts/localize`, shows as "new" until it has a Turkish value, and --check refuses it until it does.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-CATALOG=App/Resources/Localizable.xcstrings
+CATALOG=Apps/macOS/App/Resources/Localizable.xcstrings
 
 check() {
   python3 - "$CATALOG" <<'PY'
@@ -54,8 +55,7 @@ PY
 if [ "${1:-}" = "--check" ]; then check; exit 0; fi
 
 derived="$(mktemp -d)"; trap 'rm -rf "$derived"' EXIT
-xcodegen generate >/dev/null
-xcodebuild -project Purlay.xcodeproj -scheme Purlay -configuration Debug -destination 'platform=macOS,arch=arm64' \
+xcodebuild -project Apps/Purlay.xcodeproj -scheme Purlay-macOS -configuration Debug -destination 'platform=macOS,arch=arm64' \
   -derivedDataPath "$derived" SWIFT_EMIT_LOC_STRINGS=YES LOCALIZATION_PREFERS_STRING_CATALOGS=YES build >/dev/null
 find "$derived" -name '*.stringsdata' -not -path '*SourcePackages*' -print0 | xargs -0 xcrun xcstringstool sync "$CATALOG" --stringsdata
 echo "synced; add the Turkish value of every new string, then run scripts/localize --check"

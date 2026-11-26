@@ -41,5 +41,6 @@ else
   echo "made: $NAME"
 fi
 
-printf '// This Mac only (scripts/dev-signing); ignored by git.\nCODE_SIGN_IDENTITY = %s\n' "$NAME" > "$LOCAL"
+# For the Mac app alone: Config/iOS.xcconfig includes this file too, and an iOS build keeps its own identity.
+printf '// This Mac only (scripts/dev-signing); ignored by git.\nCODE_SIGN_IDENTITY[sdk=macosx*] = %s\n' "$NAME" > "$LOCAL"
 echo "wrote: $LOCAL"

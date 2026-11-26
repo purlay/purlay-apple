@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render one CHANGELOG release as GitHub Markdown and self-contained Sparkle HTML.
+"""Render one release of the Mac app's CHANGELOG (Apps/macOS/CHANGELOG.md) as GitHub Markdown and self-contained Sparkle HTML.
 
 Usage: scripts/release-notes VERSION OUTPUT_DIRECTORY
 Only paragraphs, level-three headings, bullets, and bold text are accepted. This
@@ -68,7 +68,7 @@ def main() -> None:
     parser.add_argument("version")
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
-    changelog = Path(__file__).resolve().parent.parent / "CHANGELOG.md"
+    changelog = Path(__file__).resolve().parent.parent / "Apps" / "macOS" / "CHANGELOG.md"
     body = release_section(changelog.read_text(), args.version)
     rendered = render(body, args.version)
     args.output.mkdir(parents=True, exist_ok=True)

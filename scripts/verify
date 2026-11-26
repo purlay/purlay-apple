@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+# Everything the pipeline checks, in lanes, so that CI runs them side by side and a person runs them all.
+#
+#   scripts/verify               every lane, the Mac's Release build included (what a release runs)
+#   scripts/verify rules         branch name, the architecture rules and their demonstration, strings  (no Xcode; Swift for the layers)
+#   scripts/verify generated     the pinned contract, the generated code, the generator                (needs Contract/bundle)
+#   scripts/verify packages      format, and every package test on macOS (TestPlans/macOS)             (needs Contract/bundle)
+#   scripts/verify ios           the package and the iOS app, built for the simulator
+#   scripts/verify macos [CONFIGS]  the Mac app (Debug, or the configurations named): App Transport Security, entitlements
+#   scripts/verify simulator     the iOS tests on a simulator (TestPlans/PR, TestPlans/Simulator)
+#   scripts/verify security      the whole history scanned for secrets (gitleaks, at the version scripts/install-gitleaks pins)
+#
+# A pull request runs rules, packages, ios and macos (`make verify`), generated when the contract or the generator changes, and
+# security on its own runner. Starting a simulator costs minutes on a hosted runner, so `simulator` runs on main, on a schedule,
+# for a release, and for a pull request that changes the iOS app. The UI tests sign in against a real server and skip without one.
+#
+# Every build is numbered with the commit count (scripts/build-number), and compilation is cached by content (Xcode's compilation
+# cache) in PURLAY_CACHE_DIR, so a build in a fresh checkout reuses what an earlier one compiled. CI builds with Xcode 27; set
+# DEVELOPER_DIR to select it locally.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+step() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
+
+PROJECT=Apps/Purlay.xcodeproj
+CAS="${PURLAY_CACHE_DIR:-$HOME/Library/Caches/dev.purlay/compilation-cache}"
+# xcodebuild's -quiet hides what a failed test asserted, so the output is kept and, on a failure, the lines that say what failed
+# are printed with the end of it.
+cached() { # xcodebuild arguments, with the compilation cache on
+  local log status=0
+  log="$(mktemp)"
+  xcodebuild "$@" COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$CAS" COMPILER_INDEX_STORE_ENABLE=NO \
+    >"$log" 2>&1 || status=$?
+  if [ "$status" -ne 0 ]; then
+    grep -E "error:|✘|recorded an issue|Expectation failed|Failing tests|\*\* (TEST|BUILD) FAILED" "$log" | sort -u | head -40 >&2 || true
+    echo "--- the end of the log:" >&2
+    tail -25 "$log" >&2
+  fi
+  rm -f "$log"
+  return "$status"
+}
+
+built_app() { # scheme configuration [destination]: the path of the app that configuration builds
+  xcodebuild -project "$PROJECT" -scheme "$1" -configuration "$2" ${3:+-destination "$3"} -showBuildSettings 2>/dev/null \
+    | awk -F' = ' '/ BUILT_PRODUCTS_DIR /{print $2; exit}'
+}
+
+# The app says the build number it was given: the commit count, above the last build the Mac shipped.
+check_build_number() { # Info.plist
+  local expected actual
+  expected="$(sed -n 's/^CURRENT_PROJECT_VERSION = //p' Config/BuildNumber.xcconfig)"
+  actual="$(plutil -extract CFBundleVersion raw -o - "$1")"
+  [ "$actual" = "$expected" ] || { echo "FAIL: $1 says build $actual, not $expected" >&2; exit 1; }
+  echo "ok  build $actual"
+}
+
+rules() {
+  step "branch name"
+  scripts/check-branch
+  step "architecture rules, and the demonstration that each one refuses its violation"
+  scripts/enforcement
+  scripts/enforcement --demo
+  step "every string of the Mac app has its Turkish translation"
+  scripts/localize --check
+}
+
+generated() {
+  step "the contract bundle is the one the lock pins, and the generated code is what it generates"
+  scripts/contract verify
+  scripts/generate --check
+  step "the generator: build and test"
+  (cd Tools/PurlayGen && swift test 2>&1 | grep -q "Test run with .* passed") || { echo "FAIL: Tools/PurlayGen" >&2; exit 1; }
+}
+
+format() {
+  step "format"
+  find Sources Tests Apps ContractTests Tools -name '*.swift' -not -path '*/.build/*' -not -path '*/Generated/*' -print0 \
+    | xargs -0 xcrun swift-format lint --strict --parallel
+}
+
+packages() {
+  format
+  step "every package test on macOS, and the Mac screens drawn from state, light and dark (pictures in a temporary folder)"
+  local snapshots
+  snapshots="$(mktemp -d)"
+  TEST_RUNNER_PURLAY_SNAPSHOT_DIR="$snapshots" \
+    cached -project "$PROJECT" -scheme Purlay-macOS -testPlan macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test
+  [ -n "$(ls "$snapshots" 2>/dev/null)" ] || { echo "FAIL: no screen was drawn" >&2; exit 1; }
+  rm -rf "$snapshots"
+}
+
+ios() {
+  scripts/build-number
+  step "every module of the package, built for iOS 18 and later"
+  cached -scheme purlay-apple-Package -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+  step "the iOS app, built for the simulator"
+  cached -project "$PROJECT" -scheme Purlay-iOS -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+  check_build_number "$(built_app Purlay-iOS Debug 'generic/platform=iOS Simulator')/Purlay.app/Info.plist"
+}
+
+macos() { # configurations to build and check
+  local configurations="$1" configuration app has signed
+  scripts/build-number
+  step "the Mac app: build $configurations"
+  for configuration in $configurations; do
+    cached -project "$PROJECT" -scheme Purlay-macOS -configuration "$configuration" -destination 'platform=macOS' build
+    check_build_number "$(built_app Purlay-macOS "$configuration")/Purlay.app/Contents/Info.plist"
+  done
+
+  step "App Transport Security stays strict in Release and is relaxed for localhost in Debug only"
+  for configuration in $configurations; do
+    app="$(built_app Purlay-macOS "$configuration")/Purlay.app"
+    has=false; plutil -extract NSAppTransportSecurity xml1 -o - "$app/Contents/Info.plist" >/dev/null 2>&1 && has=true
+    case "$configuration:$has" in
+      Debug:true|Release:false) echo "ok  $configuration" ;;
+      *) echo "FAIL: $configuration has ATS exception = $has" >&2; exit 1 ;;
+    esac
+  done
+
+  step "the sandbox and the entitlements are the allowlist and nothing else"
+  canonical() { python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin), sort_keys=True, separators=(",", ":")))'; }
+  allowlist='{"com.apple.security.app-sandbox":true,"com.apple.security.files.user-selected.read-write":true,"com.apple.security.network.client":true,"com.apple.security.temporary-exception.mach-lookup.global-name":["dev.purlay.mac-spks","dev.purlay.mac-spki"]}'
+  entitlements="$(plutil -convert json -o - Apps/macOS/App/Resources/Purlay.entitlements | python3 -c 'import sys; print(sys.stdin.read().replace("$(PRODUCT_BUNDLE_IDENTIFIER)", "dev.purlay.mac"))' | canonical)"
+  [ "$entitlements" = "$allowlist" ] || { echo "FAIL: entitlements are not the allowlist: $entitlements" >&2; exit 1; }
+  debug_entitlements="$(plutil -convert json -o - Apps/macOS/App/Resources/Purlay.Debug.entitlements | python3 -c '
+import json,sys
+held=json.load(sys.stdin)
+assert held.pop("com.apple.security.cs.disable-library-validation") is True
+print(json.dumps(held).replace("$(PRODUCT_BUNDLE_IDENTIFIER)", "dev.purlay.mac"))' | canonical)"
+  [ "$debug_entitlements" = "$allowlist" ] || { echo "FAIL: unexpected Debug entitlements" >&2; exit 1; }
+  echo "ok  declared"
+  # Check the signed app too. Debug alone permits debugging and loading Sparkle under ad-hoc signing.
+  for configuration in $configurations; do
+    app="$(built_app Purlay-macOS "$configuration")/Purlay.app"
+    signed="$(codesign -d --entitlements - --xml "$app" 2>/dev/null | plutil -convert json -o - - | python3 -c '
+import json, sys
+held = json.load(sys.stdin)
+if sys.argv[1] == "Debug":
+    held.pop("com.apple.security.get-task-allow", None)
+    held.pop("com.apple.security.cs.disable-library-validation", None)
+print(json.dumps(held, sort_keys=True, separators=(",", ":")))' "$configuration")"
+    [ "$signed" = "$allowlist" ] || { echo "FAIL: $configuration is signed with $signed" >&2; exit 1; }
+    echo "ok  $configuration signed"
+  done
+}
+
+simulator() {
+  scripts/build-number
+  step "the iOS tests on a simulator"
+  local destination
+  destination="${PURLAY_DESTINATION:-id=$(xcrun simctl list devices available | grep -m1 'iPhone' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')}"
+  # Booted first, so that it starts while the build runs.
+  xcrun simctl boot "${destination#id=}" 2>/dev/null || true
+  for plan in PR Simulator; do
+    cached -project "$PROJECT" -scheme Purlay-iOS -testPlan "$plan" -destination "$destination" CODE_SIGNING_ALLOWED=NO test
+    echo "ok  TestPlans/$plan"
+  done
+}
+
+security() {
+  step "no secret in the history"
+  if ! command -v gitleaks >/dev/null 2>&1 || [ "$(gitleaks version 2>/dev/null | head -n 1)" != "$(sed -n 's/^VERSION=//p' scripts/install-gitleaks)" ]; then
+    scripts/install-gitleaks
+    # A fresh install is on the PATH of later steps in CI; a person's shell needs it said.
+    PATH="${GITLEAKS_HOME:-$HOME/.local/share/purlay/gitleaks-$(sed -n 's/^VERSION=//p' scripts/install-gitleaks)}:$PATH"
+  fi
+  command -v gitleaks >/dev/null 2>&1 || { echo "FAIL: gitleaks could not be installed, so the history was not scanned" >&2; exit 1; }
+  gitleaks git --no-banner
+}
+
+case "${1:-all}" in
+  rules) rules ;;
+  generated) generated ;;
+  packages) packages ;;
+  ios) ios ;;
+  macos) macos "${2:-Debug}" ;;
+  simulator) simulator ;;
+  security) security ;;
+  all) rules; generated; packages; ios; macos "Debug Release"; simulator; security ;;
+  *) echo "usage: scripts/verify [rules|generated|packages|ios|macos [CONFIGURATIONS]|simulator|security]" >&2; exit 2 ;;
+esac
+
+printf '\n\033[1mverify %s: everything passed\033[0m\n' "${1:-all}"
