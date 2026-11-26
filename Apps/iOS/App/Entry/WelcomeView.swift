@@ -9,6 +9,10 @@ struct WelcomeView: View {
     let brand: Namespace.ID
     let signIn: () async -> Void
 
+    /// The tagline's and the footer's colour: the muted ink token, readable (4.5:1 and more) on the tinted field in light and
+    /// dark, where `.secondary` measured 3.3:1 in light.
+    static let quietInk = Brand.inkMuted
+
     /// Wide enough for the button to read as the screen's action on an iPhone, and no wider on a large window.
     private static let barWidth: CGFloat = 480
 
@@ -18,7 +22,7 @@ struct WelcomeView: View {
                 hero
                 Text(Words.newAccount)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Self.quietInk)
                     .multilineTextAlignment(.center)
             }
             .padding()
@@ -32,7 +36,7 @@ struct WelcomeView: View {
             EntryMarkSlot(brand: brand)
             VStack(spacing: 8) {
                 Text(verbatim: "Purlay").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
-                Text(Words.tagline).font(.title3).foregroundStyle(.secondary)
+                Text(Words.tagline).font(.title3).foregroundStyle(Self.quietInk)
             }
             .multilineTextAlignment(.center)
         }
