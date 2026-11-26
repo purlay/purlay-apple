@@ -61,8 +61,9 @@ private struct ProblemView: View {
     }
 }
 
-/// What the model said that is not a screen of its own, each to be dismissed, on the glass the notices share.
-private struct NoticeList: View {
+/// What the model said that is not a screen of its own, each to be dismissed, on the glass the notices share. VoiceOver does not
+/// read a banner that appears on its own, so each new one is announced, once.
+struct NoticeList: View {
     let model: AppModel
 
     var body: some View {
@@ -76,5 +77,17 @@ private struct NoticeList: View {
         }
         .padding(.horizontal)
         .purlayAnimation(.smooth, value: model.notices)
+        .onChange(of: model.notices) { old, new in
+            let sentences = Self.arrivals(from: old, to: new).compactMap { EngineWords.notice($0.kind) }
+            guard !sentences.isEmpty else { return }
+            AccessibilityNotification.Announcement(sentences.map { String(localized: $0) }.joined(separator: "\n"))
+                .post()
+        }
+    }
+
+    /// The notices in `new` that were not in `old`, in the order they are shown: each is announced when it arrives, never again.
+    nonisolated static func arrivals<Item: Identifiable>(from old: [Item], to new: [Item]) -> [Item] {
+        let shown = Set(old.map(\.id))
+        return new.filter { !shown.contains($0.id) }
     }
 }
