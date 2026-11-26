@@ -150,6 +150,11 @@ print(json.dumps(held, sort_keys=True, separators=(",", ":")))' "$configuration"
   done
 }
 
+# TestPlans/PR runs every package test that can run on iOS. Two cannot, and run on macOS alone (TestPlans/macOS), as they did
+# before the repositories merged: PurlayMacUITests (AppKit), and PurlayKitTests, for two reasons. KeychainSessionStoreTests use
+# the real keychain, and a package's tests run in the simulator's own xctest process, not in an app, so no signing setting of
+# ours gives them a keychain: they fail with -34018 (errSecMissingEntitlement) signed ad hoc or unsigned alike. And
+# MarkdownCorpusTests.limits decodes a nesting deep enough to overflow the stack of that process in JSONValue.init(from:).
 simulator() {
   scripts/build-number
   step "the iOS tests on a simulator"
