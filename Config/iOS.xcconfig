@@ -1,0 +1,15 @@
+// The iPhone and iPad app (target Purlay iOS). The iOS test bundles include this file too.
+PRODUCT_BUNDLE_IDENTIFIER = dev.purlay.ios
+MARKETING_VERSION = 0.1.0
+SDKROOT = iphoneos
+// The floor. iOS 26 and later get Liquid Glass from the system; earlier releases get the quiet fallback in PurlayDesign.
+// Package.swift states the same floor (scripts/enforcement).
+IPHONEOS_DEPLOYMENT_TARGET = 18.0
+TARGETED_DEVICE_FAMILY = 1,2
+SUPPORTS_MACCATALYST = NO
+INFOPLIST_FILE = iOS/Info.plist
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/Frameworks
+CODE_SIGN_IDENTITY = iPhone Developer
+CODE_SIGN_STYLE = Automatic
+// A development team or signing identity of this machine, when there is one; absent on CI and other machines.
+#include? "Local.xcconfig"

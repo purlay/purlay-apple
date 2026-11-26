@@ -1,0 +1,28 @@
+// The Mac app (target Purlay macOS), shipped with Developer ID and Sparkle.
+// Keep the released bundle identifier stable for Keychain and Sparkle update continuity.
+PRODUCT_BUNDLE_IDENTIFIER = dev.purlay.mac
+MARKETING_VERSION = 0.3.0
+SDKROOT = macosx
+// The floor. Package.swift states the same floor (scripts/enforcement).
+MACOSX_DEPLOYMENT_TARGET = 26.0
+ARCHS = arm64
+ENABLE_HARDENED_RUNTIME = YES
+COMBINE_HIDPI_IMAGES = YES
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/../Frameworks
+// The empty expansion keeps xcconfig from interpreting the URL as a comment.
+PURLAY_UPDATE_FEED_URL = https:/$()/github.com/purlay/purlay-macos/releases/latest/download/appcast.xml
+INFOPLIST_FILE = macOS/Info.plist
+CODE_SIGN_ENTITLEMENTS = macOS/App/Resources/Purlay.entitlements
+// Sparkle is prebuilt: ad-hoc development signatures have no Team ID for library validation.
+// Developer ID Release builds retain library validation.
+CODE_SIGN_ENTITLEMENTS[config=Debug] = macOS/App/Resources/Purlay.Debug.entitlements
+// One binary, one signature: the separate debug dylib (for previews, unused here) would be loaded under library validation
+// and refused whenever its signature and the app's differ.
+ENABLE_DEBUG_DYLIB[config=Debug] = NO
+// No debugger may attach to what is shipped (notarisation refuses it too); Xcode adds the key to an ad hoc build unasked.
+CODE_SIGN_INJECT_BASE_ENTITLEMENTS[config=Release] = NO
+// Local builds use ad-hoc signing with sandbox entitlements. CI overrides this with Developer ID for distribution.
+CODE_SIGN_IDENTITY = -
+CODE_SIGN_STYLE = Manual
+// A signing identity of this Mac, when scripts/dev-signing made one; absent on CI and other Macs.
+#include? "Local.xcconfig"

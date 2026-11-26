@@ -1,0 +1,64 @@
+{
+  "configurations" : [
+    {
+      "id" : "95E56D0E-3D6A-419A-92C3-D34FDEF005C3",
+      "name" : "Default",
+      "options" : {}
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:..",
+        "identifier" : "PurlayContractTests",
+        "name" : "PurlayContractTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:..",
+        "identifier" : "PurlayTokensTests",
+        "name" : "PurlayTokensTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:..",
+        "identifier" : "PurlayKitTests",
+        "name" : "PurlayKitTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:..",
+        "identifier" : "PurlayTestSupportTests",
+        "name" : "PurlayTestSupportTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:..",
+        "identifier" : "PurlayDesignTests",
+        "name" : "PurlayDesignTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:..",
+        "identifier" : "PurlayModuleAPITests",
+        "name" : "PurlayModuleAPITests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:..",
+        "identifier" : "PurlayMacUITests",
+        "name" : "PurlayMacUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

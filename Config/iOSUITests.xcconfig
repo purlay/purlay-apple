@@ -1,0 +1,13 @@
+// The iOS app's UI tests (target PurlayUITests): sign-in through the system browser against a real server.
+#include "iOS.xcconfig"
+PRODUCT_NAME = PurlayUITests
+PRODUCT_BUNDLE_IDENTIFIER = dev.purlay.ios.uitests
+GENERATE_INFOPLIST_FILE = YES
+INFOPLIST_FILE =
+INFOPLIST_PREPROCESS = NO
+// iOS.xcconfig gave @executable_path/Frameworks already; $(inherited) carries it.
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @loader_path/Frameworks
+// The platform's own default for a test bundle, which iOS.xcconfig's identity for the app would otherwise replace.
+CODE_SIGN_IDENTITY = Apple Development
+CODE_SIGN_IDENTITY[sdk=iphonesimulator*] = -
+TEST_TARGET_NAME = Purlay iOS
