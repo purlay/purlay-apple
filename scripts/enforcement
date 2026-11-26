@@ -463,11 +463,12 @@ PY
       | grep -vE "^$root/Sources/PurlayTokens/PurlayTokens.swift:|^$root/Sources/PurlayDesign/HexColor.swift:"; then
     echo "FAIL: a second hex colour decoder; use Color(hex:) or RGBA(hex:)" >&2; failed=1
   fi
-  # A colour is a token. A colour written as a literal (a hex value, or components given as numbers) is allowed only where its
-  # value is stated: the tokens (generated from the server's tokens.json), the logo (Logo.swift, written from Design/purlay.svg),
-  # and NativePalette.swift, the allowlist of the Mac's neutral greys and status colours, which no token states yet.
+  # A colour is a token. A colour written as a literal (a hex value, with or without its alpha, or components given as numbers, in
+  # any colour space and through `.init` as well) is allowed only where its value is stated: the tokens (generated from the
+  # server's tokens.json), the logo (Logo.swift, written from Design/purlay.svg), and NativePalette.swift, the allowlist of the
+  # Mac's neutral greys and status colours, which no token states yet.
   if grep -rnE --include='*.swift' \
-      '0x[0-9A-Fa-f]{6}\b|(Color|NSColor|UIColor)\((\.sRGB, *)?(red|srgbRed|white|hue|displayP3Red|calibratedRed|deviceRed|calibratedWhite|deviceWhite): *[0-9.]|#colorLiteral' \
+      '0x[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?\b|(Color|NSColor|UIColor|\.init)\((\.(sRGB|sRGBLinear|displayP3), *)?(red|srgbRed|white|hue|displayP3Red|calibratedRed|deviceRed|calibratedWhite|deviceWhite): *[0-9.]|#colorLiteral' \
       "$root/Sources" "$root"/Apps/*/App | grep -v '/Generated/' \
       | grep -vE "^$root/Sources/PurlayDesign/Logo.swift:|^$root/Sources/PurlayMacUI/NativePalette.swift:" \
       | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
@@ -745,6 +746,11 @@ plant "a colour by components in the Mac screens" Sources/PurlayMacUI/Strings.sw
   'let leakedGrey = Color(.sRGB, red: 0.5, green: 0.5, blue: 0.5)'
 plant "a colour by components in PurlayDesign" Sources/PurlayDesign/Brand.swift 'let leakedWhite = Color(white: 0.9)'
 plant "a hex colour in NativePalette's neighbour" Sources/PurlayMacUI/TokenBinding.swift 'let leakedHex: UInt32 = 0x015bf7'
+plant "a Display P3 colour by components in an iOS view" Apps/iOS/App/Entry/WelcomeView.swift \
+  'let leakedP3 = Color(.displayP3, red: 0.1, green: 0.2, blue: 0.3)'
+plant "a hex colour with its alpha in an iOS view" Apps/iOS/App/Entry/WelcomeView.swift 'let leakedRGBA: UInt32 = 0x2563EBFF'
+plant "a colour by components through .init" Apps/iOS/App/Entry/WelcomeView.swift \
+  'let leakedInit: Color = .init(red: 0.1, green: 0.2, blue: 0.3)'
 plant_in "the accent not named by the build" Config \
   'sed -i.bak "/^ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME/d" Shared.xcconfig && rm Shared.xcconfig.bak'
 plant_in "the Mac's accent asset missing" Apps/macOS/App/Resources/Assets.xcassets 'rm -r AccentColor.colorset'
