@@ -26,11 +26,23 @@ struct ConnectingView: View {
         )
         .ignoresSafeArea()
         .task {
-            try? await Task.sleep(for: Self.statusDelay)
-            showsStatus = true
-            // The status arrives after the screen did: VoiceOver is told the screen changed, so it reads it.
-            AccessibilityNotification.LayoutChanged().post()
+            await Self.revealStatus(after: Self.statusDelay) {
+                showsStatus = true
+                // The status arrives after the screen did: VoiceOver is told the screen changed, so it reads it.
+                AccessibilityNotification.LayoutChanged().post()
+            }
         }
+    }
+
+    /// Waits out the delay, then reveals what is under way. A screen that left meanwhile cancels the wait, and nothing is shown
+    /// or announced for it.
+    static func revealStatus(after delay: Duration, _ reveal: () -> Void) async {
+        do {
+            try await Task.sleep(for: delay)
+        } catch {
+            return
+        }
+        reveal()
     }
 
     private var status: some View {
