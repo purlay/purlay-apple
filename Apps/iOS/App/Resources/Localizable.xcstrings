@@ -61,16 +61,6 @@
         }
       }
     },
-    "Your session ends on %@. Sign in again before then to stay connected." : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Oturumun %@ tarihinde sona eriyor. Bağlı kalmak için o zamandan önce yeniden oturum aç."
-          }
-        }
-      }
-    },
     "Your team's conversations, in your pocket." : {
       "localizations" : {
         "tr" : {
