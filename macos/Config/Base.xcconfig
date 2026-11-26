@@ -1,0 +1,31 @@
+// Keep the released bundle identifier stable for Keychain and Sparkle update continuity.
+PRODUCT_BUNDLE_IDENTIFIER = dev.purlay.mac
+PRODUCT_NAME = Purlay
+MARKETING_VERSION = 0.3.0
+CURRENT_PROJECT_VERSION = 1
+MACOSX_DEPLOYMENT_TARGET = 26.0
+ARCHS = arm64
+SWIFT_VERSION = 6.0
+SWIFT_STRICT_CONCURRENCY = complete
+SWIFT_TREAT_WARNINGS_AS_ERRORS = YES
+GCC_TREAT_WARNINGS_AS_ERRORS = YES
+ENABLE_HARDENED_RUNTIME = YES
+ENABLE_USER_SCRIPT_SANDBOXING = YES
+// The scheme the sign-in hands the session back through: fixed by the server (`NATIVE_REDIRECT`).
+PURLAY_URL_SCHEME = purlay
+// The empty expansion keeps xcconfig from interpreting the URL as a comment.
+PURLAY_UPDATE_FEED_URL = https:/$()/github.com/purlay/purlay-macos/releases/latest/download/appcast.xml
+GENERATE_INFOPLIST_FILE = NO
+INFOPLIST_PREPROCESS = YES
+PURLAY_PLIST_DEFINITIONS =
+INFOPLIST_PREPROCESSOR_DEFINITIONS = $(PURLAY_PLIST_DEFINITIONS)
+INFOPLIST_FILE = App/Resources/Info.plist
+CODE_SIGN_ENTITLEMENTS = App/Resources/Purlay.entitlements
+// Local builds use ad-hoc signing with sandbox entitlements. CI overrides this with Developer ID for distribution.
+CODE_SIGN_IDENTITY = -
+CODE_SIGN_STYLE = Manual
+DEVELOPMENT_TEAM =
+// The icon, made from Design/purlay.svg by scripts/icon.
+ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
+// A signing identity of this Mac, when scripts/dev-signing made one; absent on CI and other Macs.
+#include? "Local.xcconfig"

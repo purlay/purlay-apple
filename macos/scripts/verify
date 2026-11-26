@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# Everything the pipeline checks, in lanes, so that CI runs them side by side and a person runs them all. A pass from some
+# other working state is an opinion; this is the evidence.
+#
+#   scripts/verify          every lane, with the Release build too
+#   scripts/verify rules    project, shared files, architecture rules and their demonstration, strings   (no Xcode needed)
+#   scripts/verify test     format, then PurlayUI's tests and the screens' snapshots
+#   scripts/verify app      the Debug app: build, App Transport Security, entitlements
+#   scripts/verify security the whole git history scanned for secrets (gitleaks, at the version scripts/install-gitleaks pins)
+#
+# Compilation is cached by content (Xcode's compilation cache) in PURLAY_CACHE_DIR, so a build in a fresh checkout reuses
+# what an earlier one compiled. CI builds with Xcode 27; set DEVELOPER_DIR to select it locally.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+step() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
+
+CAS="${PURLAY_CACHE_DIR:-$HOME/Library/Caches/dev.purlay/compilation-cache}"
+cached() { # xcodebuild arguments, with the compilation cache on
+  xcodebuild "$@" COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$CAS" \
+    COMPILER_INDEX_STORE_ENABLE=NO -quiet
+}
+
+rules() {
+  step "the generated project is not committed"
+  if git ls-files --error-unmatch Purlay.xcodeproj >/dev/null 2>&1; then
+    echo "FAIL: Purlay.xcodeproj is tracked; project.yml is the definition" >&2; exit 1
+  fi
+  step "branch name"
+  scripts/check-branch
+  step "shared files are the owners' copies"
+  scripts/check-shared-files
+  step "architecture rules, and the demonstration that each one refuses its violation"
+  scripts/enforcement
+  scripts/enforcement --demo
+  step "every string has its Turkish translation"
+  scripts/localize --check
+  step "Release keeps App Transport Security strict: it defines nothing for the preprocessor"
+  if grep -qE '^PURLAY_PLIST_DEFINITIONS *=.*[A-Za-z]' Config/Release.xcconfig; then
+    echo "FAIL: Config/Release.xcconfig defines Info.plist preprocessor values" >&2; exit 1
+  fi
+}
+
+tests() {
+  step "format"
+  find App Packages -name '*.swift' -not -path '*/.build/*' -print0 | xargs -0 xcrun swift-format lint --strict --parallel
+  step "PurlayUI: tests, and the screens drawn from state, light and dark (pictures in a temporary folder)"
+  snapshots="$(mktemp -d)"
+  (cd Packages/PurlayUI && TEST_RUNNER_PURLAY_SNAPSHOT_DIR="$snapshots" \
+    cached -scheme PurlayUI -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test)
+  [ -n "$(ls "$snapshots" 2>/dev/null)" ] || { echo "FAIL: no screen was drawn" >&2; exit 1; }
+  rm -rf "$snapshots"
+}
+
+app() { # configurations to build and check
+  CONFIGS="$1"
+  step "the app: generate, build $CONFIGS"
+  xcodegen generate --quiet
+  for configuration in $CONFIGS; do
+    cached -project Purlay.xcodeproj -scheme Purlay -configuration "$configuration" -destination 'platform=macOS' build
+  done
+
+  step "App Transport Security stays strict in Release and is relaxed for localhost in Debug only"
+  for configuration in $CONFIGS; do
+    app="$(xcodebuild -project Purlay.xcodeproj -scheme Purlay -configuration "$configuration" -showBuildSettings 2>/dev/null \
+      | awk -F' = ' '/ BUILT_PRODUCTS_DIR /{print $2}')/Purlay.app"
+    has=false; plutil -extract NSAppTransportSecurity xml1 -o - "$app/Contents/Info.plist" >/dev/null 2>&1 && has=true
+    case "$configuration:$has" in
+      Debug:true|Release:false) echo "ok  $configuration" ;;
+      *) echo "FAIL: $configuration has ATS exception = $has" >&2; exit 1 ;;
+    esac
+  done
+
+  step "the sandbox and the entitlements are the allowlist and nothing else"
+  canonical() { python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin), sort_keys=True, separators=(",", ":")))'; }
+  allowlist='{"com.apple.security.app-sandbox":true,"com.apple.security.files.user-selected.read-write":true,"com.apple.security.network.client":true,"com.apple.security.temporary-exception.mach-lookup.global-name":["dev.purlay.mac-spks","dev.purlay.mac-spki"]}'
+  entitlements="$(plutil -convert json -o - App/Resources/Purlay.entitlements | python3 -c 'import sys; print(sys.stdin.read().replace("$(PRODUCT_BUNDLE_IDENTIFIER)", "dev.purlay.mac"))' | canonical)"
+  [ "$entitlements" = "$allowlist" ] || { echo "FAIL: entitlements are not the allowlist: $entitlements" >&2; exit 1; }
+  debug_entitlements="$(plutil -convert json -o - App/Resources/Purlay.Debug.entitlements | python3 -c '
+import json,sys
+held=json.load(sys.stdin)
+assert held.pop("com.apple.security.cs.disable-library-validation") is True
+print(json.dumps(held).replace("$(PRODUCT_BUNDLE_IDENTIFIER)", "dev.purlay.mac"))' | canonical)"
+  [ "$debug_entitlements" = "$allowlist" ] || { echo "FAIL: unexpected Debug entitlements" >&2; exit 1; }
+  echo "ok  declared"
+  # Check the signed app too. Debug alone permits debugging and loading Sparkle under ad-hoc signing.
+  for configuration in $CONFIGS; do
+    app="$(xcodebuild -project Purlay.xcodeproj -scheme Purlay -configuration "$configuration" -showBuildSettings 2>/dev/null \
+      | awk -F' = ' '/ BUILT_PRODUCTS_DIR /{print $2}')/Purlay.app"
+    signed="$(codesign -d --entitlements - --xml "$app" 2>/dev/null | plutil -convert json -o - - | python3 -c '
+import json, sys
+held = json.load(sys.stdin)
+if sys.argv[1] == "Debug":
+    held.pop("com.apple.security.get-task-allow", None)
+    held.pop("com.apple.security.cs.disable-library-validation", None)
+print(json.dumps(held, sort_keys=True, separators=(",", ":")))' "$configuration")"
+    [ "$signed" = "$allowlist" ] || { echo "FAIL: $configuration is signed with $signed" >&2; exit 1; }
+    echo "ok  $configuration signed"
+  done
+}
+
+security() {
+  step "no secret in the history"
+  scripts/install-gitleaks
+  # An installer run by hand cannot extend this shell's PATH (GitHub Actions does it through GITHUB_PATH); look where it puts the binary.
+  export PATH="${GITLEAKS_HOME:-$HOME/.local/share/purlay/gitleaks-$(sed -n 's/^VERSION=//p' scripts/install-gitleaks)}:$PATH"
+  command -v gitleaks >/dev/null || { echo "FAIL: gitleaks is not installed, so the history was not scanned" >&2; exit 1; }
+  gitleaks git --no-banner
+}
+
+case "${1:-all}" in
+  rules) rules ;;
+  test) tests ;;
+  app) app "Debug" ;;
+  security) security ;;
+  all) rules; tests; app "Debug Release"; security ;;
+  *) echo "usage: scripts/verify [rules|test|app|security]" >&2; exit 2 ;;
+esac
+
+printf '\n\033[1mverify %s: everything passed\033[0m\n' "${1:-all}"
