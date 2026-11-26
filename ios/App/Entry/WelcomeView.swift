@@ -1,7 +1,7 @@
 import PurlayDesign
 import SwiftUI
 
-/// Signed out: who Purlay is, and the one thing to do. The mark arrives from the connecting screen; Sign In stands in the
+/// Signed out: who Purlay is, and the one thing to do. The shared mark (`entryMark`) arrives from the connecting screen; Sign In stands in the
 /// bottom bar with where the sign-in continues said under it.
 struct WelcomeView: View {
     /// The host the browser will open, when the server is known.
@@ -14,10 +14,8 @@ struct WelcomeView: View {
 
     var body: some View {
         Scrolling {
-            VStack(spacing: 32) {
-                Spacer(minLength: 0)
+            RaisedGroupLayout {
                 hero
-                Spacer(minLength: 0)
                 Text(Words.newAccount)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -31,9 +29,7 @@ struct WelcomeView: View {
 
     private var hero: some View {
         VStack(spacing: 16) {
-            PurlayMark()
-                .matchedGeometryEffect(id: EntryMark.id, in: brand)
-                .frame(width: PurlayMark.launchSize, height: PurlayMark.launchSize)
+            EntryMarkSlot(brand: brand)
             VStack(spacing: 8) {
                 Text(verbatim: "Purlay").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
                 Text(Words.tagline).font(.title3).foregroundStyle(.secondary)
@@ -61,22 +57,58 @@ struct WelcomeView: View {
     }
 }
 
+/// The group over the footer, with the group's centre a little above the middle of the space (at 40 % of the height) so it
+/// does not sink towards the bar, and the footer at the bottom. A share of the height rather than padding, so it holds on every
+/// screen; when the two outgrow the space they stack and the layout grows, so the content scrolls instead of clipping.
+private struct RaisedGroupLayout: Layout {
+    private static let groupCentre: CGFloat = 0.4
+    private static let spacing: CGFloat = 32
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
+        let sizes = subviews.map { $0.sizeThatFits(ProposedViewSize(width: proposal.width, height: nil)) }
+        let stacked = sizes.map(\.height).reduce(0, +) + Self.spacing * CGFloat(max(sizes.count - 1, 0))
+        let width = proposal.width ?? sizes.map(\.width).max() ?? 0
+        return CGSize(width: width, height: max(proposal.height ?? 0, stacked))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
+        guard let group = subviews.first, let footer = subviews.last, subviews.count == 2 else { return }
+        let width = ProposedViewSize(width: bounds.width, height: nil)
+        let groupHeight = group.sizeThatFits(width).height
+        let footerHeight = footer.sizeThatFits(width).height
+        let lowestTop = bounds.maxY - footerHeight - Self.spacing - groupHeight
+        let groupTop = min(
+            max(bounds.minY, bounds.minY + bounds.height * Self.groupCentre - groupHeight / 2), lowestTop)
+        group.place(at: CGPoint(x: bounds.midX, y: max(groupTop, bounds.minY)), anchor: .top, proposal: width)
+        footer.place(at: CGPoint(x: bounds.midX, y: bounds.maxY), anchor: .bottom, proposal: width)
+    }
+}
+
 #Preview("Light") {
     @Previewable @Namespace var brand
-    WelcomeView(server: "purlay.app", brand: brand, signIn: {})
+    WelcomeView(server: "purlay.app", brand: brand, signIn: {}).entryMark(in: brand, shown: true)
 }
 
 #Preview("Dark") {
     @Previewable @Namespace var brand
-    WelcomeView(server: "purlay.app", brand: brand, signIn: {}).preferredColorScheme(.dark)
+    WelcomeView(server: "purlay.app", brand: brand, signIn: {}).entryMark(in: brand, shown: true).preferredColorScheme(
+        .dark)
 }
 
 #Preview("Turkish") {
     @Previewable @Namespace var brand
-    WelcomeView(server: "sohbet.örnek.com.tr", brand: brand, signIn: {}).environment(\.locale, .init(identifier: "tr"))
+    WelcomeView(server: "sohbet.örnek.com.tr", brand: brand, signIn: {}).entryMark(in: brand, shown: true).environment(
+        \.locale, .init(identifier: "tr"))
 }
 
 #Preview("Largest text, no host") {
     @Previewable @Namespace var brand
-    WelcomeView(server: nil, brand: brand, signIn: {}).dynamicTypeSize(.accessibility5)
+    WelcomeView(server: nil, brand: brand, signIn: {}).entryMark(in: brand, shown: true).dynamicTypeSize(
+        .accessibility5)
+}
+
+#Preview("375 pt, largest text", traits: .fixedLayout(width: 375, height: 667)) {
+    @Previewable @Namespace var brand
+    WelcomeView(server: "purlay.app", brand: brand, signIn: {}).entryMark(in: brand, shown: true)
+        .dynamicTypeSize(.accessibility5)
 }
