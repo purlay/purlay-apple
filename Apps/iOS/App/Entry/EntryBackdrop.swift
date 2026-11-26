@@ -1,3 +1,4 @@
+import PurlayDesign
 import SwiftUI
 
 /// The quiet field of brand blues behind Welcome. It drifts slowly, and SwiftUI interpolates the drift: no work of ours runs
@@ -48,15 +49,6 @@ struct EntryBackdrop: View {
         [0, 0.3], [0.5, 0.5], [1, 0.7],
         [0, 1], [0.25, 1], [1, 1],
     ]
-}
-
-extension Color {
-    /// An sRGB colour from its `0xRRGGBB` value, as the logo writes it.
-    fileprivate init(hex: UInt32) {
-        self.init(
-            .sRGB, red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255,
-            blue: Double(hex & 0xFF) / 255)
-    }
 }
 
 #Preview("Light") {

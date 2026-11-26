@@ -48,60 +48,13 @@ enum RealEnvironment {
 
 #if DEBUG
 extension RealEnvironment {
-    /// Development shortcuts, in debug builds only, for the server `PURLAY_DEV_SERVER` names: `PURLAY_DEV_RESET=1` forgets
-    /// its stored session first (a Keychain item outlives the app's launches), and `PURLAY_DEV_SESSION=<the cookie's
-    /// value>` stores one already made, so the screens after sign-in can be looked at and tested without the browser.
-    ///
-    /// What cannot be done is logged, not swallowed: a developer who asked for a session and did not get one is told why.
+    /// The development shortcuts (`DevelopmentSession`), for this app's sessions and in its log.
     static func seedDevelopmentSession(
         _ environment: AppEnvironment, variables: [String: String] = ProcessInfo.processInfo.environment
     ) {
-        guard let server = variables["PURLAY_DEV_SERVER"] else { return }
-        let address: ServerAddress
-        do {
-            address = try ServerAddress.parse(server, allowsLocalHTTP: true)
-        } catch {
-            log.error("PURLAY_DEV_SERVER is not a usable address: \(String(describing: error))")
-            return
-        }
-        if variables["PURLAY_DEV_RESET"] == "1" {
-            do {
-                try environment.sessions.delete(for: address)
-            } catch {
-                log.error("The stored session could not be forgotten: \(String(describing: error))")
-            }
-        }
-        guard let session = variables["PURLAY_DEV_SESSION"] else { return }
-        do {
-            try environment.sessions.save(
-                StoredSession(cookie: session, expiresAt: nil, origin: address.description), for: address)
-        } catch {
-            log.error("The development session could not be stored: \(String(describing: error))")
-        }
+        DevelopmentSession.seed(
+            environment.sessions, variables: variables,
+            log: Logger(subsystem: identity.logSubsystem, category: "development"))
     }
-
-    private static let log = Logger(subsystem: identity.logSubsystem, category: "development")
 }
 #endif
-
-/// Who the retained data belongs to, kept in the app's defaults beside it.
-struct DefaultsOwner: OwnerMemory {
-    private let key = "retained-data-owner"
-    private let suite: String?
-
-    /// `suite`: a defaults domain a test makes for itself; the app's own (the standard one) when `nil`.
-    init(suite: String? = nil) {
-        self.suite = suite
-    }
-
-    private var defaults: UserDefaults { suite.flatMap { UserDefaults(suiteName: $0) } ?? .standard }
-
-    func load() -> String? { defaults.string(forKey: key) }
-    func save(_ owner: String?) {
-        if let owner {
-            defaults.set(owner, forKey: key)
-        } else {
-            defaults.removeObject(forKey: key)
-        }
-    }
-}
