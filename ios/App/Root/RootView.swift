@@ -13,11 +13,11 @@ struct RootView: View {
 
     @ViewBuilder
     private var screen: some View {
-        switch RootScreen(model.phase) {
+        switch RootScreen(model) {
         case .busy(let busy): BusyView(busy: busy)
         case .problem(let problem): ProblemView(problem: problem, retry: { await RootActions.retry(model) })
         case .signIn: SignInView(signIn: { await RootActions.signIn(model) })
-        case .ready:
+        case .ready, .twoFactorRequired, .noWorkspace:
             ContentUnavailableView {
                 Label(Words.signedInTitle, systemImage: "checkmark.circle")
             } description: {
