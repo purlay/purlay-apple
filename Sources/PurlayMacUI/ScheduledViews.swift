@@ -43,7 +43,10 @@ struct FutureTimePicker: View {
                     date = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: tomorrow) ?? tomorrow
                 }
             }
-            DatePicker("When", selection: $date, displayedComponents: [.date, .hourAndMinute])
+            // The server refuses a time less than a minute away, so the picker does not offer one.
+            DatePicker(
+                "When", selection: $date, in: Date.now.addingTimeInterval(60)...,
+                displayedComponents: [.date, .hourAndMinute])
             Text("Time zone: \(TimeZone.current.identifier)")
                 .font(.caption).foregroundStyle(.secondary)
         }
@@ -156,7 +159,7 @@ struct ScheduledSheet: View {
             ) { dismiss() }
             Divider()
             if let feedback { feedback.padding(.horizontal) }
-            if model.scheduledFailed {
+            if model.scheduledFailed, !model.scheduledItems.isEmpty {
                 HStack {
                     Text("Scheduled messages could not be refreshed.")
                     Button("Retry") { Task { await refresh() } }
@@ -165,9 +168,18 @@ struct ScheduledSheet: View {
             if model.scheduledItems.isEmpty {
                 if model.scheduledLoading {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if model.scheduledFailed {
+                    ContentUnavailableView {
+                        Label("Could Not Load Scheduled Messages", systemImage: "wifi.exclamationmark")
+                    } description: {
+                        Text("Check your connection and try again.")
+                    } actions: {
+                        Button("Try Again") { Task { await model.loadScheduled() } }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ContentUnavailableView(
-                        "No scheduled messages", systemImage: "clock",
+                        "No Scheduled Messages", systemImage: "clock",
                         description: Text("Choose Schedule beside Send in a conversation.")
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -202,13 +214,13 @@ struct ScheduledSheet: View {
                                 "Only owners and admins post in this channel. You can still reply in a thread.",
                                 systemImage: "megaphone"
                             )
-                            .font(.caption).foregroundStyle(.red)
+                            .font(.caption).foregroundStyle(Colors.dangerText.style)
                         } else if message.state == .failed {
                             Label(
                                 "Could not send. Check access and attachments, then edit to try again.",
                                 systemImage: "exclamationmark.triangle"
                             )
-                            .font(.caption).foregroundStyle(.red)
+                            .font(.caption).foregroundStyle(Colors.dangerText.style)
                         } else {
                             Label(
                                 message.sendAt.date.formatted(date: .abbreviated, time: .shortened),

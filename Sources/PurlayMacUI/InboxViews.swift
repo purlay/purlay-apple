@@ -150,8 +150,7 @@ struct InboxPage: View {
     private var list: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-                ForEach(Inbox.sections(model.inboxRows, calendar: .current, now: Date()), id: \.section.hashValue) {
-                    group in
+                ForEach(Inbox.sections(model.inboxRows, calendar: .current, now: Date()), id: \.section) { group in
                     Section {
                         ForEach(group.rows) { row in InboxRowView(model: model, row: row) }
                     } header: {
@@ -246,12 +245,18 @@ private struct InboxRowView: View {
             Rectangle().fill(NativePalette.divider.style).frame(height: Stroke.strokeHairline)
                 .padding(.leading, Spacing.space4 * 2 + Size.sizeAvatarLg + Size.sizeDot)
         }
-        .onContinuousHover { phase in
-            if case .active = phase { hovering = true } else { hovering = false }
-        }
+        .onHover { hovering = $0 }
         .animation(reduceMotion ? nil : Motion.easingStandard.animation(Motion.durationHover), value: hovering)
+        // The hover button is not the only way to it: a pointer that never rests on the row, and VoiceOver, get it here too.
+        .contextMenu {
+            if row.isUnread {
+                Button("Mark Read", systemImage: "checkmark") { Task { await model.markInboxRead(row) } }
+            }
+        }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
+        // The unread dot is hidden from VoiceOver, so the state is said in words.
+        .accessibilityValue(row.isUnread ? Text("Unread") : Text(verbatim: ""))
         .accessibilityAction(named: Text("Mark Read")) { Task { await model.markInboxRead(row) } }
     }
 
@@ -432,11 +437,15 @@ private struct UpdateRowView: View {
             Rectangle().fill(NativePalette.divider.style).frame(height: Stroke.strokeHairline)
                 .padding(.leading, Spacing.space4 * 2 + Size.sizeAvatarLg + Size.sizeDot)
         }
-        .onContinuousHover { phase in
-            if case .active = phase { hovering = true } else { hovering = false }
+        .onHover { hovering = $0 }
+        .contextMenu {
+            if row.isUnread {
+                Button("Mark Read", systemImage: "checkmark") { Task { await model.markUpdateRead(row.id) } }
+            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
+        .accessibilityValue(row.isUnread ? Text("Unread") : Text(verbatim: ""))
         .accessibilityAction(named: Text("Mark Read")) { Task { await model.markUpdateRead(row.id) } }
     }
 

@@ -1,5 +1,7 @@
 #if os(macOS)
 import AppKit
+import PurlayKit
+import PurlayTokens
 import SwiftUI
 import UserNotifications
 
@@ -34,9 +36,16 @@ struct NotificationPermissionSection: View {
                 // macOS lists an app under Notifications only once it has asked, so this is the way to get on that list.
                 Button("Allow Notifications") {
                     Task {
-                        _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [
-                            .alert, .badge,
-                        ])
+                        do {
+                            _ = try await UNUserNotificationCenter.current().requestAuthorization(options: [
+                                .alert, .badge,
+                            ])
+                        } catch {
+                            // The page says what the system decided once it is read again below; the cause is for the log.
+                            Log.attention.error(
+                                "the system refused to ask for notifications: \(error.localizedDescription, privacy: .public)"
+                            )
+                        }
                         await refresh()
                     }
                 }
@@ -55,7 +64,7 @@ struct NotificationPermissionSection: View {
 
     @ViewBuilder private func warning(_ text: LocalizedStringKey) -> some View {
         Label(text, systemImage: "exclamationmark.triangle.fill")
-            .foregroundStyle(.orange)
+            .foregroundStyle(Colors.warningText.style)
         Button("Open Notification Settings") {
             if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
                 NSWorkspace.shared.open(url)

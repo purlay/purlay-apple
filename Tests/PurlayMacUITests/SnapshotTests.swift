@@ -314,6 +314,22 @@ extension SnapshotTests {
             _ = try draw(MainView(model: m), width: 1100, height: 720, dark: dark, named: "main")
         }
     }
+
+    /// A sheet as the system presents it: on the window's background, which a bare hosting view does not draw.
+    private func sheet(_ content: some View) -> some View {
+        content.background(NativePalette.canvas.style)
+    }
+
+    @Test("scheduled messages and reminders, empty and failed with nothing to show")
+    func scheduledAndReminders() throws {
+        let m = model()
+        _ = try draw(sheet(ScheduledSheet(model: m)), width: 600, height: 500, named: "scheduled-empty")
+        _ = try draw(sheet(RemindersSheet(model: m)), width: 600, height: 500, named: "reminders-empty")
+        m.scheduledFailed = true
+        m.failedReminders = true
+        _ = try draw(sheet(ScheduledSheet(model: m)), width: 600, height: 500, named: "scheduled-failed")
+        _ = try draw(sheet(RemindersSheet(model: m)), width: 600, height: 500, named: "reminders-failed")
+    }
 }
 
 extension JSONDecoder {

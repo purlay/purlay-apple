@@ -1,6 +1,7 @@
 #if os(macOS)
 import PurlayContract
 import PurlayKit
+import PurlayTokens
 import PurlayWords
 import SwiftUI
 
@@ -64,7 +65,7 @@ struct RemindersSheet: View {
             ) { dismiss() }
             Divider()
             if let feedback { feedback.padding(.horizontal) }
-            if model.remindersFailed {
+            if model.remindersFailed, !model.reminderItems.isEmpty {
                 HStack {
                     Text("Reminders could not be refreshed.")
                     Button("Retry") { Task { await model.loadReminders() } }
@@ -73,9 +74,18 @@ struct RemindersSheet: View {
             if model.reminderItems.isEmpty {
                 if model.remindersLoading {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if model.remindersFailed {
+                    ContentUnavailableView {
+                        Label("Could Not Load Reminders", systemImage: "wifi.exclamationmark")
+                    } description: {
+                        Text("Check your connection and try again.")
+                    } actions: {
+                        Button("Try Again") { Task { await model.loadReminders() } }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ContentUnavailableView(
-                        "No pending reminders", systemImage: "bell.badge",
+                        "No Pending Reminders", systemImage: "bell.badge",
                         description: Text("Choose Remind Me from a message’s menu. Due reminders appear in Inbox.")
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

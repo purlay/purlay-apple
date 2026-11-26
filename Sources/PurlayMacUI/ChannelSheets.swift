@@ -279,17 +279,19 @@ struct NewConversationSheet: View {
     @State private var peopleFailed = false
     @State private var refreshRevision = 0
 
-    private var people: [User] {
+    private var matchingPeople: [User] {
         let folded = MentionSuggest.fold(query)
         return model.workspacePeople.filter {
             folded.isEmpty || MentionSuggest.fold($0.displayName).contains(folded)
                 || MentionSuggest.fold($0.username).contains(folded)
-        }.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+        }.sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
     }
 
     private var full: Bool { chosen.count >= ContractConstants.conversationPeopleMax - 1 }
 
     var body: some View {
+        // Folded, filtered and sorted once per draw; the list and the empty state below both use it.
+        let people = matchingPeople
         VStack(alignment: .leading, spacing: 0) {
             SheetHeader(
                 title: "New Conversation", subtitle: "One person, a few people, or a note to yourself.",
@@ -302,7 +304,7 @@ struct NewConversationSheet: View {
             TextField("Search people", text: $query).purlayTextField().controlSize(.large)
                 .padding(Spacing.space4).disabled(busy)
             if !chosen.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
+                ScrollView(.horizontal) {
                     GlassEffectContainer(spacing: Spacing.space1) {
                         HStack(spacing: Spacing.space2) {
                             ForEach(chosen, id: \.id) { person in
@@ -321,6 +323,7 @@ struct NewConversationSheet: View {
                     }
                     .padding(.vertical, Spacing.space1)
                 }
+                .scrollIndicators(.hidden)
                 .padding(.horizontal, Spacing.space4).disabled(busy)
             }
             List(people, id: \.id) { person in

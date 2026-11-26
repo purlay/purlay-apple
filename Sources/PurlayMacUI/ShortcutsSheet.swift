@@ -31,6 +31,7 @@ struct ShortcutsSheet: View {
                 Row(keys: "⌥↑  ⌥↓", what: "Previous or next channel"),
                 Row(keys: "⌥⇧↑  ⌥⇧↓", what: "Previous or next channel with something to read"),
                 Row(keys: "⇧⎋", what: "Mark all channels as read"),
+                Row(keys: "⌘1 … ⌘9", what: "Switch to another workspace"),
                 Row(keys: "⌃⌘S", what: "Show or hide the sidebar"),
                 Row(keys: "⎋", what: "Close what is open: the edit, then the thread"),
             ]),
@@ -49,11 +50,13 @@ struct ShortcutsSheet: View {
                 Row(keys: "Home  End", what: "The first or the last message"),
                 Row(keys: "T  R", what: "Open the chosen message's thread"),
                 Row(keys: "E", what: "Edit the chosen message, if it is yours"),
+                Row(keys: "⇧⌘E", what: "React to the chosen message"),
                 Row(keys: "⇧⌘R", what: "Resolve or reopen the open thread"),
             ]),
         Group(
             title: "Writing",
             rows: [
+                Row(keys: "⌘L", what: "Go to the message box"),
                 Row(keys: "↩  ⌘↩", what: "Send"),
                 Row(keys: "⇧↩", what: "New line, carrying a list on"),
                 Row(keys: "⌥↩", what: "New line"),
