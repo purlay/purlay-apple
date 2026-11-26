@@ -43,6 +43,35 @@ struct LiveSocketTests {
         #expect(live.messages.first { $0.id == id }?.content == text)
     }
 
+    @Test("a person typing is said over the socket, and somebody else watching the channel sees them typing")
+    func typing() async throws {
+        let (world, _, _, live) = try setup()
+        let channelID = try #require(world.channels["api"])
+        let alice = try world.persona("alice")
+        let watcher = Live(world: world, session: alice.session, api: world.client(as: alice))
+        for connection in [live.connection, watcher.connection] {
+            connection.watch(channelID)
+            connection.start()
+        }
+        defer {
+            live.connection.stop()
+            watcher.connection.stop()
+        }
+        #expect(await live.until { live.subscribed })
+        #expect(await watcher.until { watcher.subscribed })
+        let channel = try #require(Uuid(channelID))
+        #expect(
+            live.connection.send(.typing(TypingFrame(id: live.ids.next(), payload: .init(channelId: channel)))))
+        let me = try world.persona("dogancan").userID
+        #expect(
+            await watcher.until {
+                watcher.frames.contains { frame in
+                    if case .typing(let typing) = frame { return typing.data.userId.value == me }
+                    return false
+                }
+            })
+    }
+
     @Test("a message sent over the socket is acknowledged with its own id, and then arrives as a frame")
     func sendOverSocket() async throws {
         let (world, _, _, live) = try setup()

@@ -75,4 +75,43 @@ struct LiveFeaturesTests {
         try await api.markInboxRead(workspaceId: world.workspaceID, body: MarkInboxReadRequest(all: true))
         #expect(try await api.listInbox(workspaceId: world.workspaceID, query: InboxQuery()).unreadCount == 0)
     }
+
+    @Test("an edited message keeps what it said before, newest first, a page at a time")
+    func versions() async throws {
+        let (api, world) = try api()
+        let channelID = try #require(world.channels["api"])
+        let id = try #require(
+            Uuid(
+                MessageID.make(
+                    milliseconds: Int(Date().timeIntervalSince1970 * 1_000),
+                    random: (0..<10).map { _ in UInt8.random(in: 0...255) })))
+        _ = try await api.sendMessage(channelId: channelID, body: SendMessageRequest(content: "first words", id: id))
+        _ = try await api.editMessage(messageId: id.value, body: EditMessageRequest(content: "second words"))
+        _ = try await api.editMessage(messageId: id.value, body: EditMessageRequest(content: "third words"))
+        let page = try await api.listMessageVersions(messageId: id.value, query: OlderPageQuery(limit: 1))
+        #expect(page.data.map(\.content) == ["second words"])
+        let next = try await api.listMessageVersions(
+            messageId: id.value, query: OlderPageQuery(before: page.nextCursor, limit: 50))
+        #expect(next.data.map(\.content) == ["first words"])
+        #expect(next.nextCursor == nil)
+    }
+
+    @Test("where the account is signed in is listed, with the session in use marked")
+    func devices() async throws {
+        // Listed only: ending a session is allowed for the one in use too, and would sign this persona out of every test after it.
+        let (api, _) = try api()
+        let sessions = try await api.listMySessions().data
+        #expect(sessions.filter { $0.current }.count == 1)
+        #expect(sessions.allSatisfy { $0.expiresAt.date > $0.lastUsedAt.date })
+    }
+
+    @Test("a person is added to a channel and is then among its members")
+    func addMember() async throws {
+        let (api, world) = try api()
+        let channelID = try #require(world.channels["design"])
+        let carol = try world.persona("carol")
+        try await api.addChannelMember(channelId: channelID, body: AddChannelMemberRequest(userId: Uuid(carol.userID)!))
+        let members = try await api.listChannelMembers(channelId: channelID)
+        #expect(members.contains { $0.user.id.value == carol.userID })
+    }
 }
