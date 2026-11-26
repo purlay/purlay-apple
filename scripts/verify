@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Everything the pipeline checks, in lanes, so that CI runs them side by side and a person runs them all.
 #
-#   scripts/verify               every lane, the Mac's Release build included (what a release runs)
+#   scripts/verify               every lane, the Mac's Release build included
 #   scripts/verify rules         branch name, the architecture rules and their demonstration, strings  (no Xcode, no Swift)
 #   scripts/verify generated     the pinned contract, the generated code, the generator                (needs Contract/bundle)
 #   scripts/verify packages      the layers, format, and every package test on macOS (TestPlans/macOS) (needs Contract/bundle)
@@ -11,7 +11,7 @@
 #   scripts/verify security      the whole history scanned for secrets (gitleaks, at the version scripts/install-gitleaks pins)
 #
 # A pull request runs rules, packages, ios and macos (`make verify`), generated when the contract or the generator changes, and
-# security on its own runner. A simulator costs minutes on a hosted runner, so `simulator` runs on main, nightly, for a release,
+# security on its own runner. A simulator costs minutes on a hosted runner, so `simulator` runs on main, nightly,
 # and for a pull request that changes the iOS app or the design system. The UI tests sign in against a real server and skip
 # without one. PURLAY_PACKAGES_DIR, when set, is where xcodebuild keeps the packages it fetches.
 #

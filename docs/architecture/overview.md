@@ -56,7 +56,7 @@ Apps/Purlay.xcodeproj    the app targets only, in Xcode's JSON project format, w
 Apps/iOS/                the iPhone and iPad app: composition root, Info.plist, assets, catalogue, its tests, CHANGELOG.md
 Apps/macOS/              the Mac app: composition root, system adapters, Sparkle, entitlements, assets, CHANGELOG.md
 Config/                  every build setting (*.xcconfig); the project holds none
-TestPlans/               PR (package and iOS unit tests), Simulator (iOS UI tests), macOS (every package test)
+TestPlans/               iOS (the app's tests, its UI tests, PurlayDesignTests), macOS (every package test)
 Contract/contract.lock   the pinned server contract; Contract/bundle is fetched and ignored
 Tools/PurlayGen/         the generator, its own package with its tests
 ContractTests/           the real client against a real server (by hand: scripts/contract-test)

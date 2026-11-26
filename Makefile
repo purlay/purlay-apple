@@ -18,7 +18,7 @@ verify:
 verify-security:
 	scripts/verify security
 
-# Every lane, as a release runs them: the generated code, the Mac's Release build and the simulator included.
+# Every lane: the generated code, the Mac's Release build, the simulator and the secret scan included.
 verify-all:
 	scripts/verify
 

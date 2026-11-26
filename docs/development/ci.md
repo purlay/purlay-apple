@@ -7,7 +7,7 @@ What CI checks, how it stays inside its targets, and what to do when it does not
 
 - **A pull request is mergeable within 3 minutes** of its last push: `verify`, the only required check, is green. `verify` does
   not wait for the simulator lane (below), which runs on a pull request only as an early signal that is not required.
-- **A documents-only pull request is green in under 30 seconds.**
+- **A documents-only pull request is green in under 30 seconds** (expected from its jobs' times; no such run measured yet).
 - **A release ships within 10 minutes** of its tag (not counting the owner's approval of the `release` environment).
 
 Every run shows the target and where the time went, on the run's summary page and in the log:
@@ -36,8 +36,8 @@ Every run shows the target and where the time went, on the run's summary page an
 | Job | Runner | Runs when | What | Expected time, warm |
 |---|---|---|---|---|
 | `changes` | Linux | always | each app's version has its changelog section (`scripts/ci/changelog-versions`); the branch name (`scripts/check-branch`); which lanes the change needs (`scripts/ci/changes`) | 5–10 s |
-| `security` | Linux | always, a documents-only pull request included | gitleaks over the whole history (`scripts/verify security`) | 10–20 s |
-| `rules` | Linux | any code change | `scripts/verify rules`: the architecture rules and their demonstration, the strings | 60–120 s (unmeasured on Linux; 50–85 s on a developer Mac) |
+| `security` | Linux | always, a documents-only pull request included | gitleaks over the whole history (`scripts/verify security`) | 5–8 s |
+| `rules` | Linux | any code change | `scripts/verify rules`: the architecture rules and their demonstration, the strings | 19–22 s |
 | `packages` | `xcode-27` | any code change but the scripts and `Design/` alone | the layer rule, format, and every package test on macOS (`TestPlans/macOS.xctestplan`, targets side by side), the Mac screens drawn | 127–179 s |
 | `ios` | `xcode-27` | the package, `Config/`, the project or `Apps/iOS` change | the package and the iOS app built for the simulator | 99–143 s |
 | `macos` | `xcode-27` | the package, `Config/`, the project or `Apps/macOS` change | the Mac app built (Debug; Debug and Release on main), its ATS and entitlements checked | 90–121 s (main: more, unmeasured) |
@@ -105,7 +105,7 @@ runner is clean every time, so every run pays it. The paths to a faster simulato
 Until one of these is taken, the lane runs on main, nightly and by hand, and as a non-required check for the iOS app and the
 design system.
 
-**On a developer's Apple silicon Mac** (10 cores, warm): `packages` 75 s, `simulator` 54 s (boot 6 s), `rules` about 40 s.
+**On a developer's Apple silicon Mac:** [getting-started.md](getting-started.md) has the times.
 The hosted runner's first `xcodebuild` of a job costs some 25–45 s whatever the cache holds (it shows in each lane's `resolve`).
 
 ## The caches
@@ -140,7 +140,7 @@ release resolves the same code; Dependabot proposes its updates. The runner labe
 ## Hardening
 
 - Top-level `permissions: {}`; each job asks for what it uses (`contents: read` for most; `pull-requests: read` for `changes`;
-  `actions: read` for the summary). No job of `ci.yml` can write to the repository.
+  `actions: read` for the summary; `issues: write` for `simulator-red-on-main` alone). No job of `ci.yml` can write to the code.
 - Every action is pinned by its full commit, with the version in a comment; Dependabot proposes updates weekly.
 - `persist-credentials: false` on every checkout: no later step holds the token in `.git/config`.
 - Inputs a person controls (branch names, pull request fields) reach a script through `env:`, never by `${{ }}` inside `run:`.

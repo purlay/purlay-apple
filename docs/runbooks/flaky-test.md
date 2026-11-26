@@ -9,7 +9,7 @@ lane until it is green, and never add a retry for a test: `scripts/ci/retry-infr
 
    ```sh
    xcodebuild -project Apps/Purlay.xcodeproj -scheme Purlay-macOS -testPlan macOS -destination 'platform=macOS' \
-     CODE_SIGNING_ALLOWED=NO -only-testing:PurlayKitTests/ConnectionTests -test-iterations 50 -run-tests-until-failure test
+     CODE_SIGNING_ALLOWED=NO -only-testing:PurlayKitTests/ReconnectingTests -test-iterations 50 -run-tests-until-failure test
    ```
 
    (For an iOS app test: `-scheme Purlay-iOS -testPlan iOS -destination 'id=<simulator>'`.)
