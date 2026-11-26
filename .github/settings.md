@@ -11,6 +11,10 @@ Decision: [ADR 0009](../docs/decisions/0009-governance-as-code.md). Nothing here
       **no "require branches to be up to date"** (it would restart every open pull request's check after each merge and break
       the 3-minute target), no bypass.
 - [ ] `release tags`: *New tag ruleset* → import `rulesets/release-tags.json`. `macos/v*` and `ios/v*` cannot be moved or deleted.
+- [ ] `release tag creation`: import `rulesets/release-tag-creation.json`. Only a repository admin creates a release tag: a tag
+      runs its own commit's release workflow, so whoever can push one chooses the workflow that asks for the `release` environment.
+      (A ruleset of its own, because a bypass applies to every rule of its ruleset, and nobody moves or deletes a release tag.)
+- [ ] Apply `main` **before** merging the pull request that brings these files, so that it merges under them.
 
 ## General
 
@@ -18,6 +22,8 @@ Decision: [ADR 0009](../docs/decisions/0009-governance-as-code.md). Nothing here
       commits and rebase merging.
 - [ ] **Allow auto-merge.**
 - [ ] **Automatically delete head branches.**
+- [ ] Releases: **Enable release immutability**, so a published release's assets and tag cannot be changed
+      ([rollback-mac-release.md](../docs/runbooks/rollback-mac-release.md) already never edits one).
 - [ ] Features: Issues on; Wikis and Projects off.
 
 ## Code security
@@ -33,6 +39,8 @@ Decision: [ADR 0009](../docs/decisions/0009-governance-as-code.md). Nothing here
       token is read-only; each job asks for more in its `permissions:`). Untick *Allow GitHub Actions to create and approve pull
       requests*.
 - [ ] *Fork pull request workflows from outside collaborators*: **Require approval for all external contributors**.
+- [ ] *Require actions to be pinned to a full-length commit SHA* on (the API's `sha_pinning_required`): a new workflow cannot
+      bring an unpinned action.
 - [ ] *Actions permissions*: allow actions created by GitHub and those pinned in the workflows (`ossf/scorecard-action`,
       `dependabot/fetch-metadata`); or allow all actions, since every one is pinned by commit.
 
@@ -69,6 +77,7 @@ Decision: [ADR 0009](../docs/decisions/0009-governance-as-code.md). Nothing here
 ```sh
 gh api -X POST repos/purlay/purlay-apple/rulesets --input .github/rulesets/main.json
 gh api -X POST repos/purlay/purlay-apple/rulesets --input .github/rulesets/release-tags.json
+gh api -X POST repos/purlay/purlay-apple/rulesets --input .github/rulesets/release-tag-creation.json
 gh api repos/purlay/purlay-apple/rulesets --jq '.[] | {id, name, enforcement}'          # check
 gh api -X PUT repos/purlay/purlay-apple/rulesets/<id> --input .github/rulesets/main.json  # after a change to the file
 ```
