@@ -1,0 +1,36 @@
+name: Purlay
+options:
+  bundleIdPrefix: dev.purlay
+  developmentLanguage: en
+  knownRegions: [en, tr]
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+configs:
+  Debug: debug
+  Release: release
+configFiles:
+  Debug: Config/Debug.xcconfig
+  Release: Config/Release.xcconfig
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.1
+  PurlaySwift:
+    url: https://github.com/purlay/purlay-swift
+    from: 0.2.0
+  PurlayUI: { path: Packages/PurlayUI }
+targets:
+  Purlay:
+    type: application
+    platform: macOS
+    sources: [App]
+    dependencies:
+      - package: PurlaySwift
+        product: PurlayContract
+      - package: PurlaySwift
+        product: PurlayTokens
+      - package: PurlaySwift
+        product: PurlayKit
+      - package: PurlayUI
+      - package: Sparkle

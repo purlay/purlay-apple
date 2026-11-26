@@ -1,0 +1,334 @@
+import PurlayContract
+import PurlayKit
+import PurlayTokens
+import SwiftUI
+
+struct SheetHeading: View {
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+    let image: String
+
+    var body: some View {
+        HStack(spacing: Spacing.space3) {
+            Image(systemName: image)
+                .font(.title3.weight(.medium)).foregroundStyle(Colors.accentText.style)
+                .frame(width: Size.sizeRailItem, height: Size.sizeRailItem)
+                .background(NativePalette.selection.style, in: .rect(cornerRadius: Radius.radius2xl))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: Spacing.space1) {
+                Text(title).font(.title2.bold()).accessibilityAddTraits(.isHeader)
+                Text(subtitle).font(.callout).foregroundStyle(NativePalette.secondary.style)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+private struct IsPageKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    /// The view is shown as a page of the window, not as a sheet over it: there is nothing to dismiss and no fixed size.
+    var isPage: Bool {
+        get { self[IsPageKey.self] }
+        set { self[IsPageKey.self] = newValue }
+    }
+}
+
+/// A sheet's fixed size, or, as a page, the room the window gives it up to a width that reads well.
+struct ModalFrame: ViewModifier {
+    let width: Double
+    let height: Double
+    @Environment(\.isPage) private var isPage
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if isPage {
+            content.frame(maxWidth: 880).frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            content.frame(width: width, height: height)
+        }
+    }
+}
+
+/// Sheets keep their heading at the top, independently of the height of a list, loading state or empty state below it.
+struct SheetHeader: View {
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+    let image: String
+    var closeTitle: LocalizedStringKey = "Done"
+    /// A list that can be read again offers it beside Done.
+    var refresh: (() -> Void)?
+    var refreshing = false
+    let close: () -> Void
+    @Environment(\.isPage) private var isPage
+
+    var body: some View {
+        HStack(spacing: Spacing.space4) {
+            SheetHeading(title: title, subtitle: subtitle, image: image)
+            if let refresh {
+                Button("Refresh", systemImage: "arrow.clockwise", action: refresh)
+                    .labelStyle(.iconOnly).buttonStyle(.borderless).foregroundStyle(NativePalette.secondary.style)
+                    .help("Refresh").fixedSize().disabled(refreshing)
+            }
+            if !isPage {
+                Button(closeTitle, action: close)
+                    .keyboardShortcut(.cancelAction)
+                    .glassButton()
+                    .fixedSize()
+            }
+        }
+        .padding(Spacing.space5)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// Native empty-state layout with explicit reading colours. Default secondary labels become too faint on a dark inspector.
+struct EmptyState: View {
+    let title: LocalizedStringKey
+    let systemImage: String
+    let description: Text?
+
+    init(_ title: LocalizedStringKey, systemImage: String, description: Text? = nil) {
+        self.title = title
+        self.systemImage = systemImage
+        self.description = description
+    }
+
+    var body: some View {
+        ContentUnavailableView {
+            Label {
+                Text(title).foregroundStyle(NativePalette.ink.style)
+            } icon: {
+                Image(systemName: systemImage).foregroundStyle(NativePalette.secondary.style)
+            }
+        } description: {
+            if let description { description.foregroundStyle(NativePalette.secondary.style) }
+        }
+    }
+
+    static func search(text: String) -> EmptyState {
+        EmptyState(
+            "No Results", systemImage: "magnifyingglass",
+            description: Text("No matches for “\(text)”. Try another search."))
+    }
+}
+
+// The small parts every screen is built from: a person's face, whether they are here, a count. Each takes its sizes and colours
+// from the tokens, so the sidebar, the feed and the thread draw a person the same way.
+
+/// A person's picture, or their initials on a colour of their own when there is no picture (or it does not load). The colour is
+/// chosen from the person's id, so the same person is the same colour everywhere and on every launch.
+struct Avatar: View {
+    let name: String
+    let id: String?
+    let picture: String?
+    var size: Double = Size.sizeAvatarLg
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    init(user: User?, size: Double = Size.sizeAvatarLg) {
+        name = user?.displayName ?? ""
+        id = user?.id.value
+        picture = user?.avatarUrl
+        self.size = size
+    }
+
+    init(current: CurrentUser?, size: Double = Size.sizeAvatarLg) {
+        name = current?.displayName ?? ""
+        id = current?.id.value
+        picture = current?.avatarUrl
+        self.size = size
+    }
+
+    var body: some View {
+        ZStack {
+            Circle().fill(background.style)
+            Text(initials)
+                .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
+                .foregroundStyle(NativePalette.ink.style)
+                .minimumScaleFactor(0.5)
+            if let url = pictureURL {
+                AsyncImage(
+                    url: url,
+                    transaction: Transaction(
+                        animation: reduceMotion ? nil : Motion.easingStandard.animation(Motion.durationOverlay))
+                ) { phase in
+                    if let image = phase.image { image.resizable().scaledToFill() }
+                }
+                .clipShape(Circle())
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+
+    /// Only an absolute web address is fetched: a relative or odd value is the initials, not a request somewhere unexpected.
+    private var pictureURL: URL? {
+        guard let text = picture, let url = URL(string: text), let scheme = url.scheme?.lowercased(),
+            scheme == "https" || scheme == "http", url.host != nil
+        else { return nil }
+        return url
+    }
+
+    private var initials: String { Self.initials(name) }
+
+    private var background: TokenColor {
+        let colours = [Colors.avatar1, Colors.avatar2, Colors.avatar3, Colors.avatar4, Colors.avatar5, Colors.avatar6]
+        guard let id else { return Colors.avatar1 }
+        let sum = id.utf8.reduce(0) { ($0 &* 31 &+ Int($1)) & 0x7fff_ffff }
+        return colours[sum % colours.count]
+    }
+
+    /// Two letters, as the web draws them: the first of the first two words, or the first two of a single word.
+    static func initials(_ name: String) -> String {
+        let words = name.split(whereSeparator: { $0.isWhitespace || $0 == "-" || $0 == "_" || $0 == "." })
+        let letters: String
+        switch words.count {
+        case 0: letters = "?"
+        case 1: letters = String(words[0].prefix(2))
+        default: letters = String(words[0].prefix(1)) + String(words[1].prefix(1))
+        }
+        return letters.uppercased(with: Locale.current)
+    }
+}
+
+/// A person's face with whether they are here, as a dot at its corner. Presence is decoration (`UX.md` §2): it is never the
+/// only way something is said, so VoiceOver hears it with the name.
+struct PresenceAvatar: View {
+    let avatar: Avatar
+    let online: Bool
+
+    init(user: User?, online: Bool, size: Double = Size.sizeAvatarSm) {
+        avatar = Avatar(user: user, size: size)
+        self.online = online
+    }
+
+    init(current: CurrentUser?, online: Bool, size: Double = Size.sizeAvatarSm) {
+        avatar = Avatar(current: current, size: size)
+        self.online = online
+    }
+
+    private var size: Double { avatar.size }
+
+    var body: some View {
+        avatar
+            .overlay(alignment: .bottomTrailing) {
+                Circle()
+                    .fill(online ? Colors.success.style : NativePalette.tertiary.style)
+                    .frame(width: size * 0.36, height: size * 0.36)
+                    .overlay(Circle().stroke(NativePalette.canvas.style, lineWidth: Stroke.strokeFocus))
+                    .offset(x: Stroke.strokeHairline, y: Stroke.strokeHairline)
+            }
+    }
+}
+
+/// A count of what needs the person: a capsule in the accent, drawn only when there is something to count.
+struct CountBadge: View {
+    let count: Int
+
+    var body: some View {
+        Text(count > 99 ? "99+" : "\(count)")
+            .font(Typography.caption.font.weight(.semibold).monospacedDigit())
+            .foregroundStyle(Colors.onAccent.style)
+            .padding(.horizontal, Spacing.space1 + Stroke.strokeFocus)
+            .frame(minWidth: Size.sizeBadge, minHeight: Size.sizeBadge)
+            .background(Colors.accent.style, in: Capsule())
+            .accessibilityLabel(Text("\(count)"))
+    }
+}
+
+/// A day between messages: "Today", "Yesterday", or the date, with a rule on either side, as the web separates days.
+struct DayDivider: View {
+    let date: Date
+
+    var body: some View {
+        HStack(spacing: Spacing.space3) {
+            rule
+            Text(label)
+                .typeStyle(Typography.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(NativePalette.secondary.style)
+                .fixedSize()
+            rule
+        }
+        .padding(.vertical, Spacing.space2)
+        .padding(.horizontal, Spacing.space4)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    private var rule: some View {
+        Rectangle().fill(NativePalette.divider.style).frame(height: Stroke.strokeHairline)
+    }
+
+    private var label: String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return String(localized: "Today") }
+        if calendar.isDateInYesterday(date) { return String(localized: "Yesterday") }
+        let sameYear = calendar.isDate(date, equalTo: .now, toGranularity: .year)
+        return date.formatted(sameYear ? .dateTime.weekday(.wide).month(.wide).day() : .dateTime.year().month().day())
+    }
+}
+
+/// The rule at the first message the person has not read: "New", in the danger colour, as the web marks it (UX §6).
+struct NewDivider: View {
+    var body: some View {
+        HStack(spacing: Spacing.space2) {
+            Rectangle().fill(Colors.danger.style).frame(height: Stroke.strokeHairline)
+            Text("New")
+                .typeStyle(Typography.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(Colors.dangerText.style)
+        }
+        .padding(.horizontal, Spacing.space4)
+        .padding(.vertical, Spacing.space1)
+        .accessibilityLabel(Text("New messages"))
+    }
+}
+
+/// Lays its children out in rows, wrapping to the next when a row is full: reactions on a narrow window, tags, chips.
+struct FlowLayout: Layout {
+    var spacing: Double = Spacing.space1
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = arrange(subviews, width: proposal.width ?? .infinity)
+        let width = rows.map(\.width).max() ?? 0
+        let height = rows.map(\.height).reduce(0, +) + spacing * Double(max(rows.count - 1, 0))
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in arrange(subviews, width: bounds.width) {
+            var x = bounds.minX
+            for index in row.indices {
+                let size = subviews[index].sizeThatFits(.unspecified)
+                subviews[index].place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += row.height + spacing
+        }
+    }
+
+    private struct Row {
+        var indices: [Int] = []
+        var width: Double = 0
+        var height: Double = 0
+    }
+
+    private func arrange(_ subviews: Subviews, width: Double) -> [Row] {
+        var rows: [Row] = [Row()]
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            let needed =
+                rows[rows.count - 1].indices.isEmpty ? size.width : rows[rows.count - 1].width + spacing + size.width
+            if needed > width && !rows[rows.count - 1].indices.isEmpty {
+                rows.append(Row())
+            }
+            var row = rows[rows.count - 1]
+            row.width = row.indices.isEmpty ? size.width : row.width + spacing + size.width
+            row.height = max(row.height, size.height)
+            row.indices.append(index)
+            rows[rows.count - 1] = row
+        }
+        return rows.filter { !$0.indices.isEmpty }
+    }
+}
