@@ -297,10 +297,8 @@ extension Words {
         case 1: return named[0]
         case 2: return String(localized: "\(named[0]) and \(named[1])")
         default:
-            let others = named.count - 2
-            return others == 1
-                ? String(localized: "\(named[0]), \(named[1]) and 1 other")
-                : String(localized: "\(named[0]), \(named[1]) and \(others) others")
+            // The catalogue gives the count its plural form: "and 1 other", "and 2 others".
+            return String(localized: "\(named[0]), \(named[1]) and \(named.count - 2) others")
         }
     }
 }

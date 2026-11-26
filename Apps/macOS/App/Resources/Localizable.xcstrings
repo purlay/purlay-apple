@@ -316,31 +316,39 @@
     "%@, %@ and %lld others": {
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$@, %2$@ and %3$lld others"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$@, %2$@ and %3$lld other"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$@, %2$@ and %3$lld others"
+                }
+              }
+            }
           }
         },
         "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@, %2$@ ve %3$lld kişi daha"
-          }
-        }
-      }
-    },
-    "%@, %@ and 1 other": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$@, %2$@ and 1 other"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@, %2$@ ve 1 kişi daha"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$@, %2$@ ve %3$lld kişi daha"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$@, %2$@ ve %3$lld kişi daha"
+                }
+              }
+            }
           }
         }
       }
@@ -381,12 +389,42 @@
         }
       }
     },
-    "%lld attachment(s)": {
+    "%lld attachments": {
       "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld attachment"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld attachments"
+                }
+              }
+            }
+          }
+        },
         "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld ek"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld ek"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld ek"
+                }
+              }
+            }
           }
         }
       }

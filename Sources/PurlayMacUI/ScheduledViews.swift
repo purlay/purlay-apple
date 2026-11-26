@@ -161,7 +161,7 @@ struct ScheduledSheet: View {
                         }
                         Text(message.content.isEmpty ? "Attachment message" : message.content).lineLimit(3)
                         if !message.attachments.isEmpty {
-                            Label("\(message.attachments.count) attachment(s)", systemImage: "paperclip").font(.caption)
+                            Label("\(message.attachments.count) attachments", systemImage: "paperclip").font(.caption)
                         }
                         if message.state == .failed,
                             message.failureCode.map(ErrorCode.init(rawValue:)) == .onlyAdminsPost
