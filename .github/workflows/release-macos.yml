@@ -1,6 +1,7 @@
 # The Mac app's release: a `macos/vX.Y.Z` tag on a commit that already passed CI on main becomes a signed, notarized, stapled app,
-# a signed Sparkle appcast and a GitHub release. The tests are not run again: the gate refuses a commit whose CI run on main did
-# not succeed. Run it by hand with `publish` off to rehearse everything but the publication. Runbook: docs/runbooks/release-macos.md.
+# a signed Sparkle appcast, a GitHub release and, once the stable feed is live, the feed itself. The tests are not run again: the
+# gate refuses a commit whose CI run on main did not succeed. Run it by hand with `publish` off to rehearse everything but the
+# publication. Runbook: docs/runbooks/release-macos.md.
 name: Release macOS
 on:
   push:
@@ -36,6 +37,8 @@ jobs:
     outputs:
       version: ${{ steps.gate.outputs.version }}
       publish: ${{ steps.mode.outputs.publish }}
+      feed: ${{ steps.feed.outputs.feed }}
+      pages_path: ${{ steps.feed.outputs.pages_path }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -59,6 +62,13 @@ jobs:
         env:
           DRY_RUN: ${{ steps.mode.outputs.publish != 'true' }}
           GH_TOKEN: ${{ github.token }}
+      - id: feed
+        name: Where installed Macs read their updates
+        run: |
+          feed="$(scripts/ci/feed-url)"
+          if grep -qx 'pages_path=' <<<"$feed"; then
+            echo "::warning title=Installed Macs will not see this release::Config/macOS.xcconfig still names a GitHub releases feed; until the stable feed is live (docs/runbooks/mac-update-feed.md), only a manual download reaches them"
+          fi
 
   # Build from the warm cache, sign, notarize, staple, and sign the appcast. The signing secrets exist only in the `release`
   # environment, whose reviewer approves each run. This job cannot write to the repository.
@@ -70,7 +80,6 @@ jobs:
     permissions:
       contents: read
     env:
-      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
       VERSION: ${{ needs.gate.outputs.version }}
       TAG: macos/v${{ needs.gate.outputs.version }}
     steps:
@@ -79,6 +88,8 @@ jobs:
           # The build number is the commit count.
           fetch-depth: 0
           persist-credentials: false
+      - name: Xcode, as .github/toolchain.env names it
+        run: scripts/ci/select-xcode
       - id: keys
         run: scripts/ci/cache-keys macos
       # Main's macos lane builds Release and saves the cache; a release only reads it.
@@ -89,6 +100,7 @@ jobs:
           restore-keys: |
             ${{ steps.keys.outputs.this_week }}
             ${{ steps.keys.outputs.last_week }}
+      # scripts/verify numbers the build first (scripts/build-number: the commit count, above the shipped build 10).
       - name: Build Release, and check its transport security and entitlements
         run: scripts/ci/retry-infra scripts/verify macos Release
       - name: Find what was built
@@ -100,6 +112,7 @@ jobs:
           [ -d "$app" ] && [ -x "$sparkle/generate_appcast" ] || { echo "FAIL: no $app or no Sparkle tools in $sparkle" >&2; exit 1; }
           built="$(plutil -extract CFBundleShortVersionString raw -o - "$app/Contents/Info.plist")"
           [ "$built" = "$VERSION" ] || { echo "FAIL: the app says $built, the tag $VERSION" >&2; exit 1; }
+          scripts/ci/feed-url "$app"
           { echo "APP=$app"; echo "SPARKLE_BIN=$sparkle"; } >> "$GITHUB_ENV"
       - name: Import the Developer ID certificate into a keychain of this run
         env:
@@ -125,19 +138,23 @@ jobs:
         run: |
           scripts/sign-release "$APP" "$SIGNING_IDENTITY"
           [ "$(lipo -archs "$APP/Contents/MacOS/Purlay")" = arm64 ]
-      - name: Notarize and staple
+      - name: Notarize with the App Store Connect API key, and staple
         env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
+          [ -n "$API_KEY_P8" ] && [ -n "$API_KEY_ID" ] && [ -n "$API_ISSUER_ID" ] \
+            || { echo "FAIL: the release environment has no App Store Connect API key secrets" >&2; exit 1; }
+          key="$RUNNER_TEMP/AuthKey_$API_KEY_ID.p8"
+          (umask 077 && printf '%s' "$API_KEY_P8" | base64 --decode > "$key")
           ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/notarization.zip"
-          xcrun notarytool submit "$RUNNER_TEMP/notarization.zip" \
-            --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+          xcrun notarytool submit "$RUNNER_TEMP/notarization.zip" --key "$key" --key-id "$API_KEY_ID" --issuer "$API_ISSUER_ID" \
             --wait --timeout 30m --output-format json > "$RUNNER_TEMP/notarization.json"
+          rm -f "$key"
           cat "$RUNNER_TEMP/notarization.json"
           [ "$(jq -r .status "$RUNNER_TEMP/notarization.json")" = Accepted ] || {
-            echo "FAIL: notarization was not accepted; Apple's log: xcrun notarytool log <id> (docs/runbooks/signing-credentials.md)" >&2; exit 1; }
+            echo "FAIL: notarization was not accepted; Apple's log: xcrun notarytool log <id> --key … (docs/runbooks/signing-credentials.md)" >&2; exit 1; }
           xcrun stapler staple "$APP"
           xcrun stapler validate "$APP"
           spctl --assess --type execute --verbose=2 "$APP"
@@ -183,7 +200,7 @@ jobs:
         if: always()
         run: |
           security delete-keychain "$RUNNER_TEMP/release.keychain-db" 2>/dev/null || true
-          rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP/notarization.zip"
+          rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP"/AuthKey_*.p8 "$RUNNER_TEMP/notarization.zip"
           security list-keychains -d user -s "$HOME/Library/Keychains/login.keychain-db"
 
   # Attest where the archive came from, publish the release, and check that what Sparkle will fetch is there.
@@ -221,8 +238,49 @@ jobs:
             echo "ok  $file"
           done
 
+  # The stable feed: this repository's GitHub Pages site serves the appcast at the address Config/macOS.xcconfig states. Skipped
+  # while that address is a GitHub releases one, which the release above already serves.
+  feed:
+    needs: [gate, publish]
+    if: needs.gate.outputs.pages_path != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ needs.gate.outputs.feed }}
+    env:
+      VERSION: ${{ needs.gate.outputs.version }}
+      FEED: ${{ needs.gate.outputs.feed }}
+      FEED_PATH: ${{ needs.gate.outputs.pages_path }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: purlay-macos-${{ needs.gate.outputs.version }}
+          path: dist
+      - name: The site holds the appcast at the feed's path
+        run: |
+          mkdir -p "site/$(dirname "$FEED_PATH")"
+          cp dist/appcast.xml "site/$FEED_PATH"
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+      - uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+      - name: The feed offers this version
+        run: |
+          for _ in 1 2 3 4 5 6; do
+            if curl --fail --silent --show-error --location "$FEED" | grep -q "<sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>"; then
+              echo "ok  $FEED offers $VERSION"; exit 0
+            fi
+            sleep 10
+          done
+          echo "FAIL: $FEED does not offer $VERSION a minute after the deployment (docs/runbooks/mac-update-feed.md)" >&2
+          exit 1
+
   summary:
-    needs: [gate, build, publish]
+    needs: [gate, build, publish, feed]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
