@@ -404,7 +404,7 @@ PY
   fi
   # A colour is a token. A colour written as a literal (a hex value, or components given as numbers) is allowed only where its
   # value is stated: the tokens (generated from the server's tokens.json), the logo (Logo.swift, written from Design/purlay.svg),
-  # and NativePalette.swift, the allowlist of the Mac's neutral greys and status colours, which no token states yet (TD-012).
+  # and NativePalette.swift, the allowlist of the Mac's neutral greys and status colours, which no token states yet.
   if grep -rnE --include='*.swift' \
       '0x[0-9A-Fa-f]{6}\b|(Color|NSColor|UIColor)\((\.sRGB, *)?(red|srgbRed|white|hue|displayP3Red|calibratedRed|deviceRed|calibratedWhite|deviceWhite): *[0-9.]|#colorLiteral' \
       "$root/Sources" "$root"/Apps/*/App | grep -v '/Generated/' \
