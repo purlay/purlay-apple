@@ -412,6 +412,42 @@ PY
       | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
     echo "FAIL: a colour literal outside the tokens, the logo and NativePalette.swift; name a token" >&2; failed=1
   fi
+  # Both apps' controls are tinted with the accent token: the build names the AccentColor asset as the app's accent, and each
+  # app's asset is the token's value (Sources/PurlayTokens/Generated/Colors.swift), in every appearance the asset gives.
+  if ! grep -qE '^ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME *= *AccentColor$' "$root/Config/Shared.xcconfig"; then
+    echo "FAIL: Config/Shared.xcconfig does not name AccentColor as the apps' accent" >&2; failed=1
+  fi
+  if ! python3 - "$root" <<'PY'
+import json, re, sys
+root = sys.argv[1]
+colours = open(f"{root}/Sources/PurlayTokens/Generated/Colors.swift").read()
+match = re.search(r'name: "accent",\s*light: RGBA\(hex: 0x([0-9a-fA-F]{6})\),\s*dark: RGBA\(hex: 0x([0-9a-fA-F]{6})\)', colours)
+if not match:
+    sys.exit("FAIL: the accent token is not in the generated colours")
+token = {"light": match.group(1).lower(), "dark": match.group(2).lower()}
+
+def byte(component):
+    return int(component, 16) if component.lower().startswith("0x") else round(float(component) * 255)
+
+problems = []
+for app in ("iOS", "macOS"):
+    path = f"{root}/Apps/{app}/App/Resources/Assets.xcassets/AccentColor.colorset/Contents.json"
+    try:
+        colours = json.load(open(path))["colors"]
+    except (OSError, KeyError, ValueError):
+        problems.append(f"the {app} app has no AccentColor asset")
+        continue
+    for entry in colours:
+        dark = any(a.get("appearance") == "luminosity" and a.get("value") == "dark" for a in entry.get("appearances", []))
+        parts = entry["color"]["components"]
+        value = "".join(f"{byte(parts[c]):02x}" for c in ("red", "green", "blue"))
+        if entry["color"].get("color-space") != "srgb" or value != token["dark" if dark else "light"]:
+            problems.append(f"the {app} AccentColor is #{value}, not the accent token #{token['dark' if dark else 'light']}")
+for problem in problems:
+    print("FAIL: " + problem, file=sys.stderr)
+sys.exit(1 if problems else 0)
+PY
+  then failed=1; fi
   # Who the retained data belongs to is kept one way, by PurlayKit's DefaultsOwner, for both apps.
   if grep -rnE --include='*.swift' '(struct|class) DefaultsOwner\b' "$root/Sources" "$root"/Apps/*/App \
       | grep -v "^$root/Sources/PurlayKit/App/DefaultsOwner.swift:"; then
@@ -452,8 +488,9 @@ fail=0
 copy_tree() { # a copy of what the rules read, without build products
   local copy
   copy="$(mktemp -d)"
-  # The generated constants stay: the URL-scheme rule reads the contract's redirect there.
-  rsync -a --exclude .build --exclude .swiftpm --include '/Sources/PurlayContract/Generated/***' --exclude Generated \
+  # The generated constants and colours stay: the URL-scheme rule reads the contract's redirect there, the accent rule the token.
+  rsync -a --exclude .build --exclude .swiftpm --include '/Sources/PurlayContract/Generated/***' \
+    --include '/Sources/PurlayTokens/Generated/***' --exclude Generated \
     --exclude 'xcuserdata' "${TREE[@]}" "$copy"/
   echo "$copy"
 }
@@ -619,6 +656,11 @@ plant "a colour by components in the Mac screens" Sources/PurlayMacUI/Strings.sw
   'let leakedGrey = Color(.sRGB, red: 0.5, green: 0.5, blue: 0.5)'
 plant "a colour by components in PurlayDesign" Sources/PurlayDesign/Brand.swift 'let leakedWhite = Color(white: 0.9)'
 plant "a hex colour in NativePalette's neighbour" Sources/PurlayMacUI/TokenBinding.swift 'let leakedHex: UInt32 = 0x015bf7'
+plant_in "the accent not named by the build" Config \
+  'sed -i.bak "/^ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME/d" Shared.xcconfig && rm Shared.xcconfig.bak'
+plant_in "the Mac's accent asset missing" Apps/macOS/App/Resources/Assets.xcassets 'rm -r AccentColor.colorset'
+plant_in "the iOS accent asset another blue" Apps/iOS/App/Resources/Assets.xcassets/AccentColor.colorset \
+  'sed -i.bak "s/\"0x63\"/\"0x64\"/" Contents.json && rm Contents.json.bak'
 plant "a second DefaultsOwner in the Mac app" Apps/macOS/App/Environment.swift 'struct DefaultsOwner {}'
 plant_in "a scheme naming an app the build does not make" Apps/Purlay.xcodeproj/xcshareddata/xcschemes \
   'sed -i.bak "s/BuildableName = \"Purlay.app\"/BuildableName = \"Purlay iOS.app\"/" Purlay-iOS.xcscheme && rm Purlay-iOS.xcscheme.bak'
