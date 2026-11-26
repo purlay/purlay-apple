@@ -193,7 +193,7 @@ final wording within the tone above (short, plain, Apple-style title case for ti
 
 | # | Item | Level | Proposal |
 |---|---|---|---|
-| P-1 | Account deletion reachable in the app (App Store Guideline 5.1.1(v)) | Must before release | A Delete Account row that opens the server's account page. The engine's `WebPage` has no deletion page, and `webURL` needs a workspace, so with no workspace or during two-step enrolment there is no address. The owner confirms whether the server has a deletion page and its path. Until then the row is not built |
+| P-1 | Account deletion reachable in the app (App Store Guideline 5.1.1(v)) | Must before release | **Native, not web.** The server has `POST /api/me/erase` (body `EraseAccountRequest`: the username typed as confirmation; `403 REAUTHENTICATION_REQUIRED` when the last sign-in is older than `ERASURE_SIGN_IN_MINUTES`; `409 LAST_OWNER`; `204` clears the cookie). It needs no workspace, but the web page for it does. The contract has the type, but `PurlayKit` has no call. Add `AppModel.eraseAccount` in `purlay-swift` (one release, together with P-6), and build the Delete Account screen in slice 2: type the username, then on 403 sign in again through the browser and retry |
 | P-2 | Report, block and filter user content, plus contact details (Guideline 1.2) | Must before release | Designed with the chat slice |
 | P-3 | Sign in with Apple, or a sign-in that shares only name and email (Guideline 4.8), because GitHub sign-in exists | Must check | Check whether the server's email sign-in qualifies |
 | P-4 | Privacy policy, terms and support addresses | Must before release | The owner gives the addresses. Until then the rows are hidden |
@@ -201,4 +201,6 @@ final wording within the tone above (short, plain, Apple-style title case for ti
 | P-6 | Sign-out wipes this device's data (drafts, cache, badge) | Must | `SessionManager` has wipers, but `AppModel` passes `wipers: []` and `AppEnvironment` has no field for them. This needs a `purlay-swift` change and a version bump: the owner decides whether it goes with slice 2 or later |
 | P-7 | A demo account for App Review | Must before submission | On the hosted server |
 | P-8 | Ask for notification permission after the first entry, with a short explanation screen first | Should | With push (FR-030) |
+| P-10 | An `ios` minimum-client gate: `ClientInfo.minClient` has only `macos`, and the engine reads the macOS minimum for iOS (Q-003) | Must before release | A server PR: contract `minClient.ios`, `MIN_CLIENT_IOS_*` and `IOS_DOWNLOAD_URL`, then a `purlay-swift` release that reads it |
+| P-11 | Privacy, terms and support addresses per server: `ClientInfo` carries none, so a self-hosted server cannot show its own | Must before release | A server PR: optional `legal: { privacyUrl, termsUrl, supportUrl }` in `ClientInfo` from configuration. The app shows those rows only when they are present |
 | P-9 | Face ID app lock, several accounts at once, invite links | Later | — |
