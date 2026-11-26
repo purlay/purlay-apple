@@ -1,0 +1,191 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Monday morning: build once on main so the week's pull requests start from a warm compilation cache.
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+permissions:
+  contents: read
+env:
+  PURLAY_CACHE_DIR: ${{ github.workspace }}/.cache/compilation
+
+# The lanes of scripts/verify run side by side; `verify` at the end is the one check a pull request needs.
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Rules
+        run: scripts/verify rules
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          GITHUB_TOKEN: ${{ github.token }}
+
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The whole history, which is what is scanned.
+          fetch-depth: 0
+      - run: scripts/install-gitleaks
+      - name: No secret in the history
+        run: scripts/verify security
+
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.which.outputs.code }}
+      app: ${{ steps.which.outputs.app }}
+    steps:
+      - id: which
+        # A pull request that changes only documents has nothing to compile: its compiling lanes are skipped, and `verify` accepts
+        # that only when this job said so. Anything else, and every other event, runs them (main must save the caches).
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "code=true" >> "$GITHUB_OUTPUT"; echo "app=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          files="$(gh pr diff "${{ github.event.pull_request.number }}" --name-only --repo "$GITHUB_REPOSITORY")"
+          if [ -z "$files" ] || printf '%s\n' "$files" | grep -vE '^(docs/|.*\.md$|LICENSE$|NOTICE$|\.editorconfig$|\.github/CODEOWNERS$)' | grep -q .; then echo "code=true" >> "$GITHUB_OUTPUT"; else echo "code=false" >> "$GITHUB_OUTPUT"; fi
+          if printf '%s\n' "$files" | grep -qE '^(App/|Tests/PurlayTests/|project\.yml|Config/)'; then echo "app=true" >> "$GITHUB_OUTPUT"; else echo "app=false" >> "$GITHUB_OUTPUT"; fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  generated:
+    runs-on: xcode-27
+    timeout-minutes: 15
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: bundle
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: Contract/bundle
+          key: contract-bundle-${{ hashFiles('Contract/contract.lock') }}
+      - name: Prepare the pinned contract
+        if: steps.bundle.outputs.cache-hit != 'true'
+        run: scripts/prepare-contract
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Format, and the generated code
+        run: scripts/verify generated
+
+  test-contract:
+    runs-on: xcode-27
+    timeout-minutes: 20
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: bundle
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: Contract/bundle
+          key: contract-bundle-${{ hashFiles('Contract/contract.lock') }}
+      - name: Prepare the pinned contract
+        if: steps.bundle.outputs.cache-hit != 'true'
+        run: scripts/prepare-contract
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - id: when
+        run: |
+          echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+          echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+      - id: cas
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PURLAY_CACHE_DIR }}
+          key: cas-test-contract-${{ steps.when.outputs.week }}-${{ steps.when.outputs.day }}
+          restore-keys: cas-test-contract-${{ steps.when.outputs.week }}-
+      - name: The Contract and Tokens tests
+        run: scripts/verify test-contract
+      - name: Keep the compilation cache
+        if: success() && github.ref == 'refs/heads/main' && steps.cas.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PURLAY_CACHE_DIR }}
+          key: cas-test-contract-${{ steps.when.outputs.week }}-${{ steps.when.outputs.day }}
+
+  test-kit:
+    runs-on: xcode-27
+    timeout-minutes: 20
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: bundle
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: Contract/bundle
+          key: contract-bundle-${{ hashFiles('Contract/contract.lock') }}
+      - name: Prepare the pinned contract
+        if: steps.bundle.outputs.cache-hit != 'true'
+        run: scripts/prepare-contract
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - id: when
+        run: |
+          echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+          echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+      - id: cas
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PURLAY_CACHE_DIR }}
+          key: cas-test-kit-${{ steps.when.outputs.week }}-${{ steps.when.outputs.day }}
+          restore-keys: cas-test-kit-${{ steps.when.outputs.week }}-
+      - name: The Kit and TestSupport tests
+        run: scripts/verify test-kit
+      - name: Keep the compilation cache
+        if: success() && github.ref == 'refs/heads/main' && steps.cas.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PURLAY_CACHE_DIR }}
+          key: cas-test-kit-${{ steps.when.outputs.week }}-${{ steps.when.outputs.day }}
+
+  ios:
+    runs-on: xcode-27
+    timeout-minutes: 20
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: when
+        run: |
+          echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+          echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+      - id: cas
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PURLAY_CACHE_DIR }}
+          key: cas-ios-${{ steps.when.outputs.week }}-${{ steps.when.outputs.day }}
+          restore-keys: cas-ios-${{ steps.when.outputs.week }}-
+      - name: Build for iOS
+        run: scripts/verify ios
+      - name: Keep the compilation cache
+        if: success() && github.ref == 'refs/heads/main' && steps.cas.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PURLAY_CACHE_DIR }}
+          key: cas-ios-${{ steps.when.outputs.week }}-${{ steps.when.outputs.day }}
+
+  verify:
+    if: always()
+    needs: [rules, security, changes, generated, test-contract, test-kit, ios]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Every lane passed
+        run: |
+          echo '${{ toJSON(needs) }}'
+          test "${{ needs.rules.result == 'success' && needs.security.result == 'success' && needs.changes.result == 'success' && (needs.generated.result == 'success' || (needs.changes.outputs.code == 'false' && needs.generated.result == 'skipped')) && (needs.test-contract.result == 'success' || (needs.changes.outputs.code == 'false' && needs.test-contract.result == 'skipped')) && (needs.test-kit.result == 'success' || (needs.changes.outputs.code == 'false' && needs.test-kit.result == 'skipped')) && (needs.ios.result == 'success' || (needs.changes.outputs.code == 'false' && needs.ios.result == 'skipped')) }}" = "true"
