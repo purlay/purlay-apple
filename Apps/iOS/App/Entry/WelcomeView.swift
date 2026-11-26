@@ -2,7 +2,7 @@ import PurlayDesign
 import SwiftUI
 
 /// Signed out: who Purlay is, and the one thing to do. The shared mark (`entryMark`) arrives from the connecting screen; Sign In stands in the
-/// bottom bar with where the sign-in continues said under it.
+/// bottom bar with where the sign-in continues said under it, and the mark is never drawn over the bar (`entryMarkFloor`).
 struct WelcomeView: View {
     /// The host the browser will open, when the server is known.
     let server: String?
@@ -27,7 +27,7 @@ struct WelcomeView: View {
             }
             .padding()
         }
-        .purlayBottomBar { bar }
+        .purlayBottomBar { bar.entryMarkFloor() }
         .background { EntryBackdrop() }
     }
 
@@ -54,6 +54,9 @@ struct WelcomeView: View {
                 .font(.footnote)
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.center)
+                // The bar is offered only the height left over, which in landscape at a large text size is less than the
+                // sentence needs: it takes its whole height and wraps instead of ending in "…".
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: Self.barWidth)
         .padding(.horizontal)

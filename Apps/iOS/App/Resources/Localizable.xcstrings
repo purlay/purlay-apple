@@ -21,6 +21,16 @@
         }
       }
     },
+    "Read More" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Devamını Oku"
+          }
+        }
+      }
+    },
     "Sign In" : {
       "localizations" : {
         "tr" : {

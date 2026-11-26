@@ -10,10 +10,13 @@ enum Words {
     static let newAccount = LocalizedStringResource("New to Purlay? Create an account when you sign in.")
     static let signedInTitle = LocalizedStringResource("You're Signed In")
     static let signedInDetail = LocalizedStringResource("Nothing to show here yet.")
+    /// Under a notice too long to show whole at a large text size; it opens the whole sentence. Not "Show More": the Mac says
+    /// that, and a sentence lives in one catalogue.
+    static let readMore = LocalizedStringResource("Read More")
 
     /// The fixed sentences of the screens, so a test can look at each in every language.
     static let fixed: [LocalizedStringResource] = [
-        tagline, signInButton, continuesInBrowserNoHost, newAccount, signedInTitle, signedInDetail,
+        tagline, signInButton, continuesInBrowserNoHost, newAccount, signedInTitle, signedInDetail, readMore,
     ]
 
     /// Where the sign-in goes on: the person's browser, on the server's host.

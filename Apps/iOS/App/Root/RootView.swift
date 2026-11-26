@@ -61,32 +61,20 @@ private struct ProblemView: View {
     }
 }
 
-/// What the model said that is not a screen of its own, one line each, each to be dismissed.
+/// What the model said that is not a screen of its own, each to be dismissed, on the glass the notices share.
 private struct NoticeList: View {
     let model: AppModel
 
     var body: some View {
-        VStack(spacing: 8) {
+        PurlayNoticeStack {
             ForEach(model.notices) { notice in
                 if let words = EngineWords.notice(notice.kind) {
-                    HStack(alignment: .center, spacing: 12) {
-                        Text(words).font(.callout).padding(.vertical, 12).frame(
-                            maxWidth: .infinity, alignment: .leading)
-                        Button {
-                            model.dismiss(notice)
-                        } label: {
-                            Image(systemName: "xmark")
-                                .frame(minWidth: 44, minHeight: 44)
-                                .contentShape(.rect)
-                        }
-                        .accessibilityLabel(Text(EngineWords.dismiss))
-                    }
-                    .padding(.leading)
-                    .background(.thinMaterial, in: .rect(cornerRadius: 12))
-                    .padding(.horizontal)
-                    .accessibilityElement(children: .contain)
+                    NoticeBanner(words: words) { model.dismiss(notice) }
+                        .purlayNoticeTransition()
                 }
             }
         }
+        .padding(.horizontal)
+        .purlayAnimation(.smooth, value: model.notices)
     }
 }
