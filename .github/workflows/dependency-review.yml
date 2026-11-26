@@ -1,0 +1,27 @@
+# A pull request that adds or raises a dependency with a known vulnerability of high severity or worse (Sparkle, a pinned Swift
+# package, an action) is refused before it merges. GitHub's dependency graph and advisory database, nothing of our own; what is
+# already in main is watched by Dependabot alerts and security updates. Not a required check: `verify` stays the only one.
+name: Dependency review
+on:
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: dependency-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with:
+          fail-on-severity: high

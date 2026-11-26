@@ -58,8 +58,8 @@ anything that leaks a secret into a log.
 
 Out of scope: findings that need a modified client of your own on the victim's machine, denial of
 service by volume alone (the capacity ceiling is documented in the server's `docs/DECISIONS.md` D-25, in purlay/purlay), and
-vulnerabilities in a dependency that have no path into Purlay (report those upstream; the
-dependency audit in CI watches them).
+vulnerabilities in a dependency that have no path into Purlay (report those upstream; Dependabot alerts watch them, and a pull request that adds a
+vulnerable dependency is refused by GitHub's dependency review).
 
 ## Credit
 
