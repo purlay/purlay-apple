@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# scripts/ci/check-pr-title against titles it must accept and refuse. The rules lane runs it.
+#
+#   scripts/ci/check-pr-title-test
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+
+failed=0
+expect() { # pass|fail, title
+  local got
+  if TITLE="$2" scripts/ci/check-pr-title >/dev/null 2>&1; then got=pass; else got=fail; fi
+  if [ "$got" = "$1" ]; then echo "ok    $1: $2"; else echo "FAIL  $2: $got, not $1" >&2; failed=1; fi
+}
+
+expect pass "build: one package, one project, fresh documents and CI for every Apple platform"
+expect pass "fix(app): the mark stays put under Reduce Motion"
+expect pass "feat(design)!: a new brand"
+expect pass "ci: İçerik Türkçe karakterli başlık"
+expect fail "Update the CI"
+expect fail "fix:no space"
+expect fail "fix: "
+expect fail "Fix: capitalised type"
+expect fail "feature(app): not a type"
+expect fail "fix(App): scope in capitals"
+expect fail ""
+expect fail "WIP"
+# A newline cannot hide a subject: the whole title is judged, and an empty first line fails.
+expect fail $'\nfix: second line only'
+exit "$failed"
