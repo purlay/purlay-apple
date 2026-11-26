@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# A commit message is a conventional commit, as the history is: `type(scope): what changed`, with an optional `!` for a breaking
+# change. Merges, reverts and fixup or squash commits that git writes itself pass. Installed by `make setup`.
+set -euo pipefail
+subject="$(head -n 1 "$1")"
+types='feat|fix|docs|refactor|build|ci|chore|test|perf|style|revert'
+if [[ "$subject" =~ ^(Merge |Revert \"|fixup! |squash! |amend! ) ]] \
+  || [[ "$subject" =~ ^($types)(\([a-z0-9][a-z0-9./-]*\))?!?:\ [^[:space:]] ]]; then
+  exit 0
+fi
+cat >&2 <<MESSAGE
+commit-msg: "$subject"
+is not a conventional commit. Write it as: type(scope): what changed
+  type is one of: ${types//|/, }; the scope is optional (app, design, kit, ci, …)
+  for example: fix(app): the mark stays put under Reduce Motion
+MESSAGE
+exit 1

@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Whether the server has released past the contract this repository pins, and if so one open issue that says so.
+#
+#   scripts/ci/contract-drift            report only
+#   scripts/ci/contract-drift --issue    also open the issue, unless one labelled contract-drift is open already
+#
+# Reads Contract/contract.lock and the latest release of the server repository (PURLAY_SERVER_REPOSITORY, purlay/purlay by
+# default). A drift is not an error: the pin moves deliberately (docs/runbooks/contract-drift.md). The script fails only when it
+# cannot read what it compares.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+SERVER="${PURLAY_SERVER_REPOSITORY:-purlay/purlay}"
+LABEL=contract-drift
+
+pinned="$(python3 -c 'import json; print(json.load(open("Contract/contract.lock"))["serverVersion"])')"
+latest="$(gh release view --repo "$SERVER" --json tagName --jq .tagName)" || { echo "FAIL: cannot read $SERVER's latest release" >&2; exit 1; }
+latest="${latest#v}"
+[[ "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "FAIL: $SERVER's latest release '$latest' is not X.Y.Z" >&2; exit 1; }
+
+if [ "$latest" = "$pinned" ] || [ "$(printf '%s\n%s\n' "$pinned" "$latest" | sort -V | tail -n 1)" = "$pinned" ]; then
+  echo "the pin is current: server $pinned"
+  exit 0
+fi
+echo "drift: Contract/contract.lock pins server $pinned; $SERVER has released $latest"
+[ "${1:-}" = --issue ] || exit 0
+
+if [ -n "$(gh issue list --label "$LABEL" --state open --json number --jq '.[].number')" ]; then
+  echo "an open $LABEL issue already says so"
+  exit 0
+fi
+gh issue create --label "$LABEL" --title "Contract drift: the server is at $latest, the pin at $pinned" --body "$(cat <<BODY
+\`Contract/contract.lock\` pins server **$pinned**; [$SERVER]($GITHUB_SERVER_URL/$SERVER/releases) has released **$latest**.
+
+Move the pin when this app needs what the new contract carries, or before the server stops serving the pinned one:
+[docs/runbooks/contract-drift.md](../blob/main/docs/runbooks/contract-drift.md).
+
+Opened by the weekly contract-drift workflow. It opens one issue at a time; close this one when the pin moves.
+BODY
+)"

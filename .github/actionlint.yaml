@@ -1,0 +1,4 @@
+# actionlint's settings: `xcode-27` is the label of GitHub's hosted runner image with Xcode 27 (macOS 27, Apple silicon).
+self-hosted-runner:
+  labels:
+    - xcode-27

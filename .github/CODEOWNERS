@@ -1,12 +1,30 @@
-# Who is asked to review a change. One maintainer today; the lines exist so that a second can be given a path.
-# Later patterns win.
-*                                       @doancan
-/Package.swift                          @doancan
-/Sources/*/Generated/                   @doancan
-/Contract/                              @doancan
-/Config/                                @doancan
-/Apps/Purlay.xcodeproj/                 @doancan
+# Who reviews a change, by area. One maintainer today; each area has its own line so that a second person can be given one.
+# Later patterns win. Reviews from code owners are not required by the ruleset yet (one maintainer cannot review their own
+# pull request); the lines decide who is asked.
+*                                        @doancan
+
+# The engine and the contract it is generated from.
+/Sources/PurlayKit/                      @doancan
+/Sources/PurlayTestSupport/              @doancan
+/Sources/PurlayContract/                 @doancan
+/Sources/PurlayTokens/                   @doancan
+/Contract/                               @doancan
+/Tools/                                  @doancan
+
+# The design system.
+/Sources/PurlayDesign/                   @doancan
+/Design/                                 @doancan
+
+# The apps.
+/Apps/iOS/                               @doancan
+/Apps/macOS/                             @doancan
+/Apps/macOS/App/Updates/                 @doancan
 /Apps/macOS/App/Resources/*.entitlements @doancan
-/Apps/macOS/App/Updates/                @doancan
-/scripts/                               @doancan
-/.github/                               @doancan
+
+# The build, its settings and its gates.
+/Package.swift                           @doancan
+/Apps/Purlay.xcodeproj/                  @doancan
+/Config/                                 @doancan
+/scripts/                                @doancan
+/.github/                                @doancan
+/.githooks/                              @doancan
