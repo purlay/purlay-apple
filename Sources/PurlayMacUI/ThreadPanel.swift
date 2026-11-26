@@ -11,6 +11,8 @@ struct ThreadPanel: View {
     let model: AppModel
     @State private var marked: Uuid?
     @State private var atBottom = true
+    /// A search is taking the reader to what it found: a new reply does not pull them down meanwhile.
+    @State private var revealing = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -30,10 +32,6 @@ struct ThreadPanel: View {
                                         proxy.scrollTo(answer, anchor: .center)
                                     }
                                     marked = answer
-                                    Task {
-                                        try? await Task.sleep(for: .seconds(2))
-                                        if marked == answer { marked = nil }
-                                    }
                                 }
                                 Status(model: model, root: root, replies: thread.replies.count)
                             }
@@ -77,19 +75,25 @@ struct ThreadPanel: View {
                     } action: { _, bottom in
                         atBottom = bottom
                     }
+                    // A mark lasts a moment, and goes with the panel if it closes first.
+                    .task(id: marked) {
+                        guard let shown = marked else { return }
+                        try? await Task.sleep(for: .seconds(2))
+                        if !Task.isCancelled, marked == shown { marked = nil }
+                    }
                     .task(id: model.focus) {
                         guard let focus = model.focus, thread.replies.contains(where: { $0.id == focus.message }) else {
                             return
                         }
+                        revealing = true
+                        defer { revealing = false }
                         try? await Task.sleep(for: .milliseconds(200))
                         guard !Task.isCancelled else { return }
                         proxy.scrollTo(focus.message, anchor: .center)
                         marked = focus.message
-                        try? await Task.sleep(for: .seconds(2))
-                        if marked == focus.message { marked = nil }
                     }
                     .onChange(of: thread.replies.last?.id) { _, _ in
-                        if atBottom && model.focus == nil { proxy.scrollTo("bottom", anchor: .bottom) }
+                        if atBottom && !revealing { proxy.scrollTo("bottom", anchor: .bottom) }
                     }
                     .onChange(of: model.threadPending.count) { old, new in
                         if new > old { proxy.scrollTo("bottom", anchor: .bottom) }

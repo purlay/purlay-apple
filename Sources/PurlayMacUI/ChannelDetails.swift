@@ -41,6 +41,7 @@ struct ChannelDetails: View {
     @State private var notificationFailed = false
     @State private var forward = true
     @State private var refreshRevision = 0
+    @State private var addingPeople = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
 
@@ -265,8 +266,20 @@ struct ChannelDetails: View {
         }
     }
 
+    /// A direct conversation's people are who it is between: a new person makes it another conversation, not this one.
+    private var canAddPeople: Bool { channel.type == .public || channel.type == .private }
+
     private var memberList: some View {
         List {
+            if canAddPeople && query.isEmpty {
+                Button {
+                    addingPeople = true
+                } label: {
+                    Label("Add People…", systemImage: "person.badge.plus")
+                        .padding(.vertical, Spacing.space1)
+                }
+                .buttonStyle(.borderless)
+            }
             ForEach(filteredMembers, id: \.id) { person in
                 Button {
                     guard person.id != model.me?.user.id else { return }
@@ -294,7 +307,10 @@ struct ChannelDetails: View {
         }
         .listStyle(.plain).scrollContentBackground(.hidden)
         .overlay {
-            if filteredMembers.isEmpty { EmptyState.search(text: query) }
+            if filteredMembers.isEmpty && !query.isEmpty { EmptyState.search(text: query) }
+        }
+        .sheet(isPresented: $addingPeople) {
+            AddPeopleSheet(model: model, channel: channel, members: Set(members.map(\.id))) { refresh() }
         }
     }
 

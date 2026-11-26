@@ -20,6 +20,8 @@ struct MessageRow: View {
     var keyboard = false
     @State private var hovering = false
     @State private var picking = false
+    @State private var forwarding = false
+    @State private var showingHistory = false
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.controlActiveState) private var activeState
@@ -78,6 +80,7 @@ struct MessageRow: View {
         }
         .onChange(of: activeState) { _, state in if state != .key { hovering = false } }
         .contextMenu { menu }
+        .sheet(isPresented: $forwarding) { ForwardSheet(model: model, message: message) }
         // The row holds things that are pressed (a reaction, a thread, a file, the box an edit is written in): each stays an element
         // of its own. Only who and when are read as one.
         .accessibilityElement(children: .contain)
@@ -95,7 +98,11 @@ struct MessageRow: View {
                 .opacity(hovering || timestamps ? 1 : 0)
                 .frame(width: Size.sizeAvatarLg, alignment: .trailing)
                 .padding(.top, Stroke.strokeFocus)
-                .accessibilityHidden(true)
+                // Shown only under the pointer, but always said: a run of messages is still somebody's, at some time.
+                .accessibilityLabel(
+                    Text(
+                        "\(message.webhookName ?? message.sender?.displayName ?? String(localized: "Purlay")), \(message.createdAt.date.formatted(date: .omitted, time: .shortened))"
+                    ))
         } else if message.webhookName != nil {
             AppAvatar(size: Size.sizeAvatarLg)
         } else if let sender = message.sender {
@@ -133,7 +140,17 @@ struct MessageRow: View {
                 .foregroundStyle(NativePalette.secondary.style)
                 .help(message.createdAt.date.formatted(date: .complete, time: .standard))
             if message.editedAt != nil && !deleted {
-                Text("edited").typeStyle(Typography.caption).foregroundStyle(NativePalette.tertiary.style)
+                Button {
+                    showingHistory = true
+                } label: {
+                    Text("edited").typeStyle(Typography.caption).foregroundStyle(NativePalette.tertiary.style)
+                }
+                .buttonStyle(.plain)
+                .help("Show Edit History")
+                .accessibilityLabel("Edited. Show Edit History")
+                .popover(isPresented: $showingHistory, arrowEdge: .bottom) {
+                    EditHistoryView(model: model, message: message)
+                }
             }
             if model.isPinned(message) {
                 Label("Pinned", systemImage: "pin.fill")
@@ -208,6 +225,13 @@ struct MessageRow: View {
             Button("Open in Browser", systemImage: "safari") {
                 if let url = model.webURL(.message(message.id, in: message.channelId)) { openURL(url) }
             }
+            if let url = model.webURL(.message(message.id, in: message.channelId)) {
+                ShareLink("Share…", item: url)
+            }
+            Button("Forward…", systemImage: "arrowshape.turn.up.right") { forwarding = true }
+            if message.editedAt != nil {
+                Button("Show Edit History", systemImage: "clock.arrow.circlepath") { showingHistory = true }
+            }
             Divider()
             Menu("Add Reaction", systemImage: "face.smiling") {
                 ForEach(quickReactions, id: \.self) { emoji in
@@ -271,6 +295,7 @@ struct MessageRow: View {
                 Button("Mark Unread") { Task { await model.markUnread(from: message) } }
             }
             Button("Add Reaction") { picking = true }
+            Button("Forward") { forwarding = true }
             if mine {
                 Button("Edit") { model.beginEdit(message.id) }
             }
@@ -501,7 +526,10 @@ private struct ThreadAffordance: View {
                 Text("\(summary.replyCount) replies")
                 if let last = summary.lastReplyAt {
                     Text("·")
-                    Text(last.date, style: .relative)
+                    // "5 minutes ago", said again each minute: a clock ticking every second in every thread row is noise.
+                    TimelineView(.everyMinute) { _ in
+                        Text(last.date, format: .relative(presentation: .named))
+                    }
                 }
                 Text(open ? "Thread open" : "Show thread").foregroundStyle(Colors.accentText.style).fontWeight(
                     open ? .semibold : .regular)

@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import ImageIO
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -169,20 +170,27 @@ struct AttachmentList: View {
         }
     }
 
-    /// Writes every file of the message to the app's own caches (once each) and opens Quick Look on the chosen one, so the arrow
-    /// keys step through the rest as they do in the Finder.
+    /// Opens Quick Look on the chosen file as soon as it is in the app's own caches, then adds the message's other files (each
+    /// written once) so the arrow keys step through them as they do in the Finder. The chosen one never waits for the rest.
     private func preview(_ attachment: PurlayContract.Attachment) {
         Task {
-            var urls: [URL] = []
-            for item in attachments {
-                if let url = await QuickLookFiles.url(model: model, attachment: item) { urls.append(url) }
-            }
             guard let chosen = await QuickLookFiles.url(model: model, attachment: attachment) else {
                 NSSound.beep()
                 return
             }
-            previews = urls
+            previews = [chosen]
             previewing = chosen
+            var urls: [URL] = []
+            for item in attachments {
+                if item.id == attachment.id {
+                    urls.append(chosen)
+                } else if let url = await QuickLookFiles.url(model: model, attachment: item) {
+                    urls.append(url)
+                }
+            }
+            // Closed meanwhile: nothing to step through.
+            guard previewing != nil else { return }
+            previews = urls
         }
     }
 }
@@ -257,10 +265,15 @@ private struct PictureView: View {
         }
         .animation(reduceMotion ? nil : Motion.easingStandard.animation(Motion.durationOverlay), value: image != nil)
         .task(id: attachment.id) {
+            failed = false
             // The small picture if there is one, the picture itself if there is not; decoded away from the main actor.
             var data = await model.attachmentData(attachment, thumbnail: true)
             if data == nil { data = await model.attachmentData(attachment, thumbnail: false) }
-            if let data, let loaded = await QuickLookFiles.image(data) { image = loaded } else { failed = true }
+            var loaded: NSImage?
+            if let data { loaded = await QuickLookFiles.image(data) }
+            // A row that scrolled away stopped its load; that is not a picture that failed, and it loads when it is back.
+            guard !Task.isCancelled else { return }
+            if let loaded { image = loaded } else { failed = true }
         }
     }
 }
@@ -342,9 +355,26 @@ enum QuickLookFiles {
         }.value
     }
 
-    /// Decodes a picture off the main actor, so a large one never stalls the feed.
+    /// The longest side a picture in the feed is decoded at, in pixels: past twice its widest frame, the rest is never seen there.
+    /// Quick Look opens the file itself, at full size.
+    private static let feedPixelsMax = 1_600
+
+    /// Decodes a picture off the main actor, at no more than the feed shows, so a large one never stalls the feed or stays in
+    /// memory at full size. `NSImage(data:)` would only wrap the bytes and decode them while the feed draws.
     static func image(_ data: Data) async -> NSImage? {
-        await Task.detached(priority: .userInitiated) { NSImage(data: data) }.value
+        await Task.detached(priority: .userInitiated) {
+            guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+            let options: [CFString: Any] = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: feedPixelsMax,
+            ]
+            guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+                return nil
+            }
+            return NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+        }.value
     }
 }
 
@@ -361,11 +391,11 @@ enum FileSaving {
         panel.nameFieldStringValue = UploadRules.savingName(attachment.fileName)
         panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try data.write(to: url, options: .atomic)
-        } catch {
-            model.fileNotWritten()
-        }
+        // A large file is written off the main actor, so the window keeps drawing while it goes to disk.
+        let written = await Task.detached(priority: .userInitiated) {
+            (try? data.write(to: url, options: .atomic)) != nil
+        }.value
+        if !written { model.fileNotWritten() }
     }
 }
 #endif

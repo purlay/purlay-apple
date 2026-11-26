@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 import OSLog
 import PurlayKit
+import SystemConfiguration
 
 /// The app's real environment: the Keychain, the defaults, the network, the browser and the files, as the sandbox gives them.
 @MainActor
@@ -39,7 +40,9 @@ enum RealEnvironment {
             transport: URLSessionTransport(), sessions: KeychainSessionStore(service: identity.keychainService),
             preferences: UserDefaultsPreferences(), authenticator: SystemBrowserAuthenticator(), appVersion: version,
             identity: identity,
-            deviceName: Host.current().localizedName ?? DeviceName.fallback,
+            // The name the person gave this Mac in System Settings, read from the system's store: `Host.current()` may resolve
+            // the network's names first, and the app is starting on the main thread.
+            deviceName: SCDynamicStoreCopyComputerName(nil, nil) as String? ?? DeviceName.fallback,
             allowsLocalHTTP: allowsLocalHTTP, serverAddress: serverAddress, dataDirectory: directory,
             cacheDirectory: caches,
             openSocket: { origin, session in

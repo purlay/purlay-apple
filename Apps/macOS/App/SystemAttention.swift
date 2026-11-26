@@ -14,6 +14,8 @@ import UserNotifications
 final class SystemAttention: NSObject, AttentionPresenter, UNUserNotificationCenterDelegate {
     /// Opens a conversation, from a click on its notice.
     var open: ((Uuid, String?) -> Void)?
+    /// Sends what was typed into a conversation's notice, to that conversation, without bringing the app forward.
+    var reply: ((Uuid, String?, String) -> Void)?
     var openLink: ((URL) -> Void)?
     private var reminderChanges: [String: UUID] = [:]
     private var reminderTasks: [String: Task<Void, Never>] = [:]
@@ -21,12 +23,22 @@ final class SystemAttention: NSObject, AttentionPresenter, UNUserNotificationCen
 
     private let center = UNUserNotificationCenter.current()
     private let log: Logger
+    /// A conversation's notice can be answered where it is, as Messages' can: what is typed is sent, and nothing of what was said
+    /// is in the notice itself.
+    private nonisolated static let conversation = "conversation"
+    private nonisolated static let replyAction = "reply"
 
     /// `log`: the app's `attention` log, where what the system refused is kept.
     init(log: Logger) {
         self.log = log
         super.init()
         center.delegate = self
+        let reply = UNTextInputNotificationAction(
+            identifier: Self.replyAction, title: String(localized: "Reply"), options: [],
+            textInputButtonTitle: String(localized: "Send"), textInputPlaceholder: String(localized: "Message"))
+        center.setNotificationCategories([
+            UNNotificationCategory(identifier: Self.conversation, actions: [reply], intentIdentifiers: [])
+        ])
     }
 
     func setBadge(_ count: Int?) {
@@ -48,6 +60,7 @@ final class SystemAttention: NSObject, AttentionPresenter, UNUserNotificationCen
             content.body = AttentionWords.body(notice)
             if case .place(let channel, _, _) = notice.content {
                 content.userInfo = ["channel": channel.value]
+                content.categoryIdentifier = Self.conversation
                 if let source = notice.sourceID { content.userInfo["source"] = source }
                 // Notification Center stacks a conversation's notices together.
                 content.threadIdentifier = notice.id
@@ -157,12 +170,18 @@ final class SystemAttention: NSObject, AttentionPresenter, UNUserNotificationCen
         notification.request.content.userInfo["reminderLink"] is String ? [.banner, .list] : []
     }
 
-    /// A click brings the window forward on the conversation.
+    /// A click brings the window forward on the conversation; a reply typed into the notice is sent and leaves the window where it is.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse
     ) async {
         let channel = (response.notification.request.content.userInfo["channel"] as? String).flatMap(Uuid.init)
         let source = response.notification.request.content.userInfo["source"] as? String
+        if response.actionIdentifier == Self.replyAction, let channel,
+            let text = (response as? UNTextInputNotificationResponse)?.userText
+        {
+            await MainActor.run { reply?(channel, source, text) }
+            return
+        }
         let reminderLink = (response.notification.request.content.userInfo["reminderLink"] as? String).flatMap(
             URL.init(string:))
         await MainActor.run {

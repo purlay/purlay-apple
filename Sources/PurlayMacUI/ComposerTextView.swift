@@ -15,6 +15,9 @@ final class ComposerState {
     var suggestions: [User] = []
     /// The slash commands the first word could be, while a `/` is being typed at the start. One list is open at a time.
     var commands: [SlashCommand] = []
+    /// The emoji a `:name` being typed could be. Commands, then people, then emoji: one list is open at a time.
+    var emoji: [ReactionEmoji] = []
+    var emojiQuery: EmojiShortcode.Query?
     var highlighted = 0
     var notice: LocalizedStringKey?
     /// Set by the text view: puts markdown where the caret is, as a key would.
@@ -24,6 +27,8 @@ final class ComposerState {
     var choose: ((User) -> Void)?
     /// Set by the text view: writes a command's name (and a space for what follows it) in place of what was typed.
     var chooseCommand: ((SlashCommand) -> Void)?
+    /// Set by the text view: writes an emoji in place of the `:name` typed for it.
+    var chooseEmoji: ((ReactionEmoji) -> Void)?
     /// Set by the text view: replaces everything (a draft read, or the box emptied after a send) without being undone into.
     var replaceAll: ((String) -> Void)?
     /// Set by the composer view: shows or hides the preview, as its button does.
@@ -41,6 +46,8 @@ final class ComposerState {
         mention = nil
         suggestions = []
         commands = []
+        emoji = []
+        emojiQuery = nil
         highlighted = 0
         replaceAll?(text)
     }
@@ -59,6 +66,8 @@ struct ComposerTextView: NSViewRepresentable {
     var onCancel: (() -> Void)?
     /// Takes the keyboard when it appears: an edit is opened to be typed in.
     var takesFocus = false
+    /// The person changed the words (not the app putting a draft or a reply back): others may be told they are typing.
+    var onEdit: ((String) -> Void)?
     /// ↑ in an empty box: change the last thing said.
     var onEditLast: (() -> Void)?
     /// A file or a picture was pasted: it is attached, not typed.
@@ -118,6 +127,8 @@ struct ComposerTextView: NSViewRepresentable {
         if takesFocus {
             DispatchQueue.main.async { [weak view] in
                 guard let view else { return }
+                // Moving through the sidebar with the arrow keys opens each channel on the way: the keys stay in the list.
+                if view.window?.firstResponder is NSTableView, NSApp.currentEvent?.type == .keyDown { return }
                 view.window?.makeFirstResponder(view)
                 view.setSelectedRange(NSRange(location: (view.string as NSString).length, length: 0))
             }
@@ -190,6 +201,7 @@ struct ComposerTextView: NSViewRepresentable {
             }
             state.choose = { [weak self] user in self?.choose(user) }
             state.chooseCommand = { [weak self] command in self?.chooseCommand(command) }
+            state.chooseEmoji = { [weak self] emoji in self?.chooseEmoji(emoji) }
             state.focusAndType = { [weak self] typed in
                 guard let view = self?.view else { return }
                 view.window?.makeFirstResponder(view)
@@ -225,7 +237,10 @@ struct ComposerTextView: NSViewRepresentable {
 
         private func changed() {
             guard let view else { return }
-            if parent.state.text != view.string { parent.state.text = view.string }
+            if parent.state.text != view.string {
+                parent.state.text = view.string
+                parent.onEdit?(view.string)
+            }
             view.needsDisplay = true
             updateMention()
         }
@@ -246,6 +261,20 @@ struct ComposerTextView: NSViewRepresentable {
                 return
             }
             if !state.commands.isEmpty { state.commands = [] }
+            if selection.length == 0, MentionSuggest.query(view.string, caret: selection.location) == nil,
+                let shortcode = EmojiShortcode.query(view.string, caret: selection.location)
+            {
+                let found = EmojiShortcode.matches(shortcode)
+                if state.emojiQuery?.start != shortcode.start { state.highlighted = 0 }
+                state.emojiQuery = found.isEmpty ? nil : shortcode
+                state.emoji = found
+                state.highlighted = min(state.highlighted, max(found.count - 1, 0))
+                if state.mention != nil { state.mention = nil }
+                if !state.suggestions.isEmpty { state.suggestions = [] }
+                return
+            }
+            if !state.emoji.isEmpty { state.emoji = [] }
+            state.emojiQuery = nil
             guard selection.length == 0, let mention = MentionSuggest.query(view.string, caret: selection.location)
             else {
                 clearMention()
@@ -269,6 +298,8 @@ struct ComposerTextView: NSViewRepresentable {
             if state.mention != nil { state.mention = nil }
             if !state.suggestions.isEmpty { state.suggestions = [] }
             if !state.commands.isEmpty { state.commands = [] }
+            if !state.emoji.isEmpty { state.emoji = [] }
+            state.emojiQuery = nil
         }
 
         // MARK: Keys
@@ -279,7 +310,9 @@ struct ComposerTextView: NSViewRepresentable {
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             let state = parent.state
             let isReturn = event.keyCode == 36 || event.keyCode == 76
-            let listed = state.commands.isEmpty ? state.suggestions.count : state.commands.count
+            let listed =
+                !state.commands.isEmpty
+                ? state.commands.count : !state.suggestions.isEmpty ? state.suggestions.count : state.emoji.count
             if listed > 0 {
                 switch event.keyCode {
                 case 126:
@@ -289,10 +322,12 @@ struct ComposerTextView: NSViewRepresentable {
                     state.highlighted = (state.highlighted + 1) % listed
                     return true
                 case 48 where flags.isEmpty, 36 where flags.isEmpty, 76 where flags.isEmpty:
-                    if state.commands.isEmpty {
+                    if !state.commands.isEmpty {
+                        chooseCommand(state.commands[state.highlighted])
+                    } else if !state.suggestions.isEmpty {
                         choose(state.suggestions[state.highlighted])
                     } else {
-                        chooseCommand(state.commands[state.highlighted])
+                        chooseEmoji(state.emoji[state.highlighted])
                     }
                     return true
                 case 53:
@@ -390,6 +425,14 @@ struct ComposerTextView: NSViewRepresentable {
             guard let view else { return }
             let caret = view.selectedRange().location
             view.insertText("/\(command.rawValue) ", replacementRange: NSRange(location: 0, length: caret))
+            view.window?.makeFirstResponder(view)
+        }
+
+        func chooseEmoji(_ emoji: ReactionEmoji) {
+            guard let view, let query = parent.state.emojiQuery else { return }
+            let caret = view.selectedRange().location
+            let edited = EmojiShortcode.insert(emoji.symbol, for: query, in: view.string, caret: caret)
+            apply(Inserted(text: edited.text, selection: TextSelection(start: edited.caret, end: edited.caret)))
             view.window?.makeFirstResponder(view)
         }
 
