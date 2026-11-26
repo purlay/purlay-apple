@@ -11,8 +11,9 @@
 #   scripts/verify security      the whole history scanned for secrets (gitleaks, at the version scripts/install-gitleaks pins)
 #
 # A pull request runs rules, packages, ios and macos (`make verify`), generated when the contract or the generator changes, and
-# security on its own runner. Starting a simulator costs minutes on a hosted runner, so `simulator` runs on main, on a schedule,
-# for a release, and for a pull request that changes the iOS app. The UI tests sign in against a real server and skip without one.
+# security on its own runner. A simulator costs minutes on a hosted runner, so `simulator` runs on main, nightly, for a release,
+# and for a pull request that changes the iOS app or the design system. The UI tests sign in against a real server and skip
+# without one. PURLAY_PACKAGES_DIR, when set, is where xcodebuild keeps the packages it fetches.
 #
 # Every build is numbered with the commit count (scripts/build-number), and compilation is cached by content (Xcode's compilation
 # cache) in PURLAY_CACHE_DIR, so a build in a fresh checkout reuses what an earlier one compiled. PURLAY_DERIVED_DATA, when set,
@@ -129,11 +130,17 @@ format() {
 }
 
 packages() {
-  step check "the layers, read from the manifest by SwiftPM, and the demonstration that the rule refuses each violation"
-  scripts/enforcement layers
-  scripts/enforcement --demo layers
+  # The layer rule reads the manifest through SwiftPM: about 30 s on the runner, most of it SwiftPM starting. It runs beside the
+  # format check and the packages' fetch, which wait on the disk and the network, and is judged after them.
+  local layers layers_log
+  layers_log="$(mktemp)"
+  (scripts/enforcement layers && scripts/enforcement --demo layers) >"$layers_log" 2>&1 &
+  layers=$!
   format
   resolve Purlay-macOS
+  step check "the layers, read from the manifest by SwiftPM, and the demonstration that the rule refuses each violation"
+  if ! wait "$layers"; then cat "$layers_log" >&2; rm -f "$layers_log"; exit 1; fi
+  cat "$layers_log"; rm -f "$layers_log"
   local snapshots test=(-project "$PROJECT" -scheme Purlay-macOS -testPlan macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO)
   step build "every package test target, for macOS"
   cached "${test[@]}" build-for-testing
@@ -222,8 +229,12 @@ simulator() {
   step boot "the simulator"
   scripts/ci/boot-simulator start "$udid"
   scripts/ci/boot-simulator wait "$udid"
-  step test "the iOS tests on the simulator"
-  cached "${test[@]}" -parallel-testing-enabled NO test-without-building
+  # One target at a time, so that each one's time is in the phases: the first launch on a fresh device carries its settling.
+  local target
+  for target in PurlayTests PurlayDesignTests PurlayUITests; do
+    step "test $target" "on the simulator"
+    cached "${test[@]}" -parallel-testing-enabled NO -only-testing:"$target" test-without-building
+  done
 }
 
 security() {

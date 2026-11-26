@@ -52,7 +52,7 @@ case "$action" in
     echo "simulator $udid: booted; waited ${second} s for it here. How the boot went:"
     grep -E 'Status=|^[[:space:]]+(Waiting|Booting|Finished)' "$log" | sed -E 's/, isTerminal=[A-Z]+//' | paste - - | uniq -f 3 | tail -n 10 || true
     # What the machine is busy with once the device is up: a fresh simulator's first minutes are heavy on a small runner.
-    top -l 2 -s 1 -o cpu -n 6 -stats command,cpu 2>/dev/null | tail -n 7 || true
+    ps -Ao pcpu=,comm= -r 2>/dev/null | head -n 6 | sed -E 's#[^ ]*/##' || true
     ;;
   *) echo "usage: scripts/ci/boot-simulator start|wait UDID" >&2; exit 2 ;;
 esac
