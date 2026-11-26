@@ -9,20 +9,43 @@ import Testing
 struct RootScreenTests {
     @Test("each phase of the model has exactly one screen")
     func everyPhase() {
-        #expect(RootScreen(.launching) == .busy(.connecting))
-        #expect(RootScreen(.checking) == .busy(.connecting))
-        #expect(RootScreen(.signingIn) == .busy(.signingIn))
-        #expect(RootScreen(.loading) == .busy(.loading))
-        #expect(RootScreen(.signedOut) == .signIn)
-        #expect(RootScreen(.ready) == .ready)
-        #expect(RootScreen(.problem(.unreachable)) == .problem(.unreachable))
+        #expect(RootScreen(phase: .launching, mustEnrolTwoFactor: false, hasWorkspace: true) == .busy(.connecting))
+        #expect(RootScreen(phase: .checking, mustEnrolTwoFactor: false, hasWorkspace: true) == .busy(.connecting))
+        #expect(RootScreen(phase: .signingIn, mustEnrolTwoFactor: false, hasWorkspace: true) == .busy(.signingIn))
+        #expect(RootScreen(phase: .loading, mustEnrolTwoFactor: false, hasWorkspace: true) == .busy(.loading))
+        #expect(RootScreen(phase: .signedOut, mustEnrolTwoFactor: false, hasWorkspace: true) == .signIn)
+        #expect(RootScreen(phase: .ready, mustEnrolTwoFactor: false, hasWorkspace: true) == .ready)
+        #expect(
+            RootScreen(phase: .problem(.unreachable), mustEnrolTwoFactor: false, hasWorkspace: true)
+                == .problem(.unreachable))
+    }
+
+    @Test("a ready account is shown what it can do: two-step first, then no workspace, then the workspace")
+    func readyScreens() {
+        #expect(RootScreen(phase: .ready, mustEnrolTwoFactor: true, hasWorkspace: false) == .twoFactorRequired)
+        #expect(RootScreen(phase: .ready, mustEnrolTwoFactor: true, hasWorkspace: true) == .twoFactorRequired)
+        #expect(RootScreen(phase: .ready, mustEnrolTwoFactor: false, hasWorkspace: false) == .noWorkspace)
+        #expect(RootScreen(phase: .ready, mustEnrolTwoFactor: false, hasWorkspace: true) == .ready)
+        #expect(RootScreen(phase: .signedOut, mustEnrolTwoFactor: true, hasWorkspace: false) == .signIn)
+    }
+
+    @Test("signing out, refreshing and reloading do nothing unless the account is ready")
+    func guardedWhenNotReady() async {
+        let harness = Harness([Harness.clientInfo()])
+        await harness.model.connect()
+        let before = await harness.transport.requests.count
+        await RootActions.signOut(harness.model, everywhere: true)
+        await RootActions.refreshAccount(harness.model)
+        await RootActions.reload(harness.model)
+        #expect(harness.model.phase == .signedOut)
+        #expect(await harness.transport.requests.count == before)
     }
 
     @Test("a server with no session kept asks the person to sign in")
     func signedOut() async {
         let harness = Harness([Harness.clientInfo()])
         await harness.model.connect()
-        #expect(RootScreen(harness.model.phase) == .signIn)
+        #expect(RootScreen(harness.model) == .signIn)
         #expect(harness.model.notices.isEmpty)
     }
 
@@ -43,7 +66,7 @@ struct RootScreenTests {
         let harness = Harness([step])
         await harness.model.connect()
         #expect(harness.model.phase == .problem(expected))
-        #expect(RootScreen(harness.model.phase) == .problem(expected))
+        #expect(RootScreen(harness.model) == .problem(expected))
         for language in ["en", "tr"] {
             let words = Words.problem(expected)
             let title = text(words.title, in: language)

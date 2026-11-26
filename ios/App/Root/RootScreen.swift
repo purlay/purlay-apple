@@ -7,6 +7,10 @@ enum RootScreen: Equatable {
     case busy(Busy)
     case problem(ServerProblem)
     case signIn
+    /// Signed in, but the account must enrol a second step before it is given a workspace.
+    case twoFactorRequired
+    /// Signed in with nothing to open: the account belongs to no workspace.
+    case noWorkspace
     /// Signed in and the first screen has loaded. The module screens come with the shell; until then this says so.
     case ready
 
@@ -14,15 +18,29 @@ enum RootScreen: Equatable {
         case connecting, signingIn, loading
     }
 
-    init(_ phase: AppModel.Phase) {
+    /// Two-step comes before no workspace, because a held-back account is given none.
+    init(phase: AppModel.Phase, mustEnrolTwoFactor: Bool, hasWorkspace: Bool) {
         switch phase {
         case .launching, .checking: self = .busy(.connecting)
         case .signingIn: self = .busy(.signingIn)
         case .loading: self = .busy(.loading)
         case .problem(let problem): self = .problem(problem)
         case .signedOut: self = .signIn
-        case .ready: self = .ready
+        case .ready:
+            if mustEnrolTwoFactor {
+                self = .twoFactorRequired
+            } else if !hasWorkspace {
+                self = .noWorkspace
+            } else {
+                self = .ready
+            }
         }
+    }
+
+    @MainActor
+    init(_ model: AppModel) {
+        self.init(
+            phase: model.phase, mustEnrolTwoFactor: model.mustEnrolTwoFactor, hasWorkspace: model.workspace != nil)
     }
 }
 
@@ -37,6 +55,23 @@ enum RootActions {
 
     static func retry(_ model: AppModel) async {
         guard case .problem = model.phase else { return }
+        await model.connect()
+    }
+
+    static func signOut(_ model: AppModel, everywhere: Bool) async {
+        guard model.phase == .ready else { return }
+        _ = await model.signOut(everywhere ? .everywhere : .thisDevice)
+    }
+
+    static func refreshAccount(_ model: AppModel) async {
+        guard model.phase == .ready else { return }
+        await model.refreshAccount()
+    }
+
+    /// The No Workspace refresh: `refreshAccount` loads a workspace only for an account that was held back, so after an invitation
+    /// is accepted only a new connection finds it.
+    static func reload(_ model: AppModel) async {
+        guard model.phase == .ready else { return }
         await model.connect()
     }
 }
