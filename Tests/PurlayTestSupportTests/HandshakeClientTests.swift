@@ -17,7 +17,9 @@ struct HandshakeClientTests {
     private func client(_ steps: [ScriptedTransport.Step]) -> (HandshakeClient, ScriptedTransport) {
         let transport = ScriptedTransport(steps)
         return (
-            HandshakeClient(transport: transport, appVersion: SemanticVersion("0.1.0")!, sleep: { _ in }), transport
+            HandshakeClient(
+                transport: transport, appVersion: SemanticVersion("0.1.0")!, platform: .macOS, sleep: { _ in }),
+            transport
         )
     }
 

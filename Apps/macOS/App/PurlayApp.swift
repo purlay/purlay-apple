@@ -9,7 +9,7 @@ struct PurlayApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var updates = UpdateController()
     @State private var sessions: DesktopSessions
-    private let attention = SystemAttention()
+    private let attention = SystemAttention(log: RealEnvironment.log.attention)
 
     init() {
         let environment = RealEnvironment.make(attention: attention)

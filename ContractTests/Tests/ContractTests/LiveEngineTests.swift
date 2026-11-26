@@ -13,7 +13,8 @@ private final class LiveEngine {
     init(world: World, persona: World.Persona, outbox: any OutboxStore) {
         let api = world.client(as: persona)
         let transport = URLSessionSocketTransport(
-            origin: world.server.description, clientHeader: ClientHeader.value(appVersion: world.appVersion),
+            origin: world.server.description,
+            clientHeader: ClientHeader.value(appVersion: world.appVersion, platform: world.identity.platform),
             cookie: { persona.session })
         let clock = ServerClock()
         var recorded: LiveEngine?
@@ -28,7 +29,7 @@ private final class LiveEngine {
                     }
                     return { task.cancel() }
                 },
-                random: { Double.random(in: 0...1) }, clock: Date.init, serverClock: clock,
+                random: { Double.random(in: 0...1) }, clock: Date.init, serverClock: clock, log: world.log,
                 checkSession: {
                     do {
                         _ = try await PurlayAPI(client: api).getMe()

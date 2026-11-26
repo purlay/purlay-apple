@@ -18,6 +18,11 @@ struct DefaultsOwner: OwnerMemory {
 /// The app's real environment: the Keychain, the defaults, the network, the browser and the files, as the sandbox gives them.
 @MainActor
 enum RealEnvironment {
+    /// This app, as its bundle names it (`PRODUCT_BUNDLE_IDENTIFIER` in Config/macOS.xcconfig): its Keychain service is
+    /// `dev.purlay.mac.session`, where every installed Mac keeps its session.
+    static let identity = AppIdentity.main(platform: .macOS)
+    static let log = Log(subsystem: identity.logSubsystem)
+
     static func make(attention: any AttentionPresenter = SilentAttention()) -> AppEnvironment {
         let info = Bundle.main.infoDictionary
         let version =
@@ -26,7 +31,7 @@ enum RealEnvironment {
             FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         let directory = support.appendingPathComponent(
-            Bundle.main.bundleIdentifier ?? "dev.purlay.mac", isDirectory: true)
+            identity.bundleIdentifier, isDirectory: true)
         #if DEBUG
         let allowsLocalHTTP = true
         let serverAddress = ProcessInfo.processInfo.environment["PURLAY_DEV_SERVER"] ?? ServerAddress.hosted
@@ -34,10 +39,11 @@ enum RealEnvironment {
         let allowsLocalHTTP = false
         let serverAddress = ServerAddress.hosted
         #endif
-        let clientHeader = ClientHeader.value(appVersion: version)
+        let clientHeader = ClientHeader.value(appVersion: version, platform: identity.platform)
         return AppEnvironment(
-            transport: URLSessionTransport(), sessions: KeychainSessionStore(), preferences: UserDefaultsPreferences(),
-            authenticator: SystemBrowserAuthenticator(), appVersion: version,
+            transport: URLSessionTransport(), sessions: KeychainSessionStore(service: identity.keychainService),
+            preferences: UserDefaultsPreferences(), authenticator: SystemBrowserAuthenticator(), appVersion: version,
+            identity: identity,
             deviceName: Host.current().localizedName ?? DeviceName.fallback,
             allowsLocalHTTP: allowsLocalHTTP, serverAddress: serverAddress, dataDirectory: directory,
             openSocket: { origin, session in

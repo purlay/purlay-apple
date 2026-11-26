@@ -59,6 +59,9 @@ struct World: Sendable {
     }
 
     var appVersion: SemanticVersion { SemanticVersion("0.1.0")! }
+    /// The client these tests speak as: a Mac app, under a Keychain service and log of their own.
+    var identity: AppIdentity { AppIdentity(bundleIdentifier: "dev.purlay.contract-tests", platform: .macOS) }
+    var log: Log { Log(subsystem: identity.logSubsystem) }
 
     /// The API's own address: the demo's front is one port below it, a proxy that is not the server's own upgrade.
     var apiOrigin: URL {
@@ -75,7 +78,8 @@ struct World: Sendable {
     func client(as persona: Persona, onRejected: @escaping @Sendable () async -> Void = {}) -> APIClient {
         APIClient(
             configuration: APIConfiguration(
-                baseURL: server.origin, clientHeader: ClientHeader.value(appVersion: appVersion),
+                baseURL: server.origin,
+                clientHeader: ClientHeader.value(appVersion: appVersion, platform: identity.platform),
                 sessionCookie: { persona.session }, onSessionRejected: onRejected),
             transport: URLSessionTransport())
     }

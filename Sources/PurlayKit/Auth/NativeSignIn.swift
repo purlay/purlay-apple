@@ -43,7 +43,7 @@ public struct NativeSignIn: Sendable {
     private let now: @Sendable () -> Date
 
     public init(
-        transport: any HTTPTransport, appVersion: SemanticVersion, platform: ClientPlatform = .macOS,
+        transport: any HTTPTransport, appVersion: SemanticVersion, platform: ClientPlatform,
         authenticator: any WebAuthenticator,
         store: any SessionStore, deviceName: String,
         makeAttempt: @escaping @Sendable () -> SignInAttempt = SignInAttempt.make,

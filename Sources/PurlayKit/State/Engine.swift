@@ -28,6 +28,7 @@ public final class Engine {
         public var random: () -> Double
         public var clock: () -> Date
         public var serverClock: ServerClock
+        public var log: Log
         public var checkSession: @Sendable () async -> SessionCheck
         public var selfID: Uuid
         public var outbox: any OutboxStore
@@ -49,7 +50,7 @@ public final class Engine {
 
         public init(
             url: URL, openSocket: @escaping OpenSocket, schedule: @escaping Schedule, random: @escaping () -> Double,
-            clock: @escaping () -> Date, serverClock: ServerClock,
+            clock: @escaping () -> Date, serverClock: ServerClock, log: Log,
             checkSession: @escaping @Sendable () async -> SessionCheck,
             selfID: Uuid, outbox: any OutboxStore,
             sendHTTP: @escaping @Sendable (Uuid, SendMessageRequest) async throws -> Message,
@@ -66,6 +67,7 @@ public final class Engine {
             self.random = random
             self.clock = clock
             self.serverClock = serverClock
+            self.log = log
             self.checkSession = checkSession
             self.selfID = selfID
             self.outbox = outbox
@@ -127,7 +129,8 @@ public final class Engine {
         connection = Connection(
             .init(
                 url: options.url, openSocket: options.openSocket, schedule: options.schedule, random: options.random,
-                clock: options.clock, serverClock: options.serverClock, checkSession: options.checkSession,
+                clock: options.clock, serverClock: options.serverClock, log: options.log,
+                checkSession: options.checkSession,
                 newID: { ids.next() }, onFrame: { frame in engine.value?.frame(frame) },
                 onStatus: { status in engine.value?.statusChanged(status) },
                 onSubscribeRefused: { channels, code, reference in

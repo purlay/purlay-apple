@@ -9,7 +9,7 @@ import Testing
 struct EnvironmentTests {
     @Test("identifies itself to the server as an iOS client")
     func platform() {
-        #expect(RealEnvironment.make().platform == .iOS)
+        #expect(RealEnvironment.make().identity.platform == .iOS)
     }
 
     @Test("reports the version the bundle says, not a placeholder")
@@ -17,6 +17,13 @@ struct EnvironmentTests {
         let shown = try #require(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String)
         #expect(RealEnvironment.make().appVersion == SemanticVersion(shown))
         #expect(RealEnvironment.make().appVersion != SemanticVersion(0, 0, 0))
+    }
+
+    @Test("names itself from its bundle, and keeps its session under the app's own Keychain service")
+    func identity() {
+        let identity = RealEnvironment.make().identity
+        #expect(identity.bundleIdentifier == Bundle.main.bundleIdentifier)
+        #expect(identity.keychainService == "dev.purlay.ios.session")
     }
 
     @Test("keeps its files under the app's own name in Application Support")

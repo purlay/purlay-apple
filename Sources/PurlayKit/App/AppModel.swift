@@ -522,7 +522,8 @@ public final class AppModel {
         }
         phase = .checking
         let handshake = HandshakeClient(
-            transport: environment.transport, appVersion: environment.appVersion, platform: environment.platform,
+            transport: environment.transport, appVersion: environment.appVersion,
+            platform: environment.identity.platform,
             allowsLocalHTTP: environment.allowsLocalHTTP,
             sleep: environment.sleep)
         let outcome: HandshakeOutcome
@@ -561,7 +562,8 @@ public final class AppModel {
         let client = environment.transport
         let version = environment.appVersion
         return SessionManager(
-            store: environment.sessions, owner: environment.owner, wipers: [], now: environment.clock,
+            store: environment.sessions, owner: environment.owner, log: environment.log, wipers: [],
+            now: environment.clock,
             endSession: { [weak self] scope in
                 guard let self else { return }
                 try await self.endServerSession(scope, client: client, version: version, address: address)
@@ -605,7 +607,8 @@ public final class AppModel {
         guard let server, let origin, let manager else { return }
         phase = .signingIn
         let flow = NativeSignIn(
-            transport: environment.transport, appVersion: environment.appVersion, platform: environment.platform,
+            transport: environment.transport, appVersion: environment.appVersion,
+            platform: environment.identity.platform,
             authenticator: environment.authenticator,
             store: environment.sessions, deviceName: environment.deviceName)
         do {
@@ -682,7 +685,8 @@ public final class AppModel {
         let client = APIClient(
             configuration: APIConfiguration(
                 baseURL: server.origin,
-                clientHeader: ClientHeader.value(appVersion: environment.appVersion, platform: environment.platform),
+                clientHeader: ClientHeader.value(
+                    appVersion: environment.appVersion, platform: environment.identity.platform),
                 sessionCookie: { await manager.cookie }, onSessionRejected: { await manager.sessionEndedByServer() },
                 onProblem: { [weak self] problem in await self?.recordProblem(problem) }),
             transport: environment.transport, sleep: environment.sleep)
@@ -786,7 +790,7 @@ public final class AppModel {
                     try opener(origin, self?.currentCookie() ?? "")(url, handlers)
                 },
                 schedule: environment.schedule, random: environment.random, clock: environment.clock,
-                serverClock: serverClock,
+                serverClock: serverClock, log: environment.log,
                 checkSession: {
                     do {
                         _ = try await api.getMe()

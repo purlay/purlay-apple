@@ -9,7 +9,8 @@ struct HandshakeAndReadsTests {
     func handshake() async throws {
         let world = try World.load()
         let outcome = try await HandshakeClient(
-            transport: URLSessionTransport(), appVersion: world.appVersion, allowsLocalHTTP: true
+            transport: URLSessionTransport(), appVersion: world.appVersion, platform: world.identity.platform,
+            allowsLocalHTTP: true
         )
         .perform(world.server)
         guard case .ready(let info, let origin) = outcome else {

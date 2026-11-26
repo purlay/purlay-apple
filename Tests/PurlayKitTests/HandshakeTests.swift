@@ -149,10 +149,10 @@ struct HandshakeTests {
     @Test("the header is the platform, the app's version and the contract it speaks")
     func header() {
         #expect(
-            ClientHeader.value(appVersion: SemanticVersion("1.2.3-rc.1")!, contractVersion: 4)
+            ClientHeader.value(appVersion: SemanticVersion("1.2.3-rc.1")!, platform: .macOS, contractVersion: 4)
                 == "macos/1.2.3-rc.1 contract/4")
         #expect(
-            ClientHeader.value(appVersion: SemanticVersion("0.1.0")!)
+            ClientHeader.value(appVersion: SemanticVersion("0.1.0")!, platform: .macOS)
                 == "macos/0.1.0 contract/\(ContractConstants.contractVersion)")
     }
 

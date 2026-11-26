@@ -70,6 +70,8 @@ public final class Connection {
         public var clock: () -> Date
         /// Told of the first `PONG`; ids are generated against it.
         public var serverClock: ServerClock
+        /// The app's log, for what the socket brought that nothing reads.
+        public var log: Log
         /// Asks the API whether the session still exists (`GET /api/me`).
         public var checkSession: @Sendable () async -> SessionCheck
         public var newID: () -> Uuid
@@ -84,7 +86,7 @@ public final class Connection {
 
         public init(
             url: URL, openSocket: @escaping OpenSocket, schedule: @escaping Schedule, random: @escaping () -> Double,
-            clock: @escaping () -> Date, serverClock: ServerClock,
+            clock: @escaping () -> Date, serverClock: ServerClock, log: Log,
             checkSession: @escaping @Sendable () async -> SessionCheck,
             newID: @escaping () -> Uuid, onFrame: @escaping (ServerFrame) -> Void, onStatus: ((Status) -> Void)? = nil,
             onSubscribeRefused: (([Uuid], ErrorCode, Uuid) -> Void)? = nil, onRefused: ((Int) -> Void)? = nil
@@ -95,6 +97,7 @@ public final class Connection {
             self.random = random
             self.clock = clock
             self.serverClock = serverClock
+            self.log = log
             self.checkSession = checkSession
             self.newID = newID
             self.onFrame = onFrame
@@ -364,7 +367,7 @@ public final class Connection {
                     // Not a frame this contract could have sent. Ending the connection replays from the cursor and loses nothing.
                     socket?.close()
                 case .unknown(let tag):
-                    Log.realtime.debug("Ignored unknown socket event: \(tag, privacy: .private)")
+                    options.log.realtime.debug("Ignored unknown socket event: \(tag, privacy: .private)")
                     // Anything well formed proves the peer is there, an event we do not know included.
                     armIdle()
                 case .frame(let frame):

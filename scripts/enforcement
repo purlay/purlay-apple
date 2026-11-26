@@ -290,6 +290,19 @@ ok = release == allowlist and debug.pop("com.apple.security.cs.disable-library-v
 sys.exit(0 if ok else 1)
 PY
   then echo "FAIL: the Mac entitlements are not the allowlist" >&2; failed=1; fi
+
+  # --- One fact, one place: what is stated twice is checked against its source.
+  # The shared modules serve every app, so they name none: an app's bundle identifier, and the platform it runs on, are handed
+  # in by the app (AppIdentity, from its bundle), never defaulted to one app's in the engine.
+  if grep -rnE --include='*.swift' 'dev\.purlay\.(mac|ios)\b|ClientPlatform *= *\.' "$root/Sources" | grep -v '/Generated/' \
+      | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
+    echo "FAIL: a shared module names one app (its bundle identifier or its platform); take it from the app" >&2; failed=1
+  fi
+  # The Mac's bundle identifier is the one it shipped under: the Keychain service every installed Mac keeps its session under
+  # (`<bundle identifier>.session`) and Sparkle's updates both follow it, so a change signs every Mac out and strands its updates.
+  if [ "$(sed -nE 's/^PRODUCT_BUNDLE_IDENTIFIER *= *//p' "$root/Config/macOS.xcconfig")" != "dev.purlay.mac" ]; then
+    echo "FAIL: Config/macOS.xcconfig no longer names the shipped bundle identifier dev.purlay.mac" >&2; failed=1
+  fi
   return $failed
 }
 
@@ -411,4 +424,13 @@ entitle() { # key: a line of Python that adds the key to the copy's Release enti
 plant_in "an entitlement beyond the allowlist" Apps/macOS/App/Resources "python3 -c '$(entitle com.apple.security.network.server)'"
 plant_in "library validation off in Release" Apps/macOS/App/Resources \
   "python3 -c '$(entitle com.apple.security.cs.disable-library-validation)'"
+# One fact, one place.
+plant "the engine naming the Mac's bundle identifier" Sources/PurlayKit/App/AppEnvironment.swift \
+  'let leakedIdentifier = "dev.purlay.mac.cache"'
+plant "the engine naming the iPhone's bundle identifier" Sources/PurlayKit/Diagnostics/Log.swift \
+  'let leakedSubsystem = "dev.purlay.ios"'
+plant "the engine presuming a platform" Sources/PurlayKit/App/AppEnvironment.swift \
+  'func leakedPlatform(_ platform: ClientPlatform = .macOS) {}'
+plant_in "the Mac's bundle identifier changed" Config \
+  'sed -i.bak "s/^PRODUCT_BUNDLE_IDENTIFIER = dev.purlay.mac$/PRODUCT_BUNDLE_IDENTIFIER = dev.purlay.macos/" macOS.xcconfig && rm macOS.xcconfig.bak'
 exit $fail

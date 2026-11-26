@@ -106,7 +106,8 @@ final class ModelHarness {
 
     init(
         browser: ScriptedBrowser = .approving, allowsLocalHTTP: Bool = true,
-        preferences: MemoryPreferences = MemoryPreferences()
+        preferences: MemoryPreferences = MemoryPreferences(),
+        identity: AppIdentity = AppIdentity(bundleIdentifier: "dev.purlay.kit-tests", platform: .macOS)
     ) {
         self.preferences = preferences
         let server = server
@@ -119,8 +120,8 @@ final class ModelHarness {
         model = AppModel(
             AppEnvironment(
                 transport: server, sessions: sessions, preferences: preferences, authenticator: browser,
-                appVersion: SemanticVersion("0.1.0")!, deviceName: "Test Mac", allowsLocalHTTP: allowsLocalHTTP,
-                serverAddress: "http://localhost:4390", dataDirectory: directory,
+                appVersion: SemanticVersion("0.1.0")!, identity: identity, deviceName: "Test Mac",
+                allowsLocalHTTP: allowsLocalHTTP, serverAddress: "http://localhost:4390", dataDirectory: directory,
                 openSocket: { [weak self] _, session in
                     self?.openedWith.append(session)
                     return { _, handlers in

@@ -44,7 +44,7 @@ struct HandoffTests {
     func authorizationURL() throws {
         let attempt = SignInAttempt.make()
         let server = try ServerAddress.parse("chat.example.com:8443")
-        let url = try #require(attempt.authorizationURL(on: server))
+        let url = try #require(attempt.authorizationURL(on: server, platform: .macOS))
         #expect(url.scheme == "https")
         #expect(url.host == "chat.example.com")
         #expect(url.port == 8443)

@@ -6,8 +6,8 @@ import UIKit
 /// The app's real environment: the Keychain, the defaults, the network, the browser and the files, as iOS gives them.
 @MainActor
 enum RealEnvironment {
-    private static let keychainService = "dev.purlay.ios.session"
-    private static let defaultDirectoryName = "dev.purlay.ios"
+    /// This app, as its bundle names it (`PRODUCT_BUNDLE_IDENTIFIER` in Config/iOS.xcconfig).
+    static let identity = AppIdentity.main(platform: .iOS)
 
     /// `variables`: the process's environment, handed in so a test can say what it holds.
     static func make(variables: [String: String] = ProcessInfo.processInfo.environment) -> AppEnvironment {
@@ -18,19 +18,18 @@ enum RealEnvironment {
             FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         let directory = support.appendingPathComponent(
-            Bundle.main.bundleIdentifier ?? defaultDirectoryName, isDirectory: true)
+            identity.bundleIdentifier, isDirectory: true)
         // The development server is read in a debug build only: in a release build the name is not looked at.
         #if DEBUG
         let choice = ServerChoice.resolve(isDebugBuild: true, override: variables["PURLAY_DEV_SERVER"])
         #else
         let choice = ServerChoice.resolve(isDebugBuild: false, override: nil)
         #endif
-        let platform = ClientPlatform.iOS
-        let clientHeader = ClientHeader.value(appVersion: version, platform: platform)
+        let clientHeader = ClientHeader.value(appVersion: version, platform: identity.platform)
         return AppEnvironment(
-            transport: URLSessionTransport(), sessions: KeychainSessionStore(service: keychainService),
+            transport: URLSessionTransport(), sessions: KeychainSessionStore(service: identity.keychainService),
             preferences: UserDefaultsPreferences(), authenticator: WebAuthSession(), appVersion: version,
-            platform: platform, deviceName: UIDevice.current.name, allowsLocalHTTP: choice.allowsLocalHTTP,
+            identity: identity, deviceName: UIDevice.current.name, allowsLocalHTTP: choice.allowsLocalHTTP,
             serverAddress: choice.address, dataDirectory: directory,
             openSocket: { origin, session in
                 URLSessionSocketTransport(origin: origin.description, clientHeader: clientHeader, cookie: { session })
@@ -81,7 +80,7 @@ extension RealEnvironment {
         }
     }
 
-    private static let log = Logger(subsystem: "dev.purlay.ios", category: "development")
+    private static let log = Logger(subsystem: identity.logSubsystem, category: "development")
 }
 #endif
 
