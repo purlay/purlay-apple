@@ -13,20 +13,43 @@ struct WelcomeContrastTests {
         "the tagline and the footer are readable, in light and dark",
         arguments: [ColorScheme.light, .dark])
     func readable(scheme: ColorScheme) throws {
-        let lines: [(LocalizedStringResource, Font)] = [(Words.tagline, .title3), (Words.newAccount, .footnote)]
-        for (words, font) in lines {
-            let picture = ZStack {
-                EntryBackdrop()
-                Text(words).font(font).foregroundStyle(WelcomeView.quietInk)
-            }
-            .frame(width: 390, height: 120)
-            .environment(\.colorScheme, scheme)
-            let renderer = ImageRenderer(content: picture)
-            renderer.scale = 3
-            let image = try #require(renderer.cgImage)
-            let ratio = try #require(Self.textContrast(image))
+        for (words, font) in Self.lines {
+            let ratio = try Self.contrast(words, font, scheme, .standard)
             #expect(ratio >= 4.5, "\(scheme), \(String(localized: words)): \(ratio):1")
         }
+    }
+
+    // Increase Contrast asks for more than the minimum: the quiet lines take a stronger ink than they do by default.
+    @Test(
+        "with Increase Contrast the tagline and the footer are stronger still, in light and dark",
+        arguments: [ColorScheme.light, .dark])
+    func increased(scheme: ColorScheme) throws {
+        for (words, font) in Self.lines {
+            let standard = try Self.contrast(words, font, scheme, .standard)
+            let increased = try Self.contrast(words, font, scheme, .increased)
+            #expect(increased >= 7, "\(scheme), \(String(localized: words)): \(increased):1")
+            #expect(
+                increased > standard, "\(scheme), \(String(localized: words)): \(increased):1, not above \(standard):1")
+        }
+    }
+
+    private static let lines: [(LocalizedStringResource, Font)] = [
+        (Words.tagline, .title3), (Words.newAccount, .footnote),
+    ]
+
+    private static func contrast(
+        _ words: LocalizedStringResource, _ font: Font, _ scheme: ColorScheme, _ contrast: ColorSchemeContrast
+    ) throws -> Double {
+        let picture = ZStack {
+            EntryBackdrop()
+            Text(words).font(font).foregroundStyle(WelcomeView.quietInk(contrast))
+        }
+        .frame(width: 390, height: 120)
+        .environment(\.colorScheme, scheme)
+        let renderer = ImageRenderer(content: picture)
+        renderer.scale = 3
+        let image = try #require(renderer.cgImage)
+        return try #require(Self.textContrast(image))
     }
 
     /// The contrast between the background (the median pixel) and the text (the pixel farthest from it in luminance).
