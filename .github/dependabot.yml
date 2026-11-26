@@ -1,7 +1,22 @@
+# Updates, weekly and grouped, so they arrive as one pull request per ecosystem rather than one per dependency. A patch update
+# merges by itself when `verify` passes (.github/workflows/dependabot-auto-merge.yml); anything larger waits for review.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
-    schedule: { interval: weekly }
+    schedule: { interval: weekly, day: monday, time: "06:00", timezone: Europe/Istanbul }
     commit-message: { prefix: "chore(ci)" }
     labels: [dependencies, github_actions]
+    groups:
+      actions:
+        patterns: ["*"]
+  # The package and the tools' packages. The root package and the generator have no dependency today; this watches for one.
+  # Sparkle is pinned in the Xcode project, which Dependabot does not read (docs/architecture/tech-debt.md, TD-013).
+  - package-ecosystem: swift
+    directories: [/, /Tools/PurlayGen, /ContractTests]
+    schedule: { interval: weekly, day: monday, time: "06:00", timezone: Europe/Istanbul }
+    commit-message: { prefix: "chore(deps)" }
+    labels: [dependencies, swift]
+    groups:
+      swift:
+        patterns: ["*"]

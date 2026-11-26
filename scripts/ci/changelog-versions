@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Each app's changelog has a section for the version its configuration states, so that a version is never raised without saying
+# what it holds, and a release finds its notes. A section is `## [X.Y.Z]` followed by its date, or by "Unreleased" until then.
+#
+#   scripts/ci/changelog-versions
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+failed=0
+for pair in Config/iOS.xcconfig:Apps/iOS/CHANGELOG.md Config/macOS.xcconfig:Apps/macOS/CHANGELOG.md; do
+  config="${pair%%:*}"; changelog="${pair##*:}"
+  version="$(sed -n 's/^MARKETING_VERSION = //p' "$config")"
+  if grep -qE "^## \[$(printf '%s' "$version" | sed 's/\./\\./g')\]( |$)" "$changelog"; then
+    echo "ok  $changelog has $version ($config)"
+  else
+    echo "FAIL: $config states $version, and $changelog has no '## [$version]' section" >&2; failed=1
+  fi
+done
+exit "$failed"

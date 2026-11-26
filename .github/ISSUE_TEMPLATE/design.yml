@@ -1,0 +1,28 @@
+name: Design
+description: A screen or a flow to design, or a change to one that is designed (docs/design/).
+labels: ["type: design"]
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where
+      options: [iPhone or iPad, Mac, Both]
+    validations:
+      required: true
+  - type: textarea
+    id: intent
+    attributes:
+      label: Intent
+      description: Who is on this screen, what they came to do, and what is in their way now.
+    validations:
+      required: true
+  - type: textarea
+    id: states
+    attributes:
+      label: States
+      description: Every state the screen can be in (loading, empty, error, offline, signed out, the largest text size, Turkish).
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: The requirement (FR-…), the design document it changes, pictures of what exists.

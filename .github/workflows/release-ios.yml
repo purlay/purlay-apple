@@ -1,0 +1,105 @@
+# The iPhone and iPad app's release rehearsal: an `ios/vX.Y.Z` tag on a commit that passed CI on main becomes an unsigned Release
+# archive, kept as a workflow artefact. Nothing is signed or distributed until the licensing question Q-001 is settled
+# (docs/product/requirements.md); this keeps the path from the tag to an archive working until then. Runbook:
+# docs/development/releasing.md.
+name: Release iOS
+on:
+  push:
+    tags: ["ios/v*"]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-ios-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PURLAY_CACHE_DIR: ${{ github.workspace }}/.cache/compilation
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      version: ${{ steps.gate.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: gate
+        name: The version, the changelog, and CI on main
+        run: scripts/ci/release-gate ios
+        env:
+          # A run by hand, from any branch, is a rehearsal: the tag and CI conditions are reported, not enforced.
+          DRY_RUN: ${{ !startsWith(github.ref, 'refs/tags/ios/v') }}
+          GH_TOKEN: ${{ github.token }}
+
+  archive:
+    needs: gate
+    runs-on: xcode-27
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.gate.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Xcode, as .github/toolchain.env names it
+        run: scripts/ci/select-xcode
+      - id: keys
+        run: scripts/ci/cache-keys ios
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PURLAY_CACHE_DIR }}
+          key: ${{ steps.keys.outputs.key }}
+          restore-keys: |
+            ${{ steps.keys.outputs.this_week }}
+            ${{ steps.keys.outputs.last_week }}
+      - name: An unsigned Release archive for iPhone and iPad
+        run: |
+          scripts/build-number
+          xcodebuild -project Apps/Purlay.xcodeproj -scheme Purlay-iOS -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Purlay.xcarchive" \
+            COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$PURLAY_CACHE_DIR" COMPILER_INDEX_STORE_ENABLE=NO \
+            CODE_SIGNING_ALLOWED=NO -quiet archive
+          plist="$RUNNER_TEMP/Purlay.xcarchive/Products/Applications/Purlay.app/Info.plist"
+          built="$(plutil -extract CFBundleShortVersionString raw -o - "$plist")"
+          [ "$built" = "$VERSION" ] || { echo "FAIL: the archive says $built, the configuration $VERSION" >&2; exit 1; }
+          mkdir -p dist
+          ditto -c -k --keepParent "$RUNNER_TEMP/Purlay.xcarchive" "dist/Purlay-$VERSION-iOS-unsigned.xcarchive.zip"
+          (cd dist && shasum -a 256 ./*.zip > SHA256SUMS)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: purlay-ios-${{ needs.gate.outputs.version }}-unsigned
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  summary:
+    needs: [gate, archive]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ci
+      - name: The time each step of the rehearsal took
+        run: scripts/ci/summary 600 "iOS release rehearsal"
+        env:
+          GH_TOKEN: ${{ github.token }}

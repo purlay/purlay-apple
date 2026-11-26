@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Which lanes a change needs, from the paths it touches. CI's `changes` job runs this; it is a script so that the mapping can be
+# read, tested and run by a person.
+#
+#   scripts/ci/changes EVENT < paths     one path per line; prints `lane=true|false` for every lane
+#
+# The rules, in order:
+# - Any event but a pull request (a push to main, the schedule, a manual run) runs every lane: main must save every cache.
+# - An empty list runs every lane: no list is not evidence of nothing changed.
+# - A document (docs/, a Markdown file, the licence and notices, the repository's templates and settings, the local git hooks
+#   and developer scripts, which no lane reads) needs no lane.
+# - A path a lane is known to read runs that lane. A workflow, the Makefile or scripts/verify runs every lane.
+# - Any other path runs every lane. A new folder is checked until someone maps it, never skipped by accident.
+set -euo pipefail
+
+LANES=(rules packages ios macos generated simulator)
+event="${1:?usage: scripts/ci/changes EVENT < paths}"
+
+# The lanes needed so far, space-separated (bash 3, the one macOS ships, has no associative arrays).
+needed=" "
+all() { needed=" ${LANES[*]} "; }
+add() { case "$needed" in *" $1 "*) ;; *) needed="$needed$1 " ;; esac; }
+
+needs_no_lane() {
+  case "$1" in
+    docs/* | *.md | LICENSE | NOTICE | licenses/* | .editorconfig | .claude/*) return 0 ;;
+    .github/CODEOWNERS | .github/ISSUE_TEMPLATE/* | .github/labels.yml | .github/labeler.yml | .github/rulesets/*) return 0 ;;
+    .github/dependabot.yml | .github/actionlint.yaml | .githooks/* | scripts/dev/*) return 0 ;;
+  esac
+  return 1
+}
+
+# The lanes a path is known to need, or "all".
+lanes_for() {
+  case "$1" in
+    .github/workflows/* | Makefile | scripts/verify | scripts/ci/*) echo all ;;
+    Sources/*/Generated/* | Contract/* | Tools/* | scripts/generate | scripts/contract | scripts/prepare-contract) echo "rules packages ios macos generated" ;;
+    Apps/iOS/*) echo "rules packages ios simulator" ;;
+    Apps/macOS/*) echo "rules packages macos" ;;
+    Package.swift | Sources/* | Config/* | Apps/Purlay.xcodeproj/* | scripts/build-number) echo "rules packages ios macos" ;;
+    Tests/* | TestPlans/macOS.xctestplan | .swift-format | ContractTests/*) echo "rules packages" ;;
+    TestPlans/*) echo "rules packages simulator" ;;
+    scripts/enforcement | scripts/check-branch | scripts/localize | Design/*) echo "rules" ;;
+    scripts/sign-release | scripts/release-notes) echo "rules macos" ;;
+    *) echo all ;;
+  esac
+}
+
+if [ "$event" != pull_request ]; then
+  all
+else
+  seen=0
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    seen=1
+    needs_no_lane "$path" && continue
+    lanes="$(lanes_for "$path")"
+    if [ "$lanes" = all ]; then all; break; fi
+    for lane in $lanes; do add "$lane"; done
+  done
+  [ "$seen" = 1 ] || all
+fi
+
+for lane in "${LANES[@]}"; do
+  case "$needed" in *" $lane "*) echo "$lane=true" ;; *) echo "$lane=false" ;; esac
+done

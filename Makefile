@@ -21,3 +21,16 @@ verify-security:
 # Every lane, as a release runs them: the generated code, the Mac's Release build and the simulator included.
 verify-all:
 	scripts/verify
+
+# Added to `setup`: the repository's git hooks (format and secrets before a commit, the message's form). Kept apart so that the
+# targets above stay as they are.
+.PHONY: hooks clean
+setup: hooks
+
+# Points git at .githooks. Local configuration only.
+hooks:
+	scripts/dev/install-hooks
+
+# The caches and build folders the builds fill (scripts/dev/clean --dry says what and how much first). The next build is cold.
+clean:
+	scripts/dev/clean

@@ -1,0 +1,28 @@
+# A pull request's area and platform labels, from the paths it changes (actions/labeler). The names are in .github/labels.yml.
+"area: kit":
+  - changed-files:
+      - any-glob-to-any-file: ["Sources/PurlayKit/**", "Sources/PurlayTestSupport/**", "Tests/PurlayKitTests/**", "Tests/PurlayTestSupportTests/**", "ContractTests/**"]
+"area: contract":
+  - changed-files:
+      - any-glob-to-any-file: ["Contract/**", "Tools/**", "Sources/PurlayContract/**", "Sources/PurlayTokens/**", "Tests/PurlayContractTests/**", "Tests/PurlayTokensTests/**", "scripts/contract*", "scripts/generate", "scripts/prepare-contract"]
+"area: design":
+  - changed-files:
+      - any-glob-to-any-file: ["Sources/PurlayDesign/**", "Tests/PurlayDesignTests/**", "Design/**", "scripts/icon"]
+"area: module-api":
+  - changed-files:
+      - any-glob-to-any-file: ["Sources/PurlayModuleAPI/**", "Tests/PurlayModuleAPITests/**", "Sources/Feature*/**"]
+"area: mac-ui":
+  - changed-files:
+      - any-glob-to-any-file: ["Sources/PurlayMacUI/**", "Tests/PurlayMacUITests/**"]
+"area: build":
+  - changed-files:
+      - any-glob-to-any-file: ["Package.swift", "Apps/Purlay.xcodeproj/**", "Config/**", "TestPlans/**", "scripts/**", ".github/**", ".githooks/**", "Makefile"]
+"area: docs":
+  - changed-files:
+      - any-glob-to-any-file: ["docs/**", "**/*.md"]
+"platform: ios":
+  - changed-files:
+      - any-glob-to-any-file: ["Apps/iOS/**", "Config/iOS*.xcconfig", "TestPlans/PR.xctestplan", "TestPlans/Simulator.xctestplan"]
+"platform: macos":
+  - changed-files:
+      - any-glob-to-any-file: ["Apps/macOS/**", "Config/macOS.xcconfig", "Sources/PurlayMacUI/**", "scripts/sign-release", "scripts/release-notes", "scripts/localize", "scripts/dev-signing"]

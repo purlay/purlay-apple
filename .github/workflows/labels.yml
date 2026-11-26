@@ -1,0 +1,47 @@
+# Labels as code: .github/labels.yml is every label of the repository; a pull request labels itself by its paths
+# (.github/labeler.yml). Neither checks out or runs the pull request's code.
+name: Labels
+on:
+  push:
+    branches: [main]
+    paths: [.github/labels.yml, scripts/ci/sync-labels]
+  # pull_request_target runs with the base branch's workflow and configuration, so a pull request from a fork can be labelled.
+  # It is safe here because nothing of the pull request is checked out or run: the labeler reads only the list of changed paths.
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: labels-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    if: github.event_name != 'pull_request_target'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Make the repository's labels those of .github/labels.yml
+        run: scripts/ci/sync-labels --apply
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  label:
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7.0.0
+        with:
+          sync-labels: true

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Frees the disk this repository's builds use, and says how much. Everything removed is rebuilt or fetched on the next run, so the
+# next build is a cold one (minutes, not seconds).
+#
+#   scripts/dev/clean          the compilation cache (every checkout on this Mac shares it), this checkout's DerivedData, SwiftPM's build folders, the rules' scratch
+#   scripts/dev/clean --dry    say what would go, and remove nothing
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+dry=false; [ "${1:-}" = --dry ] && dry=true
+
+targets=("${PURLAY_CACHE_DIR:-$HOME/Library/Caches/dev.purlay/compilation-cache}" "${TMPDIR:-/tmp}/purlay-enforcement")
+for folder in .build Tools/PurlayGen/.build ContractTests/.build; do targets+=("$PWD/$folder"); done
+# Xcode's DerivedData for this checkout: the folder whose info names this project. Another checkout's is left alone.
+for derived in "$HOME"/Library/Developer/Xcode/DerivedData/Purlay-*; do
+  [ -f "$derived/info.plist" ] || continue
+  workspace="$(plutil -extract WorkspacePath raw -o - "$derived/info.plist" 2>/dev/null)" || continue
+  # Compared after resolving links: Xcode may record /tmp for what is /private/tmp.
+  if [ "$(cd "$(dirname "$workspace")" 2>/dev/null && pwd -P)" = "$(pwd -P)/Apps" ]; then
+    targets+=("$derived")
+  fi
+done
+
+for target in "${targets[@]}"; do
+  [ -e "$target" ] || continue
+  size="$(du -sh "$target" 2>/dev/null | cut -f1)"
+  if [ "$dry" = true ]; then echo "would remove  $size  $target"; else rm -rf "$target"; echo "removed  $size  $target"; fi
+done
+echo "Xcode's simulators can be pruned too: xcrun simctl delete unavailable"
