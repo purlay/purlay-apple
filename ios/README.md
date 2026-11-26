@@ -52,6 +52,7 @@ shared with [`purlay-macos`](https://github.com/purlay/purlay-macos); the server
 |---|---|
 | [`docs/`](docs) | The entry point: current status, constraints, the next slices, how to verify |
 | [`docs/product/`](docs/product) | Vision and requirements |
+| [`docs/design/`](docs/design) | Screen and flow designs: what each screen shows, and why |
 | [`docs/architecture/`](docs/architecture) | What the code is, conventions, technical debt |
 | [`docs/decisions/`](docs/decisions) | Architecture decision records: what was chosen, and what was rejected |
 | [`docs/development/`](docs/development) | Setting up, building, testing |

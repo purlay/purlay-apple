@@ -82,11 +82,14 @@ docs/                  this documentation
 | [architecture/tech-debt.md](architecture/tech-debt.md) | Before a release; when a shortcut tempts you |
 | [decisions/](decisions/) | Asking why something is the way it is; before changing the architecture |
 | [product/vision.md](product/vision.md), [requirements.md](product/requirements.md) | Before changing what the app does |
+| [design/entry-shell-account.md](design/entry-shell-account.md) | Before building or changing the entry, the shell or the account screens |
+| [architecture/apple-monorepo.md](architecture/apple-monorepo.md) | The move to one Apple repository, and its phases |
 | [development/getting-started.md](development/getting-started.md) | Setting up, local servers, the sign-in UI tests |
 | [runbooks/](runbooks) | Moving to a new `purlay-swift`; changing a shared file |
 
 ## Latest decisions
 
+- [0007 — One repository for every Apple platform](decisions/0007-one-apple-repository.md)
 - [0006 — The app's tests use fakes of their own](decisions/0006-app-tests-use-their-own-fakes.md)
 - [0005 — `make verify` over the lanes of `scripts/verify`, and a secret scan](decisions/0005-verify-entry-point-and-secret-scan.md)
 - [0004 — The contract stays in the server repository](decisions/0004-contract-single-source.md)

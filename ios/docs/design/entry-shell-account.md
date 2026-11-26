@@ -1,7 +1,7 @@
 # Design: entry, shell, and account
 
 > 2026-11-26 · Owner: the Purlay owner · Requirements: FR-001–FR-004, FR-008, FR-020, FR-023, FR-025 in
-> [requirements](../../product/requirements.md)
+> [requirements](../product/requirements.md)
 
 ## Intent
 
@@ -40,7 +40,7 @@ never stuck.
 
 ## Constraints (from the repository, unchanged)
 
-- iOS 18 floor and iOS 27 SDK. Version checks only in `PurlayDesign`, as modifiers named by role ([ADR 0001](../../decisions/0001-deployment-target-and-design-language.md)).
+- iOS 18 floor and iOS 27 SDK. Version checks only in `PurlayDesign`, as modifiers named by role ([ADR 0001](../decisions/0001-deployment-target-and-design-language.md)).
 - `AppModel` from `purlay-swift` 0.2.0 is the one model. Views read it and call it. No change to the engine is needed for this design.
 - Every sentence is in `Words` and in the catalogue, in English and Turkish.
 - Each screen is decided from a pure value (`RootScreen`). A tap that must happen once goes through a guard that reads the

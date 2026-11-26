@@ -1,6 +1,6 @@
 # Design: one Apple repository (`purlay-apple`)
 
-> 2026-11-26 · Owner: the Purlay owner · Replaces ADR 0002 in `purlay-ios` and in `purlay-macos` (as ADR 0007, in the new repo)
+> 2026-11-26 · Owner: the Purlay owner · Decision: [ADR 0007](../decisions/0007-one-apple-repository.md) · Approved by the owner (D1–D6), 2026-11-26
 
 ## Intent
 
