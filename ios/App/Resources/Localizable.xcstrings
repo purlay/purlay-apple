@@ -91,12 +91,12 @@
         }
       }
     },
-    "New to Purlay? You can create an account on the sign-in page." : {
+    "New to Purlay? Create an account when you sign in." : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Purlay'de yeni misin? Giriş sayfasında bir hesap oluşturabilirsin."
+            "value" : "Purlay'de yeni misin? Giriş yaparken hesap oluşturabilirsin."
           }
         }
       }
@@ -406,7 +406,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tarayıcında %@ üzerinde devam edeceksin."
+            "value" : "Tarayıcında %@ üzerinden devam edeceksin."
           }
         }
       }

@@ -37,6 +37,14 @@ enum RootScreen: Equatable {
         }
     }
 
+    /// Whether the brand mark stands on this screen: while something is under way, and on Welcome. Elsewhere it fades out.
+    var showsMark: Bool {
+        switch self {
+        case .busy, .signIn: true
+        case .problem, .twoFactorRequired, .noWorkspace, .ready: false
+        }
+    }
+
     @MainActor
     init(_ model: AppModel) {
         self.init(

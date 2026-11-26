@@ -1,7 +1,7 @@
 import PurlayDesign
 import SwiftUI
 
-/// Something is under way. The mark stands exactly where the launch screen put it, so the launch flows into the app without a
+/// Something is under way. The shared mark (`entryMark`) stands exactly where the launch screen put it, so the launch flows into the app without a
 /// blink; what is under way is said under it only after a moment, so a fast connection shows nothing but the mark.
 struct ConnectingView: View {
     let busy: RootScreen.Busy
@@ -14,9 +14,7 @@ struct ConnectingView: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            PurlayMark()
-                .matchedGeometryEffect(id: EntryMark.id, in: brand)
-                .frame(width: PurlayMark.launchSize, height: PurlayMark.launchSize)
+            EntryMarkSlot(brand: brand)
                 .alignmentGuide(.markCenter) { $0[VerticalAlignment.center] }
             status
         }
@@ -53,11 +51,6 @@ struct ConnectingView: View {
     }
 }
 
-/// The one mark the entry screens share, so it travels from one screen to the next instead of being drawn twice.
-enum EntryMark {
-    static let id = "mark"
-}
-
 extension VerticalAlignment {
     /// The mark's centre, so a screen can centre the mark rather than the mark and what stands under it.
     fileprivate enum MarkCenter: AlignmentID {
@@ -69,20 +62,21 @@ extension VerticalAlignment {
 
 #Preview("Light") {
     @Previewable @Namespace var brand
-    ConnectingView(busy: .connecting, brand: brand)
+    ConnectingView(busy: .connecting, brand: brand).entryMark(in: brand, shown: true)
 }
 
 #Preview("Dark") {
     @Previewable @Namespace var brand
-    ConnectingView(busy: .signingIn, brand: brand).preferredColorScheme(.dark)
+    ConnectingView(busy: .signingIn, brand: brand).entryMark(in: brand, shown: true).preferredColorScheme(.dark)
 }
 
 #Preview("Turkish") {
     @Previewable @Namespace var brand
-    ConnectingView(busy: .loading, brand: brand).environment(\.locale, .init(identifier: "tr"))
+    ConnectingView(busy: .loading, brand: brand).entryMark(in: brand, shown: true).environment(
+        \.locale, .init(identifier: "tr"))
 }
 
 #Preview("Largest text") {
     @Previewable @Namespace var brand
-    ConnectingView(busy: .signingIn, brand: brand).dynamicTypeSize(.accessibility5)
+    ConnectingView(busy: .signingIn, brand: brand).entryMark(in: brand, shown: true).dynamicTypeSize(.accessibility5)
 }

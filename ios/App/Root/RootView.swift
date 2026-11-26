@@ -6,13 +6,14 @@ import SwiftUI
 /// chrome and materials are the system's, and any OS-version branching would live in `PurlayDesign`, never here.
 struct RootView: View {
     let model: AppModel
-    /// The mark the entry screens share: it travels from the launch screen's place to Welcome and back.
+    /// The mark the entry screens share, drawn once over them: it travels from the launch screen's place to Welcome and back.
     @Namespace private var brand
 
     var body: some View {
         let screen = RootScreen(model)
         // The switch sits inside the animated container, so a screen that leaves animates as well as the one that arrives.
         ZStack { content(screen) }
+            .entryMark(in: brand, shown: screen.showsMark)
             .purlayAnimation(.smooth, value: screen)
             .safeAreaInset(edge: .top, spacing: 0) { NoticeList(model: model) }
     }

@@ -29,6 +29,14 @@ struct RootScreenTests {
         #expect(RootScreen(phase: .signedOut, mustEnrolTwoFactor: true, hasWorkspace: false) == .signIn)
     }
 
+    @Test("the brand mark stands while something is under way and on Welcome, and nowhere else")
+    func showsMark() {
+        let shown: [RootScreen] = [.busy(.connecting), .busy(.signingIn), .busy(.loading), .signIn]
+        let hidden: [RootScreen] = [.problem(.unreachable), .twoFactorRequired, .noWorkspace, .ready]
+        for screen in shown { #expect(screen.showsMark, "\(screen)") }
+        for screen in hidden { #expect(!screen.showsMark, "\(screen)") }
+    }
+
     @Test("signing out, refreshing and reloading do nothing unless the account is ready")
     func guardedWhenNotReady() async {
         let harness = Harness([Harness.clientInfo()])

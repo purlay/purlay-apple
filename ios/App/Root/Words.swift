@@ -13,7 +13,7 @@ enum Words {
     static let signInButton = LocalizedStringResource("Sign In")
     /// Said under Sign In when the server's host is not known.
     static let continuesInBrowserNoHost = LocalizedStringResource("You'll continue in your browser.")
-    static let newAccount = LocalizedStringResource("New to Purlay? You can create an account on the sign-in page.")
+    static let newAccount = LocalizedStringResource("New to Purlay? Create an account when you sign in.")
     static let tryAgain = LocalizedStringResource("Try Again")
     static let dismiss = LocalizedStringResource("Dismiss")
     static let signedInTitle = LocalizedStringResource("You're Signed In")
