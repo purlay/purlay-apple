@@ -460,6 +460,22 @@ PY
       | grep -v "BuildableName = \"$product.app\""; then
     echo "FAIL: a scheme names an app other than $product.app" >&2; failed=1
   fi
+  # Both apps register their URL type alike: the same name (the app's own bundle identifier) and the same scheme.
+  if ! python3 - "$root/Apps/iOS/Info.plist" "$root/Apps/macOS/Info.plist" <<'PY'
+import plistlib, re, sys
+types = [plistlib.loads(re.sub(rb"(?m)^#.*\n", b"", open(path, "rb").read())).get("CFBundleURLTypes") for path in sys.argv[1:]]
+expected = [{"CFBundleURLName": "$(PRODUCT_BUNDLE_IDENTIFIER)", "CFBundleURLSchemes": ["$(PURLAY_URL_SCHEME)"]}]
+sys.exit(0 if all(entry == expected for entry in types) else 1)
+PY
+  then echo "FAIL: the apps' URL types differ, or are not named by the bundle identifier" >&2; failed=1; fi
+  # Every shared configuration file is in the project's Config group, so it is seen where the others are.
+  local config
+  for config in "$root"/Config/*.xcconfig; do
+    case "$(basename "$config")" in BuildNumber.xcconfig | Local.xcconfig) continue ;; esac
+    if ! grep -qF "{ \"path\": \"$(basename "$config")\" }" "$root/Apps/Purlay.xcodeproj/project.xcproj"; then
+      echo "FAIL: $(basename "$config") is not in the project's Config group" >&2; failed=1
+    fi
+  done
   # A package test suite is not named like an app's test target, so a test's name says where it runs.
   if grep -rnE --include='*.swift' '^(struct|final class|class) (PurlayTests|PurlayUITests)\b' "$root/Tests"; then
     echo "FAIL: a package test suite named like an iOS test target" >&2; failed=1
@@ -664,6 +680,10 @@ plant_in "the iOS accent asset another blue" Apps/iOS/App/Resources/Assets.xcass
 plant "a second DefaultsOwner in the Mac app" Apps/macOS/App/Environment.swift 'struct DefaultsOwner {}'
 plant_in "a scheme naming an app the build does not make" Apps/Purlay.xcodeproj/xcshareddata/xcschemes \
   'sed -i.bak "s/BuildableName = \"Purlay.app\"/BuildableName = \"Purlay iOS.app\"/" Purlay-iOS.xcscheme && rm Purlay-iOS.xcscheme.bak'
+# shellcheck disable=SC2016 # the literal $(PRODUCT_BUNDLE_IDENTIFIER) is what is replaced
+plant_in "an iOS URL type named its own way" Apps/iOS \
+  'sed -i.bak "s/<string>\$(PRODUCT_BUNDLE_IDENTIFIER)<\/string>/<string>dev.purlay.sign-in<\/string>/" Info.plist'
+plant "a configuration file outside the project's Config group" Config/Extra.xcconfig 'SWIFT_VERSION = 6.0'
 plant "a Mac suite named like the iOS UI tests" Tests/PurlayMacUITests/MacWordsTests.swift 'struct PurlayUITests {}'
 plant "a URL scheme other than the contract's" Config/Shared.xcconfig 'PURLAY_URL_SCHEME = purlay-dev'
 plant "the URL scheme compared by hand in the engine" Sources/PurlayKit/App/AppEnvironment.swift \
