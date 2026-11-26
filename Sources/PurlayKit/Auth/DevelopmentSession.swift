@@ -4,8 +4,9 @@ import OSLog
 /// forgets its stored session first (a Keychain item outlives the app's launches), and `PURLAY_DEV_SESSION=<the cookie's
 /// value>` stores one already made, so the screens after sign-in can be looked at and tested without the browser.
 ///
-/// The apps call this in a debug build only. What cannot be done is logged, not swallowed: a developer who asked for a
-/// session and did not get one is told why.
+/// It exists in a debug build only, so a release binary carries none of it (scripts/verify reads the built apps for the names).
+/// What cannot be done is logged, not swallowed: a developer who asked for a session and did not get one is told why.
+#if DEBUG
 public enum DevelopmentSession {
     public static func seed(_ sessions: any SessionStore, variables: [String: String], log: Logger) {
         guard let server = variables["PURLAY_DEV_SERVER"] else { return }
@@ -31,3 +32,4 @@ public enum DevelopmentSession {
         }
     }
 }
+#endif

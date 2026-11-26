@@ -104,6 +104,16 @@ check_build_number() { # Info.plist
   echo "ok  build $actual"
 }
 
+# The development shortcuts (a server and a session handed in through the environment) exist in a debug build alone. grep reads
+# all of what strings prints (no -q), so strings is not cut short and pipefail does not turn a match into a pass.
+check_no_development_shortcut() { # configuration executable
+  [ "$1" = Release ] || return 0
+  if strings -a "$2" | grep -E 'PURLAY_DEV_(SERVER|SESSION|RESET)' >/dev/null; then
+    echo "FAIL: the $1 build $2 carries the development shortcuts" >&2; exit 1
+  fi
+  echo "ok  $1: no development shortcut"
+}
+
 rules() {
   step check "branch name"
   scripts/check-branch
@@ -174,6 +184,7 @@ ios() { # configurations to build and check
       CODE_SIGNING_ALLOWED=NO build
     app="$(built_app Purlay-iOS "$configuration" 'generic/platform=iOS Simulator')/Purlay.app"
     check_build_number "$app/Info.plist"
+    check_no_development_shortcut "$configuration" "$app/Purlay"
     # The rule the Mac's built app is held to: the local-networking exception is in Debug alone.
     has=false; plutil -extract NSAppTransportSecurity xml1 -o - "$app/Info.plist" >/dev/null 2>&1 && has=true
     case "$configuration:$has" in
@@ -194,6 +205,7 @@ macos() { # configurations to build and check
   for configuration in $configurations; do
     cached -project "$PROJECT" -scheme Purlay-macOS -configuration "$configuration" -destination 'platform=macOS' build
     check_build_number "$(built_app Purlay-macOS "$configuration")/Purlay.app/Contents/Info.plist"
+    check_no_development_shortcut "$configuration" "$(built_app Purlay-macOS "$configuration")/Purlay.app/Contents/MacOS/Purlay"
   done
 
   step check "App Transport Security stays strict in Release and is relaxed for localhost in Debug only"
