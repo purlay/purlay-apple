@@ -51,10 +51,8 @@ let package = Package(
         tests("PurlayTestSupportTests", ["PurlayTestSupport", "PurlayKit", "PurlayContract"]),
         tests("PurlayDesignTests", ["PurlayDesign"]),
         tests("PurlayModuleAPITests", ["PurlayModuleAPI"]),
-        // PurlayWords' tests are here, on macOS, until a test target of its own can join a test plan.
-        tests(
-            "PurlayMacUITests",
-            ["PurlayMacUI", "PurlayWords", "PurlayKit", "PurlayContract", "PurlayTokens", "PurlayTestSupport"]),
+        tests("PurlayWordsTests", ["PurlayWords", "PurlayKit", "PurlayContract"]),
+        tests("PurlayMacUITests", ["PurlayMacUI", "PurlayKit", "PurlayContract", "PurlayTokens", "PurlayTestSupport"]),
         // The real client against a real server of the pinned version (§16.3): skipped, and saying so, without one;
         // scripts/contract-test starts one. Compiled in every pull request, so a change that breaks them is seen there.
         tests("ContractTests", ["PurlayContract", "PurlayKit", "PurlayTestSupport"]),

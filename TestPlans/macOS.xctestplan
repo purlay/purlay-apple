@@ -55,6 +55,13 @@
     {
       "target" : {
         "containerPath" : "container:..",
+        "identifier" : "PurlayWordsTests",
+        "name" : "PurlayWordsTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:..",
         "identifier" : "PurlayMacUITests",
         "name" : "PurlayMacUITests"
       }
