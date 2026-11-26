@@ -7,8 +7,8 @@
 # The rules, in order:
 # - Any event but a pull request (a push to main, the schedule, a manual run) runs every lane: main must save every cache.
 # - An empty list runs every lane: no list is not evidence of nothing changed.
-# - A document (docs/, a Markdown file, the licence and notices, the repository's templates and settings, the local git hooks
-#   and developer scripts, which no lane reads) needs no lane.
+# - A document (docs/, a Markdown file, the licence and notices, the repository's templates and settings) needs no lane. The git
+#   hooks and developer scripts are shell, which only the rules lane reads (shellcheck).
 # - A path a lane is known to read runs that lane. A workflow, the Makefile, scripts/verify or scripts/ci runs every lane but the
 #   simulator.
 # - The simulator runs for the iOS app, the design system (the one package with code of its own for UIKit), their tests, the
@@ -28,7 +28,7 @@ needs_no_lane() {
   case "$1" in
     docs/* | *.md | LICENSE | NOTICE | licenses/* | .editorconfig | .claude/*) return 0 ;;
     .github/CODEOWNERS | .github/ISSUE_TEMPLATE/* | .github/labels.yml | .github/labeler.yml | .github/rulesets/*) return 0 ;;
-    .github/dependabot.yml | .github/actionlint.yaml | .githooks/* | scripts/dev/*) return 0 ;;
+    .github/dependabot.yml) return 0 ;;
   esac
   return 1
 }
@@ -47,6 +47,7 @@ lanes_for() {
     Tests/* | TestPlans/macOS.xctestplan | .swift-format | ContractTests/*) echo "rules packages" ;;
     TestPlans/iOS.xctestplan) echo "rules simulator" ;;
     TestPlans/*) echo "rules packages" ;;
+    .github/actionlint.yaml | .githooks/* | scripts/dev/* | scripts/install-lint-tools) echo "rules" ;;
     scripts/enforcement | scripts/check-branch | scripts/localize | Design/*) echo "rules" ;;
     scripts/sign-release | scripts/release-notes) echo "rules macos" ;;
     *) echo all ;;

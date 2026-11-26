@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# actionlint and shellcheck at the pinned versions, from their releases, each checked against the digest pinned here for the
+# platform it runs on. A machine that already has the pinned version is left alone.
+#
+#   scripts/install-lint-tools        install; prints the folder that holds them on stdout (the PATH of a GitHub Actions step's
+#                                     successors gets it too)
+#
+# To move to a newer version: change the version and the digests below, with the ones GitHub shows for that release's
+# `actionlint_<version>_<platform>.tar.gz` and `shellcheck-v<version>.<platform>.tar.gz` assets.
+set -euo pipefail
+
+ACTIONLINT_VERSION=1.7.12
+ACTIONLINT_SHA256_LINUX_X64=8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+ACTIONLINT_SHA256_DARWIN_ARM64=aba9ced2dee8d27fecca3dc7feb1a7f9a52caefa1eb46f3271ea66b6e0e6953f
+ACTIONLINT_SHA256_DARWIN_X64=5b44c3bc2255115c9b69e30efc0fecdf498fdb63c5d58e17084fd5f16324c644
+
+SHELLCHECK_VERSION=0.11.0
+SHELLCHECK_SHA256_LINUX_X64=b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6
+SHELLCHECK_SHA256_DARWIN_ARM64=339b930feb1ea764467013cc1f72d09cd6b869ebf1013296ba9055ab2ffbd26f
+SHELLCHECK_SHA256_DARWIN_X64=c2c15e08df0e8fbc374c335b230a7ee958c313fa5714817a59aa59f1aa594f51
+
+case "$(uname -s)-$(uname -m)" in
+  Linux-x86_64)
+    actionlint_platform=linux_amd64; actionlint_sha256="$ACTIONLINT_SHA256_LINUX_X64"
+    shellcheck_platform=linux.x86_64; shellcheck_sha256="$SHELLCHECK_SHA256_LINUX_X64" ;;
+  Darwin-arm64)
+    actionlint_platform=darwin_arm64; actionlint_sha256="$ACTIONLINT_SHA256_DARWIN_ARM64"
+    shellcheck_platform=darwin.aarch64; shellcheck_sha256="$SHELLCHECK_SHA256_DARWIN_ARM64" ;;
+  Darwin-x86_64)
+    actionlint_platform=darwin_amd64; actionlint_sha256="$ACTIONLINT_SHA256_DARWIN_X64"
+    shellcheck_platform=darwin.x86_64; shellcheck_sha256="$SHELLCHECK_SHA256_DARWIN_X64" ;;
+  *) echo "FAIL: no actionlint or shellcheck is pinned for $(uname -s) $(uname -m)" >&2; exit 1 ;;
+esac
+
+HOME_DIR="${LINT_TOOLS_HOME:-$HOME/.local/share/purlay/lint-tools-$ACTIONLINT_VERSION-$SHELLCHECK_VERSION}"
+work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
+
+fetch() { # url, sha256, destination archive
+  curl --fail --silent --show-error --location --retry 3 "$1" --output "$3"
+  echo "$2  $3" | shasum -a 256 -c - >/dev/null \
+    || { echo "FAIL: the digest of $1 is not the one pinned in scripts/install-lint-tools" >&2; exit 1; }
+}
+
+announce() { # where they are, for the steps that follow
+  [ -n "${GITHUB_PATH:-}" ] && echo "$HOME_DIR" >> "$GITHUB_PATH"
+  echo "actionlint $ACTIONLINT_VERSION, shellcheck $SHELLCHECK_VERSION" >&2
+  echo "$HOME_DIR"
+}
+
+if [ -x "$HOME_DIR/actionlint" ] && [ -x "$HOME_DIR/shellcheck" ]; then announce; exit 0; fi
+
+mkdir -p "$HOME_DIR"
+fetch "https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT_VERSION/actionlint_${ACTIONLINT_VERSION}_${actionlint_platform}.tar.gz" \
+  "$actionlint_sha256" "$work/actionlint.tar.gz"
+tar -xzf "$work/actionlint.tar.gz" -C "$HOME_DIR" actionlint
+fetch "https://github.com/koalaman/shellcheck/releases/download/v$SHELLCHECK_VERSION/shellcheck-v${SHELLCHECK_VERSION}.${shellcheck_platform}.tar.gz" \
+  "$shellcheck_sha256" "$work/shellcheck.tar.gz"
+tar -xzf "$work/shellcheck.tar.gz" -C "$work"
+install -m 755 "$work/shellcheck-v$SHELLCHECK_VERSION/shellcheck" "$HOME_DIR/shellcheck"
+announce

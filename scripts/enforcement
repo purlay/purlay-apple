@@ -332,10 +332,13 @@ rm -rf "$clean"
 
 # The layers. Each plant below belongs to the group named before it, and runs only when that group is asked for.
 group=layers
+# shellcheck disable=SC2016 # Swift source, planted as it is written
 plant "Kit depending on Design" Package.swift \
   'package.targets.first { $0.name == "PurlayKit" }?.dependencies.append("PurlayDesign")'
+# shellcheck disable=SC2016 # Swift source, planted as it is written
 plant "Contract depending on Kit" Package.swift \
   'package.targets.first { $0.name == "PurlayContract" }?.dependencies.append("PurlayKit")'
+# shellcheck disable=SC2016 # Swift source, planted as it is written
 plant "Design depending on Kit" Package.swift \
   'package.targets.first { $0.name == "PurlayDesign" }?.dependencies.append("PurlayKit")'
 plant "a feature depending on a feature" Package.swift \

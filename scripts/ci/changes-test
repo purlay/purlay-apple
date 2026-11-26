@@ -23,6 +23,8 @@ expect pull_request "Sources/PurlayDesign/Brand.swift" "rules packages ios macos
 expect pull_request "Tests/PurlayDesignTests/BrandTests.swift" "rules packages simulator"
 expect pull_request "TestPlans/iOS.xctestplan" "rules simulator"
 expect pull_request "scripts/ci/boot-simulator" "rules simulator"
+# Shell and workflow files are linted by the rules lane, and by nothing else.
+expect pull_request ".githooks/pre-commit,scripts/dev/clean,.github/actionlint.yaml" "rules"
 # Other packages, their tests, documents and CI alone never start a simulator.
 expect pull_request "Sources/PurlayKit/Engine.swift" "rules packages ios macos"
 expect pull_request "Tests/PurlayKitTests/EngineTests.swift,docs/x.md" "rules packages"
