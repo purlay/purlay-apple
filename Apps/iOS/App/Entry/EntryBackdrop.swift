@@ -31,11 +31,11 @@ struct EntryBackdrop: View {
 
     private var moves: Bool { !reduceMotion && !lowPower }
 
-    /// The logo's blues, light to deep, so the field reads as the mark's own colour.
+    /// The logo's own blues (`Logo`, from Design/purlay.svg), light to deep, so the field reads as the mark's colour.
     private static let colors: [Color] = [
-        Color(hex: 0xA8D4F7), Color(hex: 0x78BDF2), Color(hex: 0x0EA5EE),
-        Color(hex: 0x78BDF2), Color(hex: 0x0EA5EE), Color(hex: 0x0759EB),
-        Color(hex: 0x0EA5EE), Color(hex: 0x0759EB), Color(hex: 0x78BDF2),
+        Logo.ribbonEnd, Logo.ribbonMiddle, Logo.stemEnd,
+        Logo.ribbonMiddle, Logo.stemEnd, Logo.stemStart,
+        Logo.stemEnd, Logo.stemStart, Logo.ribbonMiddle,
     ]
 
     /// The corners and the centre stay; the four points in the middle of the edges slide along their edges.

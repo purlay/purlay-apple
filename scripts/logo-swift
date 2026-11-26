@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""The logo as Swift: Sources/PurlayDesign/Logo.swift, written from Design/purlay.svg, so PurlayMark and the Welcome field draw
+the logo's own shapes and colours and never a copy of them. scripts/icon runs it; scripts/enforcement runs it with --check.
+
+  scripts/logo-swift [ROOT]            write the file
+  scripts/logo-swift --check [ROOT]    fail unless the file is exactly what the logo gives
+
+It reads the subset of SVG the logo uses (linear gradients in user space, and paths of absolute M, L, H, V, C and Z) and refuses
+anything else, so a logo drawn differently is a change to this script and not a silently wrong mark. Python's standard library
+only: the check runs on a runner without Swift.
+"""
+import re
+import sys
+import xml.etree.ElementTree as ElementTree
+from pathlib import Path
+
+SVG = "{http://www.w3.org/2000/svg}"
+OUTPUT = "Sources/PurlayDesign/Logo.swift"
+
+
+def fail(message):
+    sys.exit(f"FAIL: Design/purlay.svg: {message}")
+
+
+def number(text):
+    value = float(text)
+    return str(int(value)) if value.is_integer() else repr(value)
+
+
+def hex_colour(text):
+    if not re.fullmatch(r"#[0-9A-Fa-f]{6}", text or ""):
+        fail(f"a stop colour {text!r} is not #RRGGBB")
+    return "0x" + text[1:].upper()
+
+
+def stop_names(gradient, count):
+    if count < 2:
+        fail(f"the gradient {gradient} has fewer than two stops")
+    middle = ["Middle"] if count == 3 else [f"Stop{index}" for index in range(2, count)]
+    return [gradient + suffix for suffix in ["Start", *middle, "End"]]
+
+
+def steps(path):
+    tokens = re.findall(r"[A-Za-z]|-?\d*\.?\d+(?:e-?\d+)?", path)
+    arity = {"M": 2, "L": 2, "H": 1, "V": 1, "C": 6, "Z": 0}
+    result, index, x, y = [], 0, 0.0, 0.0
+    while index < len(tokens):
+        command = tokens[index]
+        if command not in arity:
+            fail(f"the path command {command!r} is not one this script reads (absolute M, L, H, V, C, Z)")
+        values = [float(token) for token in tokens[index + 1 : index + 1 + arity[command]]]
+        index += 1 + arity[command]
+        if command == "H":
+            command, values = "L", [values[0], y]
+        elif command == "V":
+            command, values = "L", [x, values[0]]
+        if values:
+            x, y = values[-2], values[-1]
+        name = {"M": "move", "L": "line", "C": "curve", "Z": "close"}[command]
+        result.append(f".{name}({', '.join(number(value) for value in values)})" if values else ".close")
+    return result
+
+
+def swift(root):
+    tree = ElementTree.parse(root / "Design/purlay.svg").getroot()
+    if tree.get("viewBox") != "0 0 1024 1024":
+        fail("the viewBox is not 0 0 1024 1024")
+    gradients = {}
+    lines = [
+        "// Written by scripts/icon from Design/purlay.svg, and refused by scripts/enforcement when it is not what the logo says.",
+        "// Change the logo and run scripts/icon; never edit this file.",
+        "import SwiftUI",
+        "",
+        "/// The logo as `Design/purlay.svg` draws it, in the SVG's own coordinates: its colours, by gradient, and its shapes.",
+        "public enum Logo {",
+    ]
+    for gradient in tree.iter(SVG + "linearGradient"):
+        identifier = gradient.get("id")
+        if gradient.get("gradientUnits") != "userSpaceOnUse" or not re.fullmatch(r"[a-z][A-Za-z0-9]*", identifier or ""):
+            fail(f"the gradient {identifier!r} is not a named gradient in user space")
+        stops = list(gradient.iter(SVG + "stop"))
+        names = stop_names(identifier, len(stops))
+        for name, stop in zip(names, stops):
+            lines.append(f"    public static let {name} = Color(hex: {hex_colour(stop.get('stop-color'))})")
+        gradients[identifier] = (gradient, stops, names)
+    lines += [
+        "",
+        "    /// The side of the square the logo is drawn in.",
+        "    static let canvas: CGFloat = 1024",
+        "",
+        "    /// The shapes, back to front, each filled with its gradient.",
+        "    static let shapes: [LogoShape] = [",
+    ]
+    for path in tree.iter(SVG + "path"):
+        match = re.fullmatch(r"url\(#([A-Za-z0-9]+)\)", path.get("fill", ""))
+        if not match or match.group(1) not in gradients:
+            fail("a path is not filled with one of the logo's gradients")
+        gradient, stops, names = gradients[match.group(1)]
+        start = f"CGPoint(x: {number(float(gradient.get('x1')))}, y: {number(float(gradient.get('y1')))})"
+        end = f"CGPoint(x: {number(float(gradient.get('x2')))}, y: {number(float(gradient.get('y2')))})"
+        lines += ["        LogoShape(", "            stops: ["]
+        for name, stop in zip(names, stops):
+            lines.append(f"                Gradient.Stop(color: {name}, location: {number(float(stop.get('offset', '0')))}),")
+        lines += ["            ],", f"            start: {start},", f"            end: {end},", "            steps: ["]
+        lines += [f"                {step}," for step in steps(path.get("d", ""))]
+        lines += ["            ]", "        ),"]
+    lines += ["    ]", "}", ""]
+    return "\n".join(lines)
+
+
+def main(arguments):
+    check = bool(arguments) and arguments[0] == "--check"
+    if check:
+        arguments = arguments[1:]
+    root = Path(arguments[0]) if arguments else Path(__file__).resolve().parent.parent
+    expected = swift(root)
+    target = root / OUTPUT
+    if check:
+        if not target.exists() or target.read_text() != expected:
+            sys.exit(f"FAIL: {OUTPUT} is not what Design/purlay.svg gives (run scripts/icon)")
+        return
+    target.write_text(expected)
+    print(f"wrote {OUTPUT}")
+
+
+main(sys.argv[1:])

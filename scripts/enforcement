@@ -253,6 +253,8 @@ DiskSpace|volumeAvailableCapacity|volumeTotalCapacity|systemFreeSize|statfs|geta
 ActiveKeyboards|activeInputModes
 APIS
 
+  # The logo is stated once, in Design/purlay.svg: PurlayMark and the Welcome field draw `Logo`, which scripts/icon writes from it.
+  if ! scripts/logo-swift --check "$root"; then failed=1; fi
   # --- The sentences: one checker for every catalogue. The engine's sentences (PurlayWords) are said by both apps, so their
   # catalogue answers to every language either app declares; each app's own catalogue answers to the languages that app
   # declares (CFBundleLocalizations). A sentence has one home: a key in two catalogues is two translations that can drift.
@@ -528,6 +530,10 @@ plant_in "a launch mark that has drifted from the logo" Apps/iOS/App/Resources/A
   'echo "<!-- drift -->" >> purlay-mark.svg'
 plant_in "a launch mark at the wrong size" Apps/iOS/App/Resources/Assets.xcassets/LaunchMark.imageset \
   'sed -i.bak "1s/width=\"120\"/width=\"121\"/" purlay-mark.svg'
+plant "the logo's Swift edited by hand" Sources/PurlayDesign/Logo.swift "// drawn a little differently"
+# The launch mark follows the changed logo, so only the Swift is behind it.
+plant_in "the logo changed without its Swift" . \
+  'sed -i.bak "s/#0759EB/#0759EC/" Design/purlay.svg Apps/iOS/App/Resources/Assets.xcassets/LaunchMark.imageset/purlay-mark.svg'
 plant "a button built from a LocalizedStringResource" Apps/iOS/App/Root/RootView.swift 'let leaked = Button(Words.signInButton) {}'
 plant "an undeclared required-reason API in the app" Apps/iOS/App/PurlayApp.swift 'let booted = ProcessInfo.processInfo.systemUptime'
 plant "an undeclared required-reason API in the engine" Sources/PurlayKit/App/AppEnvironment.swift \
