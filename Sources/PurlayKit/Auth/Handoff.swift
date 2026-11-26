@@ -59,13 +59,26 @@ public enum CallbackProblem: Error, Sendable, Equatable {
     case malformedCode
 }
 
+/// The address the server sends a native app back to after the browser (`NATIVE_REDIRECT`). The app's URL scheme is its
+/// scheme: each app registers that (`PURLAY_URL_SCHEME`, which scripts/enforcement holds to this), and code asks here
+/// rather than spelling it.
+public enum NativeRedirect {
+    private static let parts = URLComponents(string: ContractConstants.nativeRedirect)
+    /// Empty only if the contract's redirect were not an address, which `NativeRedirectTests` would say; nothing then
+    /// matches it, so no callback is accepted.
+    public static let scheme = parts?.scheme?.lowercased() ?? ""
+    public static let host = parts?.host?.lowercased() ?? ""
+
+    /// Whether `url` is addressed to the redirect: the sign-in's to answer, not a link to open.
+    public static func isCallback(_ url: URL) -> Bool {
+        !scheme.isEmpty && url.scheme?.lowercased() == scheme && url.host?.lowercased() == host
+    }
+}
+
 public enum Callback {
     /// The scheme and host the server answers with, fixed by the contract (`NATIVE_REDIRECT`).
     static var expected: (scheme: String, host: String)? {
-        guard let components = URLComponents(string: ContractConstants.nativeRedirect), let scheme = components.scheme,
-            let host = components.host
-        else { return nil }
-        return (scheme, host)
+        NativeRedirect.scheme.isEmpty ? nil : (NativeRedirect.scheme, NativeRedirect.host)
     }
 
     /// The code in a callback for `attempt`, or why the callback is not one. The state is checked first: a callback that

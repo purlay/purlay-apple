@@ -145,7 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        guard let url = urls.last(where: { !($0.scheme == "purlay" && $0.host == "auth") }) else { return }
+        guard let url = urls.last(where: { !NativeRedirect.isCallback($0) }) else { return }
         open(url)
     }
 

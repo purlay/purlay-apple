@@ -303,6 +303,18 @@ PY
   if [ "$(sed -nE 's/^PRODUCT_BUNDLE_IDENTIFIER *= *//p' "$root/Config/macOS.xcconfig")" != "dev.purlay.mac" ]; then
     echo "FAIL: Config/macOS.xcconfig no longer names the shipped bundle identifier dev.purlay.mac" >&2; failed=1
   fi
+  # The app's URL scheme is the server's: the scheme of `nativeRedirect` in the generated constants. The scheme both apps
+  # register (PURLAY_URL_SCHEME, which Info.plist cannot ask Swift for) says the same, and code asks NativeRedirect for it.
+  local redirect_scheme
+  redirect_scheme="$(sed -nE 's/.*nativeRedirect = "([a-z][a-z0-9+.-]*):.*/\1/p' "$root/Sources/PurlayContract/Generated/Constants.swift")"
+  if [ -z "$redirect_scheme" ] \
+      || [ "$(sed -nE 's/^PURLAY_URL_SCHEME *= *//p' "$root/Config/Shared.xcconfig")" != "$redirect_scheme" ]; then
+    echo "FAIL: PURLAY_URL_SCHEME is not the scheme of the contract's nativeRedirect (${redirect_scheme:-none found})" >&2
+    failed=1
+  elif grep -rnE --include='*.swift' "(scheme[^=]*==? *\"$redirect_scheme\"|\"$redirect_scheme:)" "$root/Sources" "$root"/Apps/*/App \
+      | grep -v '/Generated/' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
+    echo "FAIL: the URL scheme spelt by hand; take it from NativeRedirect" >&2; failed=1
+  fi
   return $failed
 }
 
@@ -315,7 +327,9 @@ fail=0
 copy_tree() { # a copy of what the rules read, without build products
   local copy
   copy="$(mktemp -d)"
-  rsync -a --exclude .build --exclude .swiftpm --exclude Generated --exclude 'xcuserdata' "${TREE[@]}" "$copy"/
+  # The generated constants stay: the URL-scheme rule reads the contract's redirect there.
+  rsync -a --exclude .build --exclude .swiftpm --include '/Sources/PurlayContract/Generated/***' --exclude Generated \
+    --exclude 'xcuserdata' "${TREE[@]}" "$copy"/
   echo "$copy"
 }
 judge() { # name copy
@@ -433,4 +447,9 @@ plant "the engine presuming a platform" Sources/PurlayKit/App/AppEnvironment.swi
   'func leakedPlatform(_ platform: ClientPlatform = .macOS) {}'
 plant_in "the Mac's bundle identifier changed" Config \
   'sed -i.bak "s/^PRODUCT_BUNDLE_IDENTIFIER = dev.purlay.mac$/PRODUCT_BUNDLE_IDENTIFIER = dev.purlay.macos/" macOS.xcconfig && rm macOS.xcconfig.bak'
+plant "a URL scheme other than the contract's" Config/Shared.xcconfig 'PURLAY_URL_SCHEME = purlay-dev'
+plant "the URL scheme compared by hand in the engine" Sources/PurlayKit/App/AppEnvironment.swift \
+  'func leakedScheme(_ url: URL) -> Bool { url.scheme == "purlay" }'
+plant "the URL scheme spelt in an address in the Mac app" Apps/macOS/App/PurlayApp.swift \
+  'let leakedCallback = URL(string: "purlay://auth")'
 exit $fail
