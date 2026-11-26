@@ -1,6 +1,6 @@
 # 0002. Share Contract, Kit and Tokens through `purlay-swift`
 
-Status: accepted, 2026-11-25 (supersedes the interim plan of consuming `purlay-macos` packages directly)
+Status: superseded by [0007](0007-one-apple-repository.md), 2026-11-26 (it superseded the interim plan of consuming `purlay-macos` packages directly)
 
 **Context.** About 36,000 lines of tested Swift (wire types, sign-in, transport, realtime, outbox, tokens) existed
 in `purlay-macos`, none of it AppKit-dependent. Two Apple apps now need it, and a third client (Android) will not.
