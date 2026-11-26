@@ -1,6 +1,6 @@
 import AppKit
 import PurlayKit
-import PurlayUI
+import PurlayMacUI
 import SwiftUI
 
 /// The shell: scenes, commands and the app delegate. What the app does lives in the packages (M-3).

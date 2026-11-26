@@ -16,21 +16,19 @@ packages:
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
     exactVersion: 2.10.1
-  PurlaySwift:
-    url: https://github.com/purlay/purlay-swift
-    from: 0.2.0
-  PurlayUI: { path: Packages/PurlayUI }
+  Purlay: { path: .. }
 targets:
   Purlay:
     type: application
     platform: macOS
     sources: [App]
     dependencies:
-      - package: PurlaySwift
+      - package: Purlay
         product: PurlayContract
-      - package: PurlaySwift
+      - package: Purlay
         product: PurlayTokens
-      - package: PurlaySwift
+      - package: Purlay
         product: PurlayKit
-      - package: PurlayUI
+      - package: Purlay
+        product: PurlayMacUI
       - package: Sparkle

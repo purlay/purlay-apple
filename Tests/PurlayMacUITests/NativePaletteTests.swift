@@ -1,7 +1,7 @@
 import PurlayTokens
 import Testing
 
-@testable import PurlayUI
+@testable import PurlayMacUI
 
 @Suite("native reading contrast")
 struct NativePaletteTests {

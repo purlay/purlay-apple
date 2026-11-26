@@ -13,11 +13,7 @@ configFiles:
   Debug: Config/Debug.xcconfig
   Release: Config/Release.xcconfig
 packages:
-  PurlaySwift:
-    url: https://github.com/purlay/purlay-swift
-    from: 0.2.0
-  PurlayModuleAPI: { path: Packages/PurlayModuleAPI }
-  PurlayDesign: { path: Packages/PurlayDesign }
+  Purlay: { path: .. }
 targets:
   Purlay:
     type: application
@@ -25,14 +21,16 @@ targets:
     sources:
       - path: App
     dependencies:
-      - package: PurlaySwift
+      - package: Purlay
         product: PurlayContract
-      - package: PurlaySwift
+      - package: Purlay
         product: PurlayTokens
-      - package: PurlaySwift
+      - package: Purlay
         product: PurlayKit
-      - package: PurlayModuleAPI
-      - package: PurlayDesign
+      - package: Purlay
+        product: PurlayModuleAPI
+      - package: Purlay
+        product: PurlayDesign
   PurlayTests:
     type: bundle.unit-test
     platform: iOS
@@ -46,9 +44,9 @@ targets:
         INFOPLIST_PREPROCESS: NO
     dependencies:
       - target: Purlay
-      - package: PurlaySwift
+      - package: Purlay
         product: PurlayKit
-      - package: PurlaySwift
+      - package: Purlay
         product: PurlayContract
   PurlayUITests:
     type: bundle.ui-testing
@@ -72,8 +70,8 @@ schemes:
     test:
       targets:
         - PurlayTests
-        - package: PurlayDesign/PurlayDesignTests
-        - package: PurlayModuleAPI/PurlayModuleAPITests
+        - package: Purlay/PurlayDesignTests
+        - package: Purlay/PurlayModuleAPITests
   # Signs in through the system browser against a real server; skipped without one (docs/development/getting-started.md).
   PurlayUITests:
     build:

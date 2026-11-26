@@ -1,6 +1,6 @@
 import Testing
 
-@testable import PurlayUI
+@testable import PurlayMacUI
 
 @Suite("reaction emoji discovery")
 struct ReactionEmojiTests {

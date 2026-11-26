@@ -1,7 +1,7 @@
 import CoreGraphics
 import Testing
 
-@testable import PurlayUI
+@testable import PurlayMacUI
 
 /// A panel over the window closes when anything outside it is pressed: the sidebar, the toolbar, the dimmed window, not only the part
 /// of the window the dimming happens to cover.

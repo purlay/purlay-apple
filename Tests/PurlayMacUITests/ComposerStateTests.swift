@@ -1,6 +1,6 @@
 import Testing
 
-@testable import PurlayUI
+@testable import PurlayMacUI
 
 @MainActor
 @Suite("composer while previewing")

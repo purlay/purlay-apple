@@ -3,7 +3,7 @@ import PurlayTokens
 import SwiftUI
 import Testing
 
-@testable import PurlayUI
+@testable import PurlayMacUI
 
 /// A token drawn: the light value in light and the dark value in dark, in SwiftUI and in AppKit, and type at the size, weight
 /// and line height the file gives it.

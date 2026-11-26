@@ -15,9 +15,9 @@ let package = Package(
         .testTarget(
             name: "ContractTests",
             dependencies: [
-                .product(name: "PurlayContract", package: "purlay-swift"),
-                .product(name: "PurlayKit", package: "purlay-swift"),
-                .product(name: "PurlayTestSupport", package: "purlay-swift"),
+                .product(name: "PurlayContract", package: "purlay-apple"),
+                .product(name: "PurlayKit", package: "purlay-apple"),
+                .product(name: "PurlayTestSupport", package: "purlay-apple"),
             ],
             swiftSettings: strict)
     ],

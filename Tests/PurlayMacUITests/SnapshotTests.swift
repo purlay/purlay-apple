@@ -8,7 +8,7 @@ import Synchronization
 import Testing
 
 @testable import PurlayKit
-@testable import PurlayUI
+@testable import PurlayMacUI
 
 /// Where the pictures are written, when a folder is named: the environment says, and without it the suite does not run.
 private let snapshotDirectory: URL? = ProcessInfo.processInfo.environment["PURLAY_SNAPSHOT_DIR"].map {

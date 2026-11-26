@@ -1,7 +1,7 @@
 import AppKit
 import PurlayContract
 import PurlayKit
-import PurlayUI
+import PurlayMacUI
 import UserNotifications
 
 /// Tells the person what needs them where they are not looking: the Dock badge, and a notice of the system for what is new while the

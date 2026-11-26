@@ -3,7 +3,7 @@ import PurlayKit
 import SwiftUI
 import Testing
 
-@testable import PurlayUI
+@testable import PurlayMacUI
 
 @MainActor
 @Suite("PurlayUI")
