@@ -125,11 +125,11 @@ jobs:
           keychain="$RUNNER_TEMP/release.keychain-db"
           password="$(openssl rand -base64 32)"
           echo "::add-mask::$password"
-          printf '%s' "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          (umask 077 && printf '%s' "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12")
           security create-keychain -p "$password" "$keychain"
           security set-keychain-settings -lut 21600 "$keychain"
           security unlock-keychain -p "$password" "$keychain"
-          security import "$RUNNER_TEMP/certificate.p12" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security import "$RUNNER_TEMP/certificate.p12" -P "$CERTIFICATE_PASSWORD" -x -T /usr/bin/codesign -t cert -f pkcs12 -k "$keychain"
           rm -f "$RUNNER_TEMP/certificate.p12"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$password" "$keychain" >/dev/null
           security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
@@ -192,18 +192,19 @@ jobs:
                              input=os.environ["SPARKLE_PRIVATE_KEY"].encode(), check=True)
           print("ok  the appcast, the archive and the notes are signed, at the release's addresses")
           PY
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: purlay-macos-${{ needs.gate.outputs.version }}
-          path: dist/
-          if-no-files-found: error
-          retention-days: 30
+      # Before any further action runs: no third-party code runs while the keychain is unlocked.
       - name: Remove the signing material
         if: always()
         run: |
           security delete-keychain "$RUNNER_TEMP/release.keychain-db" 2>/dev/null || true
           rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP"/AuthKey_*.p8 "$RUNNER_TEMP/notarization.zip"
           security list-keychains -d user -s "$HOME/Library/Keychains/login.keychain-db"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: purlay-macos-${{ needs.gate.outputs.version }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
 
   # Attest where the archive came from, publish the release, and check that what Sparkle will fetch is there.
   publish:
