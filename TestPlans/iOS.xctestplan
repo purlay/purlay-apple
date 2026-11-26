@@ -1,0 +1,36 @@
+{
+  "configurations" : [
+    {
+      "id" : "3B090891-7DB1-4005-9F4B-70A2863DA704",
+      "name" : "Default",
+      "options" : {}
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:..",
+        "identifier" : "PurlayDesignTests",
+        "name" : "PurlayDesignTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Purlay.xcodeproj",
+        "identifier" : "8851EEFA216E8D2EECB66CB3",
+        "name" : "PurlayTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Purlay.xcodeproj",
+        "identifier" : "5CFCE83DF29A0A5F7D05468B",
+        "name" : "PurlayUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

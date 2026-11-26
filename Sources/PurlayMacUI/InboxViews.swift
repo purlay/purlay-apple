@@ -1,0 +1,479 @@
+#if os(macOS)
+import PurlayContract
+import PurlayKit
+import PurlayTokens
+import SwiftUI
+
+/// What the person was told in this workspace, as a page in the window (not a sheet): newest first, Today and Earlier, a row
+/// for who, why and where with the message under it. Unread is a dot and full ink; read is muted. Opening a row goes to the
+/// message and reads it; Mark Read reads it without going (`UX.md`, the inbox). All / Unread and Mark All Read are in the toolbar.
+struct InboxPage: View {
+    let model: AppModel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                GlassTabs(tabs: Inbox.Category.allCases, selection: category) { Text(title(of: $0)) }
+                    .frame(maxWidth: 460)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, Spacing.space4)
+            .padding(.vertical, Spacing.space3)
+            Divider()
+            content.frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(NativePalette.canvas.style)
+        .navigationTitle("Inbox")
+        .navigationSubtitle(subtitle)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                GlassTabs(tabs: [AppModel.InboxFilter.all, .unread], selection: filter) {
+                    $0 == .all ? Text("All") : Text("Unread")
+                }
+                .fixedSize()
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    Task {
+                        if showsUpdates { await model.markAllUpdatesRead() } else { await model.markAllInboxRead() }
+                    }
+                } label: {
+                    Label("Mark All Read", systemImage: "checkmark.circle")
+                }
+                .disabled(showsUpdates ? model.updatesUnread == 0 : !model.inboxRows.contains(where: \.isUnread))
+                .help("Mark everything shown as read")
+            }
+        }
+    }
+
+    private var filter: Binding<AppModel.InboxFilter> {
+        Binding(get: { model.inboxFilter }, set: { new in Task { await model.setInboxFilter(new) } })
+    }
+
+    private var category: Binding<Inbox.Category> {
+        Binding(get: { model.inboxCategory }, set: { category in Task { await model.setInboxCategory(category) } })
+    }
+
+    private var showsUpdates: Bool { model.inboxCategory == .updates }
+
+    private func title(of category: Inbox.Category) -> String {
+        guard category == .updates, model.updatesUnread > 0 else { return category.title }
+        return String(localized: "Updates (\(model.updatesUnread))")
+    }
+
+    private var subtitle: String {
+        let unread = showsUpdates ? model.updatesUnread : model.inboxRows.filter(\.isUnread).count
+        return unread > 0 ? String(localized: "\(unread) unread") : ""
+    }
+
+    @ViewBuilder private var content: some View {
+        if showsUpdates {
+            UpdatesList(model: model)
+        } else {
+            notifications
+        }
+    }
+
+    @ViewBuilder private var notifications: some View {
+        switch model.inboxStatus {
+        case .idle, .loading:
+            ProgressView().controlSize(.large)
+        case .failed:
+            ContentUnavailableView {
+                Label("Could Not Load the Inbox", systemImage: "wifi.exclamationmark")
+            } description: {
+                Text("Check your connection and try again.")
+            } actions: {
+                Button("Try Again") { Task { await model.setInboxFilter(model.inboxFilter) } }
+                    .glassButton(prominent: true)
+            }
+        case .loaded:
+            if model.inboxRows.isEmpty {
+                ContentUnavailableView {
+                    Label {
+                        Text(emptyTitle).foregroundStyle(NativePalette.ink.style)
+                    } icon: {
+                        Image(systemName: model.inboxHasMore ? "line.3.horizontal.decrease" : "tray")
+                            .foregroundStyle(NativePalette.secondary.style)
+                    }
+                } description: {
+                    Text(emptyDescription).foregroundStyle(NativePalette.secondary.style)
+                } actions: {
+                    if model.inboxHasMore { loadMore }
+                }
+            } else {
+                list
+            }
+        }
+    }
+
+    private var emptyTitle: String {
+        if model.inboxHasMore { return String(localized: "No Matches Yet") }
+        if model.inboxFilter == .unread { return String(localized: "All Caught Up") }
+        switch model.inboxCategory {
+        case .all: return String(localized: "Nothing Yet")
+        case .mentions: return String(localized: "No Mentions")
+        case .directMessages: return String(localized: "No Direct Messages")
+        case .threads: return String(localized: "No Thread Updates")
+        case .updates: return String(localized: "No Updates")
+        }
+    }
+
+    private var emptyDescription: String {
+        if model.inboxHasMore {
+            return String(localized: "Older notifications may match this filter. Load more to keep looking.")
+        }
+        return model.inboxFilter == .unread
+            ? String(localized: "Nothing is waiting for you in this view.")
+            : String(localized: "Notifications matching this filter will appear here.")
+    }
+
+    private var loadMore: some View {
+        Button {
+            Task { await model.loadMoreInbox() }
+        } label: {
+            HStack {
+                if model.inboxLoadingMore { ProgressView().controlSize(.small) }
+                Text(model.inboxLoadingMore ? "Loading…" : "Load More")
+            }
+        }
+        .glassButton()
+        .disabled(model.inboxLoadingMore)
+    }
+
+    private var list: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                ForEach(Inbox.sections(model.inboxRows, calendar: .current, now: Date()), id: \.section.hashValue) {
+                    group in
+                    Section {
+                        ForEach(group.rows) { row in InboxRowView(model: model, row: row) }
+                    } header: {
+                        Text(group.section == .today ? "Today" : "Earlier")
+                            .typeStyle(Typography.label)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(NativePalette.secondary.style)
+                            .padding(.horizontal, Spacing.space4)
+                            .padding(.vertical, Spacing.space2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(NativePalette.canvas.style)
+                    }
+                }
+                if model.inboxHasMore {
+                    loadMore
+                        .padding(Spacing.space4)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(maxWidth: Size.sizeFeedMax)
+            .frame(maxWidth: .infinity)
+        }
+        .scrollIndicators(.automatic)
+    }
+}
+
+private struct InboxRowView: View {
+    let model: AppModel
+    let row: InboxRow
+    @State private var hovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Button {
+            Task { await model.openInboxRow(row) }
+        } label: {
+            HStack(alignment: .top, spacing: Spacing.space3) {
+                Circle()
+                    .fill(row.isUnread ? Colors.accent.style : NativePalette.canvas.style)
+                    .frame(width: Size.sizeDot, height: Size.sizeDot)
+                    .padding(.top, Spacing.space3)
+                    .accessibilityHidden(true)
+                Avatar(user: row.senders.first, size: Size.sizeAvatarLg)
+                VStack(alignment: .leading, spacing: Stroke.strokeFocus) {
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.space2) {
+                        Text(Words.inboxHeadline(row, me: model.me?.user.id))
+                            .typeStyle(Typography.body)
+                            .fontWeight(row.isUnread ? .semibold : .regular)
+                            .foregroundStyle(row.isUnread ? NativePalette.ink.style : NativePalette.secondary.style)
+                            .lineLimit(1)
+                        Text(place)
+                            .typeStyle(Typography.caption)
+                            .foregroundStyle(NativePalette.secondary.style)
+                            .padding(.horizontal, Spacing.space2)
+                            .padding(.vertical, Stroke.strokeFocus)
+                            .background(NativePalette.fill.style, in: Capsule())
+                        Spacer(minLength: Spacing.space2)
+                        Text(row.at.date, style: Calendar.current.isDateInToday(row.at.date) ? .time : .date)
+                            .typeStyle(Typography.caption)
+                            .foregroundStyle(NativePalette.secondary.style)
+                    }
+                    if let subject = Words.inboxSubject(row) {
+                        Text(subject).typeStyle(Typography.caption).foregroundStyle(NativePalette.secondary.style)
+                            .lineLimit(1)
+                    }
+                    Text(
+                        row.message.deletedAt == nil
+                            ? row.message.content : String(localized: "This message was deleted.")
+                    )
+                    .typeStyle(Typography.body)
+                    .foregroundStyle(row.isUnread ? NativePalette.ink.style : NativePalette.secondary.style)
+                    .lineLimit(2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, Spacing.space4)
+            .padding(.vertical, Spacing.space3)
+            .background(hovering ? NativePalette.hover.style : NativePalette.canvas.style)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .topTrailing) {
+            if row.isUnread && hovering {
+                Button("Mark Read", systemImage: "checkmark") { Task { await model.markInboxRead(row) } }
+                    .glassButton()
+                    .controlSize(.small)
+                    .padding(Spacing.space2)
+                    .transition(.opacity)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(NativePalette.divider.style).frame(height: Stroke.strokeHairline)
+                .padding(.leading, Spacing.space4 * 2 + Size.sizeAvatarLg + Size.sizeDot)
+        }
+        .onContinuousHover { phase in
+            if case .active = phase { hovering = true } else { hovering = false }
+        }
+        .animation(reduceMotion ? nil : Motion.easingStandard.animation(Motion.durationHover), value: hovering)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction(named: Text("Mark Read")) { Task { await model.markInboxRead(row) } }
+    }
+
+    private var place: String { model.chat.channels[row.channel].map(Words.channelLabel) ?? "" }
+}
+
+extension Words {
+    /// Who, and why: "Alice mentioned you", "3 new replies", "Alice, Bob and 1 other replied in your thread".
+    static func inboxHeadline(_ row: InboxRow, me: Uuid?) -> String {
+        let who = names(row.senders)
+        switch row.reason {
+        case .reminder: return String(localized: "Your message reminder is due")
+        case .mention: return String(localized: "\(who) mentioned you")
+        case .directMessage: return String(localized: "\(who) sent you a message")
+        case .channelMessage: return String(localized: "\(who) posted")
+        case .threadResolved: return String(localized: "\(who) resolved a thread")
+        case .unknown: return String(localized: "\(who) wrote to you")
+        case .reply:
+            if row.replyCount > 1 { return String(localized: "\(who) replied") }
+            return row.thread?.authorId == me && me != nil
+                ? String(localized: "\(who) replied in your thread")
+                : String(localized: "\(who) replied in a thread you're in")
+        }
+    }
+
+    /// The line under it: the thread by the root's first line, "3 new replies in “…”" when a day's replies are gathered.
+    static func inboxSubject(_ row: InboxRow) -> String? {
+        guard row.reason == .reply else { return nil }
+        let excerpt = row.thread?.excerpt.flatMap { $0.isEmpty ? nil : $0 }
+        switch (row.replyCount > 1, excerpt) {
+        case (true, let text?): return String(localized: "\(row.replyCount) new replies in “\(text)”")
+        case (true, nil): return String(localized: "\(row.replyCount) new replies")
+        case (false, let text?): return String(localized: "In “\(text)”")
+        case (false, nil): return nil
+        }
+    }
+
+    /// "Alice", "Alice and Bob", "Alice, Bob and 1 other": each person once, the newest first.
+    static func names(_ people: [User]) -> String {
+        let named = people.map(\.displayName)
+        switch named.count {
+        case 0: return String(localized: "Somebody")
+        case 1: return named[0]
+        case 2: return String(localized: "\(named[0]) and \(named[1])")
+        default:
+            let others = named.count - 2
+            return others == 1
+                ? String(localized: "\(named[0]), \(named[1]) and 1 other")
+                : String(localized: "\(named[0]), \(named[1]) and \(others) others")
+        }
+    }
+}
+
+extension Inbox.Category {
+    var title: String {
+        switch self {
+        case .all: String(localized: "All")
+        case .mentions: String(localized: "Mentions")
+        case .directMessages: String(localized: "DMs")
+        case .threads: String(localized: "Threads")
+        case .updates: String(localized: "Updates")
+        }
+    }
+}
+
+/// What the workspace's other modules told the person (D-286), in a list of its own: a sentence about the module's subject, who did
+/// it, and when. This app has no screen for those subjects, so opening one reads it and takes the person to its page in the browser.
+private struct UpdatesList: View {
+    let model: AppModel
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        switch model.updatesStatus {
+        case .idle, .loading:
+            ProgressView().controlSize(.large)
+        case .failed:
+            ContentUnavailableView {
+                Label("Could Not Load Updates", systemImage: "wifi.exclamationmark")
+            } description: {
+                Text("Check your connection and try again.")
+            } actions: {
+                Button("Try Again") { Task { await model.reloadUpdates() } }
+                    .glassButton(prominent: true)
+            }
+        case .loaded:
+            if model.updateRows.isEmpty {
+                ContentUnavailableView {
+                    Label("No Updates", systemImage: "tray")
+                } description: {
+                    Text("What the workspace’s other parts tell you is listed here.")
+                }
+            } else {
+                list
+            }
+        }
+    }
+
+    private var list: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(model.updateRows) { row in
+                    UpdateRowView(model: model, row: row) {
+                        Task {
+                            if let url = await model.openUpdate(row) { openURL(url) }
+                        }
+                    }
+                }
+                if model.updatesHaveMore {
+                    Button {
+                        Task { await model.loadMoreUpdates() }
+                    } label: {
+                        HStack {
+                            if model.updatesLoadingMore { ProgressView().controlSize(.small) }
+                            Text(model.updatesLoadingMore ? "Loading…" : "Load More")
+                        }
+                    }
+                    .glassButton()
+                    .disabled(model.updatesLoadingMore)
+                    .padding(Spacing.space4)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(maxWidth: Size.sizeFeedMax)
+            .frame(maxWidth: .infinity)
+        }
+        .scrollIndicators(.automatic)
+    }
+}
+
+private struct UpdateRowView: View {
+    let model: AppModel
+    let row: InboxUpdateRow
+    let open: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: open) {
+            HStack(alignment: .top, spacing: Spacing.space3) {
+                Circle()
+                    .fill(row.isUnread ? Colors.accent.style : NativePalette.canvas.style)
+                    .frame(width: Size.sizeDot, height: Size.sizeDot)
+                    .padding(.top, Spacing.space3)
+                    .accessibilityHidden(true)
+                if let actor {
+                    Avatar(user: actor, size: Size.sizeAvatarLg)
+                } else {
+                    ModuleGlyph(kind: row.kind, size: Size.sizeAvatarLg)
+                }
+                VStack(alignment: .leading, spacing: Stroke.strokeFocus) {
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.space2) {
+                        Text(Words.updateHeadline(row, who: actor?.displayName))
+                            .typeStyle(Typography.body)
+                            .fontWeight(row.isUnread ? .semibold : .regular)
+                            .foregroundStyle(row.isUnread ? NativePalette.ink.style : NativePalette.secondary.style)
+                            .lineLimit(1)
+                        Spacer(minLength: Spacing.space2)
+                        Text(row.at.date, style: Calendar.current.isDateInToday(row.at.date) ? .time : .date)
+                            .typeStyle(Typography.caption)
+                            .foregroundStyle(NativePalette.secondary.style)
+                    }
+                    if let title = row.title {
+                        Text(title).typeStyle(Typography.body)
+                            .foregroundStyle(row.isUnread ? NativePalette.ink.style : NativePalette.secondary.style)
+                            .lineLimit(2)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, Spacing.space4)
+            .padding(.vertical, Spacing.space3)
+            .background(hovering ? NativePalette.hover.style : NativePalette.canvas.style)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(NativePalette.divider.style).frame(height: Stroke.strokeHairline)
+                .padding(.leading, Spacing.space4 * 2 + Size.sizeAvatarLg + Size.sizeDot)
+        }
+        .onContinuousHover { phase in
+            if case .active = phase { hovering = true } else { hovering = false }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction(named: Text("Mark Read")) { Task { await model.markUpdateRead(row.id) } }
+    }
+
+    private var actor: User? { row.actor.flatMap { model.person($0) } }
+}
+
+extension Words {
+    /// Who and what: "Ada assigned an issue to you"; a kind this app does not know is said by its module's name.
+    static func updateHeadline(_ row: InboxUpdateRow, who: String?) -> String {
+        let name = who ?? String(localized: "Somebody")
+        switch row.kind {
+        case .issueAssigned: return String(localized: "\(name) assigned an issue to you")
+        case .other(let module): return String(localized: "\(Words.moduleName(module)) has an update for you")
+        }
+    }
+}
+
+extension Words {
+    /// A module's id as a name: the ids are lowercase words ("billing"), and a name starts with a capital.
+    static func moduleName(_ id: String) -> String {
+        guard let first = id.first else { return id }
+        return first.uppercased() + id.dropFirst()
+    }
+}
+
+/// Stands where a person's face would, for an update nobody did (or whose person is gone): the module's own symbol on a quiet disc.
+private struct ModuleGlyph: View {
+    let kind: InboxUpdateRow.Kind
+    let size: Double
+
+    private var symbol: String {
+        switch kind {
+        case .issueAssigned: "checklist"
+        case .other: "bell"
+        }
+    }
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: size * 0.46, weight: .medium))
+            .foregroundStyle(NativePalette.secondary.style)
+            .frame(width: size, height: size)
+            .background(NativePalette.fill.style, in: Circle())
+            .accessibilityHidden(true)
+    }
+}
+#endif

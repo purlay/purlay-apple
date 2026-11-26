@@ -1,3 +1,0 @@
-#include "Base.xcconfig"
-// App Transport Security stays strict: no exception of any kind.
-SWIFT_OPTIMIZATION_LEVEL = -O

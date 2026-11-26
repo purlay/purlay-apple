@@ -1,0 +1,37 @@
+name: Bug
+description: Something does not work the way the app or a document says it should.
+labels: ["type: bug"]
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where
+      options: [iPhone or iPad, Mac, Both]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version and build
+      description: On the Mac, Purlay → About Purlay. On iPhone and iPad, the version you installed. And the system version.
+      placeholder: 0.3.0 (188), macOS 27.1
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What you did
+      description: The steps, from launching the app, that make it happen.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what happened
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: Pictures, the language and appearance the device was in, the server (hosted or your own). Never a session cookie or a token.

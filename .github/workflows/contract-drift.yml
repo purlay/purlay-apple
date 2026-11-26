@@ -1,0 +1,29 @@
+# Weekly: whether the server has released past the contract this repository pins. One open issue says so; the pin moves
+# deliberately (docs/runbooks/contract-drift.md).
+name: Contract drift
+on:
+  schedule:
+    - cron: "41 4 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: contract-drift
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Compare the pin with the server's latest release
+        run: scripts/ci/retry-infra scripts/ci/contract-drift --issue
+        env:
+          GH_TOKEN: ${{ github.token }}

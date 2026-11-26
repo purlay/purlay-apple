@@ -1,0 +1,202 @@
+{
+  "default-configuration": "Debug",
+  "configurations": [
+    { "name": "Debug", "file": "purlay-apple/Config/Debug.xcconfig" },
+    { "name": "Release", "file": "purlay-apple/Config/Release.xcconfig" },
+  ],
+  "localizations": {
+    "development": "en",
+    "supported": [
+      "Base",
+      "en",
+      "tr",
+    ],
+  },
+  "packages": [
+    {
+      "kind": "remote",
+      "repository": "https://github.com/sparkle-project/Sparkle",
+      "version": {
+        "version": "2.10.1",
+      },
+    }, {
+      "kind": "local",
+      "path": "..",
+    },
+  ],
+  "files": [
+    {
+      "kind": "group",
+      "path": "iOS",
+      "children": [
+        { "kind": "folder", "path": "App", "target-membership": [ "Purlay iOS" ] },
+        {
+          "kind": "group",
+          "path": "Tests",
+          "children": [
+            { "kind": "folder", "path": "PurlayTests", "target-membership": [ "PurlayTests" ] },
+            { "kind": "folder", "path": "PurlayUITests", "target-membership": [ "PurlayUITests" ] },
+          ],
+        },
+      ],
+    }, {
+      "kind": "group",
+      "path": "macOS",
+      "children": [
+        { "kind": "folder", "path": "App", "target-membership": [ "Purlay macOS" ] },
+      ],
+    }, {
+      "kind": "group",
+      "name": "Packages",
+      "children": [
+        { "path": "<PROJECT>/.." },
+      ],
+    }, {
+      "kind": "group",
+      "path": "..",
+      "name": "purlay-apple",
+      "children": [
+        {
+          "kind": "group",
+          "path": "Config",
+          "children": [
+            { "path": "Debug.xcconfig" },
+            { "path": "iOS.xcconfig" },
+            { "path": "iOSTests.xcconfig" },
+            { "path": "iOSUITests.xcconfig" },
+            { "path": "macOS.xcconfig" },
+            { "path": "Release.xcconfig" },
+          ],
+        },
+      ],
+    }, {
+      "kind": "group",
+      "name": "Products",
+      "children": [
+        { "path": "<PRODUCTS>/Purlay.app", "id": "528706FEE1960D3EA13AE219", "type": "wrapper.application", "index": false },
+        { "path": "<PRODUCTS>/Purlay.app", "id": "909A822BE01BC1D88CF1CA2C", "type": "wrapper.application", "index": false },
+        { "path": "<PRODUCTS>/PurlayTests.xctest", "id": "24846064198C8083D8A56370", "type": "wrapper.cfbundle", "index": false },
+        { "path": "<PRODUCTS>/PurlayUITests.xctest", "id": "C7C5C9E3B35DC8753FAF5C3E", "type": "wrapper.cfbundle", "index": false },
+      ],
+    },
+  ],
+  "targets": [
+    {
+      "name": "Purlay iOS",
+      "id": "1935C75DF9976A248E37B33F",
+      "product": "id:528706FEE1960D3EA13AE219",
+      "product-type": "application",
+      "legacy-provisioning-style": "automatic",
+      "legacy-team-id": "",
+      "specialized-configurations": [
+        { "name": "Debug", "file": "purlay-apple/Config/iOS.xcconfig" },
+        { "name": "Release", "file": "purlay-apple/Config/iOS.xcconfig" },
+      ],
+      "build-phases": [
+        "compile-sources",
+        "resources",
+        "frameworks",
+      ],
+      "package-product-members": [
+        {
+          "product-name": "PurlayContract",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "PurlayDesign",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "PurlayKit",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "PurlayModuleAPI",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "PurlayTokens",
+          "build-phase": { "build-phase": "frameworks" },
+        },
+      ],
+    }, {
+      "name": "PurlayTests",
+      "id": "8851EEFA216E8D2EECB66CB3",
+      "product": "Products/PurlayTests.xctest",
+      "product-type": "bundle.unit-test",
+      "legacy-provisioning-style": "automatic",
+      "legacy-team-id": "",
+      "specialized-configurations": [
+        { "name": "Debug", "file": "purlay-apple/Config/iOSTests.xcconfig" },
+        { "name": "Release", "file": "purlay-apple/Config/iOSTests.xcconfig" },
+      ],
+      "dependencies": [
+        "Purlay iOS",
+      ],
+      "build-phases": [
+        "compile-sources",
+        "resources",
+        "frameworks",
+      ],
+      "package-product-members": [
+        {
+          "product-name": "PurlayContract",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "PurlayKit",
+          "build-phase": { "build-phase": "frameworks" },
+        },
+      ],
+    }, {
+      "name": "PurlayUITests",
+      "id": "5CFCE83DF29A0A5F7D05468B",
+      "product": "Products/PurlayUITests.xctest",
+      "product-type": "bundle.ui-testing",
+      "legacy-provisioning-style": "automatic",
+      "legacy-team-id": "",
+      "specialized-configurations": [
+        { "name": "Debug", "file": "purlay-apple/Config/iOSUITests.xcconfig" },
+        { "name": "Release", "file": "purlay-apple/Config/iOSUITests.xcconfig" },
+      ],
+      "dependencies": [
+        "Purlay iOS",
+      ],
+      "build-phases": [
+        "compile-sources",
+        "resources",
+      ],
+    }, {
+      "name": "Purlay macOS",
+      "id": "DCAC711DC7685A2D4A895FD2",
+      "product": "id:909A822BE01BC1D88CF1CA2C",
+      "product-type": "application",
+      "legacy-provisioning-style": "manual",
+      "legacy-team-id": "",
+      "specialized-configurations": [
+        { "name": "Debug", "file": "purlay-apple/Config/macOS.xcconfig" },
+        { "name": "Release", "file": "purlay-apple/Config/macOS.xcconfig" },
+      ],
+      "build-phases": [
+        "compile-sources",
+        "resources",
+        "frameworks",
+      ],
+      "package-product-members": [
+        {
+          "product-name": "PurlayContract",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "PurlayKit",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "PurlayMacUI",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "PurlayTokens",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Sparkle",
+          "product-name": "Sparkle",
+          "build-phase": { "build-phase": "frameworks" },
+        },
+      ],
+    },
+  ],
+  "last-upgrade": "16.0",
+}

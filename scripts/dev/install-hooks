@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Points git at the repository's hooks (.githooks): format and secrets before a commit, the message's form after it is written.
+# `make setup` runs this; it changes only this clone's git configuration.
+#
+#   scripts/dev/install-hooks            use .githooks
+#   scripts/dev/install-hooks --remove   go back to git's own hooks folder
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+if [ "${1:-}" = --remove ]; then
+  git config --unset core.hooksPath || true
+  echo "hooks: git's own"
+  exit 0
+fi
+chmod +x .githooks/*
+git config core.hooksPath .githooks
+echo "hooks: .githooks (pre-commit, commit-msg)"

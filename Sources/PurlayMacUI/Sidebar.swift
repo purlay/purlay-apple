@@ -1,0 +1,635 @@
+#if os(macOS)
+import PurlayContract
+import PurlayKit
+import PurlayTokens
+import SwiftUI
+
+/// The sidebar (§12.3): the workspace and what it holds for the person, then where they can go (Inbox, Saved, Search), then
+/// Starred, Channels and Conversations, and at the foot who they are. It is the system's sidebar, so it is Liquid Glass by
+/// itself: nothing is drawn behind the list, and the text takes semantic styles so the glass can give it vibrancy.
+/// What the sidebar has chosen: the inbox page, or a channel.
+enum SidebarSelection: Hashable {
+    case inbox
+    case unresolved
+    case issues
+    case channel(Uuid)
+}
+
+struct SidebarView: View {
+    let model: AppModel
+    @Binding var selection: SidebarSelection?
+    @Binding var sheet: ChannelSheet?
+    @Binding var leaving: Channel?
+    /// Which sections are folded away, kept with the window across launches.
+    @SceneStorage("sidebar.folded") private var foldedStorage = ""
+
+    @State private var query = ""
+    @State private var unreadOnly = false
+    @State private var filtering = false
+    @State private var searchHovering = false
+    @State private var organizing = false
+    @FocusState private var filterFocused: Bool
+
+    private var quiet: Bool { model.deepWorkEnds != nil }
+    private func visible(_ channels: [Channel]) -> [Channel] {
+        channels.filter {
+            (!unreadOnly || $0.isUnread) && (query.isEmpty || $0.title.localizedStandardContains(query))
+        }
+    }
+
+    var body: some View {
+        List(selection: $selection) {
+            Section {
+                VStack(spacing: 0) {
+                    DestinationRow(
+                        title: "Inbox",
+                        systemImage: model.attentionCount > 0 ? "tray.full.fill" : "tray",
+                        nativeSelection: true,
+                        selected: model.inboxOpen && !model.savedOpen && !model.draftsOpen,
+                        count: model.attentionCount, shortcut: "⇧⌘I"
+                    ) { selection = .inbox }
+                    DestinationRow(
+                        title: "Open Topics", systemImage: "bubble.left.and.text.bubble.right",
+                        nativeSelection: true, selected: model.unresolvedOpen, shortcut: "⌥⌘U"
+                    ) { selection = .unresolved }
+                    if model.hasModule(.issues) {
+                        DestinationRow(
+                            title: "Issues", systemImage: "checklist", nativeSelection: true, selected: model.issuesOpen
+                        ) { selection = .issues }
+                    }
+                    if model.supportsReminders {
+                        DestinationRow(
+                            title: "Reminders", systemImage: "bell.badge", selected: model.remindersOpen,
+                            count: model.reminderItems.count
+                        ) { model.remindersOpen = true }
+                    }
+                    if model.supportsScheduling {
+                        DestinationRow(title: "Scheduled", systemImage: "clock", selected: model.scheduledOpen) {
+                            model.scheduledOpen = true
+                        }
+                    }
+                    DestinationRow(
+                        title: "Saved Messages", systemImage: "bookmark",
+                        selected: model.savedOpen, count: model.savedIDs.count
+                    ) { model.savedOpen = true }
+                    DestinationRow(
+                        title: "Drafts", systemImage: "square.and.pencil",
+                        selected: model.draftsOpen, count: model.draftCount, shortcut: "⌥⇧⌘D"
+                    ) {
+                        model.draftsOpen = true
+                    }
+                }
+            }
+            // The destination rows are one row of the list, not several: a row with a selection tag is laid out with other insets than one
+            // without, and in one row every symbol is on the same column by construction.
+            .listRowInsets(EdgeInsets(top: 2, leading: -Spacing.space1, bottom: 2, trailing: -Spacing.space1))
+            .listRowBackground(Color.clear)
+            Section {
+                Button {
+                    sheet = .browse
+                } label: {
+                    HStack(spacing: Spacing.space2 + Stroke.strokeFocus) {
+                        Image(systemName: "rectangle.stack")
+                            .font(.system(size: 14, weight: .regular))
+                            .symbolRenderingMode(.hierarchical)
+                            .frame(width: Size.sizeIconLg, height: Size.sizeIconLg)
+                            .foregroundStyle(NativePalette.secondary.style)
+                        Text("Browse Channels")
+                        Spacer(minLength: Spacing.space1)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold)).foregroundStyle(.tertiary)
+                    }
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(NativePalette.ink.style)
+                    .padding(.horizontal, Spacing.space2)
+                    .frame(minHeight: Size.sizeControl)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .help("Discover public channels  ⇧⌘O")
+            }
+            .listRowInsets(EdgeInsets(top: 2, leading: -Spacing.space1, bottom: 2, trailing: -Spacing.space1))
+            ForEach(model.sidebar) { section in
+                let rows = visible(section.channels)
+                if !rows.isEmpty || (section.channels.isEmpty && query.isEmpty && !unreadOnly) {
+                    Section(isExpanded: expanded(section)) {
+                        ForEach(rows, id: \.id) { channel in
+                            SidebarChannelRow(model: model, channel: channel, quiet: quiet)
+                                .tag(SidebarSelection.channel(channel.id))
+                                .contextMenu { ChannelMenu(model: model, channel: channel, leaving: $leaving) }
+                        }
+                        .onMove { from, to in model.reorderSidebarChannels(in: section.id, from: from, to: to) }
+                        .moveDisabled(unreadOnly || !query.isEmpty)
+                        if section.channels.isEmpty {
+                            Text("Move conversations here using their menu.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    } header: {
+                        SectionHeader(kind: section.kind, sheet: $sheet, organize: { organizing = true })
+                            .contextMenu {
+                                Button("Organize Sidebar…") { organizing = true }
+                                Button("Reset Conversation Order") { model.resetSidebarChannelOrder(in: section.id) }
+                            }
+                    }
+                }
+            }
+            if model.sidebar.allSatisfy({ visible($0.channels).isEmpty }) && query.isEmpty && !unreadOnly {
+                // Nothing is filtered away: the workspace simply has no channel the person is in yet.
+                VStack(alignment: .leading, spacing: Spacing.space2) {
+                    Label("No channels yet", systemImage: "number")
+                        .font(.callout.weight(.medium))
+                    Text("Browse the workspace's channels, or start a conversation.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: Spacing.space3) {
+                        Button("Browse Channels…") { sheet = .browse }.buttonStyle(.bordered).controlSize(.small)
+                        Button("New Conversation") { sheet = .conversation }.buttonStyle(.bordered).controlSize(.small)
+                    }
+                }
+                .padding(.vertical, Spacing.space3)
+                .listRowSeparator(.hidden)
+            } else if model.sidebar.allSatisfy({ visible($0.channels).isEmpty }) {
+                VStack(alignment: .leading, spacing: Spacing.space2) {
+                    Label(
+                        unreadOnly ? "You're all caught up" : "No matching channels",
+                        systemImage: unreadOnly ? "checkmark.circle" : "magnifyingglass"
+                    )
+                    .font(.callout.weight(.medium))
+                    Text(unreadOnly ? "New messages will appear here." : "Try another channel or person's name.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button("Show All Channels") {
+                        query = ""
+                        unreadOnly = false
+                    }.buttonStyle(.bordered).controlSize(.small)
+                }
+                .padding(.vertical, Spacing.space3)
+                .listRowSeparator(.hidden)
+            }
+        }
+        .listStyle(.sidebar)
+        .scrollIndicators(.automatic)
+        .contentMargins(.bottom, Spacing.space4, for: .scrollContent)
+        .accessibilityLabel("Workspace navigation")
+        .environment(\.defaultMinListRowHeight, Size.sizeRow + Spacing.space1)
+        .safeAreaBar(edge: .top, spacing: 0) {
+            VStack(spacing: Spacing.space2) {
+                WorkspaceHeader(model: model, sheet: $sheet)
+                HStack(spacing: 0) {
+                    Button {
+                        model.paletteOpen = true
+                    } label: {
+                        HStack(spacing: Spacing.space2) {
+                            Image(systemName: "magnifyingglass")
+                            Text("Search Purlay")
+                            Spacer(minLength: Spacing.space1)
+                            Text("⌘K")
+                                .font(.caption2.monospaced())
+                                .padding(.horizontal, Spacing.space1)
+                                .padding(.vertical, Stroke.strokeFocus)
+                                .background(.fill.tertiary, in: .rect(cornerRadius: Radius.radiusSm))
+                        }
+                        .font(.system(size: 13)).foregroundStyle(NativePalette.secondary.style)
+                        .padding(.leading, Spacing.space3)
+                        .frame(maxWidth: .infinity, minHeight: Size.sizeControl + Spacing.space1)
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Search messages, channels and people  ⌘K")
+                    .accessibilityLabel("Search Purlay")
+                    Rectangle().fill(.separator)
+                        .frame(width: Stroke.strokeHairline, height: Size.sizeIconMd)
+                        .padding(.horizontal, Spacing.space2)
+                    Menu {
+                        Toggle("Unread Channels Only", isOn: $unreadOnly)
+                        Button("Filter by Name…", systemImage: "line.3.horizontal.decrease") {
+                            filtering = true
+                            filterFocused = true
+                        }
+                        if unreadOnly || !query.isEmpty {
+                            Button("Show All Channels") {
+                                unreadOnly = false
+                                query = ""
+                                filtering = false
+                            }
+                        }
+                        Divider()
+                        Button("Organize Sidebar…", systemImage: "folder") { organizing = true }
+                    } label: {
+                        Image(
+                            systemName: unreadOnly
+                                ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease"
+                        )
+                        .foregroundStyle(.secondary)
+                        .frame(width: Size.sizeIconLg, height: Size.sizeControl)
+                    }
+                    .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                    .padding(.trailing, Spacing.space2)
+                    .help("Filter and organize channels").accessibilityLabel("Filter and organize channels")
+                }
+                .background(NativePalette.raised.style, in: .rect(cornerRadius: Radius.radiusLg))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Radius.radiusLg)
+                        .fill(searchHovering ? Color.primary.opacity(0.07) : .clear)
+                        .allowsHitTesting(false)
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: Radius.radiusLg)
+                        .strokeBorder(
+                            searchHovering ? NativePalette.border.style : NativePalette.divider.style,
+                            lineWidth: Stroke.strokeHairline
+                        )
+                        .allowsHitTesting(false)
+                }
+                .onHover { searchHovering = $0 }
+                if filtering {
+                    HStack(spacing: Spacing.space2) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("Channel or person", text: $query).textFieldStyle(.plain)
+                            .focused($filterFocused)
+                            .onExitCommand {
+                                filtering = false
+                                query = ""
+                            }
+                        Button("Close Filter", systemImage: "xmark.circle.fill") {
+                            query = ""
+                            filtering = false
+                        }
+                        .labelStyle(.iconOnly).buttonStyle(.plain).foregroundStyle(.secondary)
+                    }
+                    .font(.callout).padding(Spacing.space2)
+                    .background(.fill.quaternary, in: .rect(cornerRadius: Radius.radiusLg))
+                }
+                if unreadOnly {
+                    HStack {
+                        Label("Unread only", systemImage: "line.3.horizontal.decrease.circle")
+                        Spacer()
+                        Button("Show All", systemImage: "xmark") { unreadOnly = false }
+                            .labelStyle(.iconOnly).buttonStyle(.plain)
+                    }
+                    .font(.caption).foregroundStyle(.secondary)
+                    .padding(.horizontal, Spacing.space1).padding(.bottom, Spacing.space1)
+                }
+            }
+            .padding(.horizontal, Spacing.space3)
+            .padding(.bottom, Spacing.space2)
+        }
+        .safeAreaBar(edge: .bottom) { AccountFooter(model: model) }
+        .modifier(SidebarSurface())
+        .sheet(isPresented: $organizing) { SidebarOrganizer(model: model) }
+    }
+
+    /// A group's folding is the server's, so every device shows the same; the other sections fold on this Mac.
+    private func expanded(_ section: SidebarSection) -> Binding<Bool> {
+        if case .custom(let id, _) = section.kind {
+            return Binding(
+                get: { !(model.sidebarLayout.groups.first { $0.id == id }?.collapsed ?? false) },
+                set: { open in Task { await model.setSidebarGroupCollapsed(id, !open) } })
+        }
+        let id = section.id
+        return Binding(
+            get: { !folded.contains(id) },
+            set: { open in
+                var set = folded
+                if open { set.remove(id) } else { set.insert(id) }
+                foldedStorage = set.sorted().joined(separator: ",")
+            })
+    }
+
+    private var folded: Set<String> { Set(foldedStorage.split(separator: ",").map(String.init)) }
+}
+
+/// Clear, single-line destinations. The selected row uses white ink on the accent; inactive rows retain full reading contrast.
+private struct DestinationRow: View {
+    let title: LocalizedStringKey
+    let systemImage: String
+    /// The List's selected row includes its own insets; the custom surface covers that same footprint.
+    var nativeSelection = false
+    var selected = false
+    var count = 0
+    var shortcut: String?
+    let action: () -> Void
+    @State private var hovering = false
+
+    /// A sidebar row is a line of the sidebar, not a button of its own: regular weight, the system's row height, the accent only on
+    /// the symbol of the row that is open, and a quiet fill for it, as the channel rows below it have.
+    private static let rowHeight: Double = 28
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Spacing.space2 + Stroke.strokeFocus) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 14, weight: .regular))
+                    .symbolRenderingMode(.hierarchical)
+                    .symbolVariant(selected ? .fill : .none)
+                    .foregroundStyle(selected ? Colors.accentText.style : NativePalette.secondary.style)
+                    .frame(width: Size.sizeIconLg, height: Size.sizeIconLg)
+                    .accessibilityHidden(true)
+                Text(title)
+                    .font(.system(size: 13, weight: selected ? .medium : .regular))
+                    .foregroundStyle(NativePalette.ink.style)
+                    .lineLimit(1)
+                Spacer(minLength: Spacing.space2)
+                if count > 0 {
+                    Text(count > 99 ? "99+" : count.formatted())
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(Colors.onAccent.style)
+                        .padding(.horizontal, Spacing.space1 + Stroke.strokeFocus)
+                        .frame(minWidth: Size.sizeBadge, minHeight: Size.sizeBadge)
+                        .background(Colors.accent.style, in: .capsule)
+                }
+            }
+            .padding(.horizontal, Spacing.space2)
+            .frame(minHeight: Self.rowHeight)
+            .contentShape(.rect)
+            .background {
+                RoundedRectangle(cornerRadius: Radius.radiusLg)
+                    .fill(selected ? Color.primary.opacity(0.10) : Color.primary.opacity(0.06))
+                    .opacity(selected || hovering ? 1 : 0)
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help(Text("\(Text(title))\(shortcut.map { "  \($0)" } ?? "")"))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(count > 0 ? Text("\(count) waiting") : Text(""))
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+}
+
+/// A section's name, with the action that adds to it.
+private struct SectionHeader: View {
+    let kind: SidebarSection.Kind
+    @Binding var sheet: ChannelSheet?
+    let organize: () -> Void
+
+    var body: some View {
+        HStack {
+            Text(Words.header(kind)).font(.system(size: 11, weight: .semibold)).foregroundStyle(
+                NativePalette.secondary.style)
+            Spacer()
+            switch kind {
+            case .channels:
+                Menu {
+                    Button("New Channel…", systemImage: "plus") { sheet = .newChannel }
+                    Button("Browse Channels…", systemImage: "list.bullet") { sheet = .browse }
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .menuStyle(.button)
+                .buttonStyle(.borderless)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("New channel or browse channels")
+                .accessibilityLabel("Add a channel")
+            case .conversations:
+                Button {
+                    sheet = .conversation
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .buttonStyle(.borderless)
+                .help("New conversation")
+                .accessibilityLabel("New conversation")
+            case .starred:
+                EmptyView()
+            case .custom:
+                Button("Organize Group", systemImage: "ellipsis", action: organize)
+                    .labelStyle(.iconOnly).buttonStyle(.borderless)
+                    .help("Organize Sidebar")
+            }
+        }
+        .padding(.top, Spacing.space2)
+    }
+}
+
+/// One channel or conversation: its mark (a hash, a lock, or the person), its name, bold while unread, a struck bell when
+/// muted, and the mentions waiting as the system's own badge.
+struct SidebarChannelRow: View {
+    let model: AppModel
+    let channel: Channel
+    var quiet = false
+
+    var body: some View {
+        Label {
+            HStack(spacing: Spacing.space1) {
+                // Semantic styles, not token colours: the system turns a selected row's text light on the accent only for these.
+                Text(name)
+                    .font(.system(size: 13))
+                    .lineLimit(1)
+                    .fontWeight(channel.isUnread && !channel.isMuted ? .semibold : .regular)
+                    .foregroundStyle(channel.isMuted ? .secondary : .primary)
+                if hasDraft {
+                    Image(systemName: "pencil")
+                        .imageScale(.small)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Draft")
+                        .help("You have an unsent draft here")
+                }
+                if let incident = channel.incident {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .imageScale(.small)
+                        .foregroundStyle(incident.tint)
+                        .accessibilityLabel("Incident \(incident.severityName)")
+                        .help("An incident is open here")
+                }
+                if channel.isMuted {
+                    Image(systemName: "bell.slash")
+                        .imageScale(.small)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Muted")
+                }
+            }
+        } icon: {
+            mark
+        }
+        .badge(channel.mentionBadge(deepWork: quiet) ?? 0)
+        .accessibilityValue(channel.isUnread ? Text("Unread") : Text(""))
+    }
+
+    /// Words left half written here, unless this is the channel being written in, where the box already shows them.
+    private var hasDraft: Bool {
+        channel.id != model.selectedChannel && model.draftedChannels.contains(channel.id)
+    }
+
+    private var name: String {
+        switch channel.type {
+        case .directMessage: channel.title
+        case .public, .private, .unknown: channel.name ?? channel.title
+        }
+    }
+
+    @ViewBuilder private var mark: some View {
+        switch channel.type {
+        case .directMessage:
+            if channel.peers.count > 1 {
+                Image(systemName: "person.2.fill")
+            } else {
+                let peer = channel.peer ?? channel.peers.first
+                PresenceAvatar(user: peer, online: peer.map { model.isOnline($0.id) } ?? false)
+            }
+        case .private:
+            Image(systemName: "lock")
+        case .public, .unknown:
+            Image(systemName: "number")
+        }
+    }
+}
+
+/// Workspace creation and role-aware entry points to administration settings.
+private struct WorkspaceHeader: View {
+    @Environment(\.desktopSessions) private var sessions
+    let model: AppModel
+    @Binding var sheet: ChannelSheet?
+    @Environment(\.openSettings) private var openSettings
+    var body: some View {
+        Menu {
+            if let sessions {
+                WorkspaceChoice(sessions: sessions, model: model)
+                Divider()
+            }
+            Section {
+                Button("New Channel…", systemImage: "number") { sheet = .newChannel }
+                Button("Browse Channels…", systemImage: "list.bullet") { sheet = .browse }
+                Button("New Conversation…", systemImage: "person.2") { sheet = .conversation }
+            }
+            Section { MarkAllReadButton(model: model).disabled(!model.hasUnread) }
+            if model.availableSettingsPages.contains(.workspace) {
+                Section("Administration") {
+                    ForEach(model.availableSettingsPages.filter { $0.group == .workspace }) {
+                        page in
+                        Button(page.title, systemImage: page.image) {
+                            model.selectSettingsPage(page)
+                            sessions?.prepareSettings(for: model)
+                            openSettings()
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: Spacing.space2) {
+                if let workspace = model.workspace {
+                    WorkspaceTile(workspace: workspace)
+                }
+                VStack(alignment: .leading, spacing: Stroke.strokeFocus) {
+                    Text(model.workspace?.name ?? "Purlay")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(NativePalette.ink.style).lineLimit(1)
+                    Text(model.workspaceRoleTitle)
+                        .font(.system(size: 11)).foregroundStyle(NativePalette.secondary.style)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.up.chevron.down")
+                    .imageScale(.small)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, Spacing.space2)
+            .padding(.vertical, Spacing.space1)
+            .switcherSurface()
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .padding(.vertical, Spacing.space3)
+        .help("Switch workspace")
+        .accessibilityLabel(Text("Workspace \(model.workspace?.name ?? "")"))
+    }
+}
+
+/// Who the person is, at the sidebar's foot, on glass: their face, their name, and Deep Work while it lasts; the menu has
+/// what belongs to the person (profile, Deep Work, settings, signing out).
+private struct AccountFooter: View {
+    @Environment(\.desktopSessions) private var sessions
+    let model: AppModel
+    @State private var confirmingEverywhere = false
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
+        Menu {
+            Section {
+                Button("Profile…", systemImage: "person.crop.circle") { settings(.profile) }
+                Button("Account and Sessions…", systemImage: "key") { settings(.account) }
+            }
+            Section {
+                Button(
+                    model.isAway ? "I'm Back" : "Set Yourself Away",
+                    systemImage: model.isAway ? "person.crop.circle.badge.checkmark" : "moon"
+                ) {
+                    Task { await model.setAway(!model.isAway) }
+                }
+            }
+            Section { DeepWorkItems(model: model) }
+            Section {
+                Button("Settings…", systemImage: "gearshape") { settings(.general) }
+                Button("Keyboard Shortcuts", systemImage: "keyboard") { model.shortcutsOpen = true }
+            }
+            Section {
+                Button("Sign Out") { Task { await model.signOut(.thisDevice) } }
+                Button("Sign Out Everywhere…") { confirmingEverywhere = true }
+            }
+        } label: {
+            HStack(spacing: Spacing.space2) {
+                PresenceAvatar(
+                    current: model.me?.user, online: model.connection == .open && !model.isAway, size: Size.sizeAvatar)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(model.me?.user.displayName ?? "")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(status)
+                        .typeStyle(Typography.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .padding(Spacing.space2)
+            .switcherSurface()
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .padding(Spacing.space3)
+        .confirmationDialog("Sign out on every device?", isPresented: $confirmingEverywhere) {
+            Button("Sign Out Everywhere", role: .destructive) { Task { await model.signOut(.everywhere) } }
+        } message: {
+            Text("Every Mac, phone and browser signed in to this account will need to sign in again.")
+        }
+        .accessibilityLabel(Text("Account, \(model.me?.user.displayName ?? ""), \(status)"))
+    }
+
+    private var status: String {
+        if let ends = model.deepWorkEnds {
+            return String(localized: "Deep Work until \(ends.formatted(date: .omitted, time: .shortened))")
+        }
+        return model.me.map { "@\($0.user.username)" } ?? ""
+    }
+
+    private func settings(_ page: SettingsPage) {
+        model.selectSettingsPage(page)
+        sessions?.prepareSettings(for: model)
+        openSettings()
+    }
+}
+
+/// What the sidebar's two switchers (workspace, account) look like: a border at rest that says it is a control, a fill under the pointer.
+private struct SwitcherSurface: ViewModifier {
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .background(hovering ? Color.primary.opacity(0.07) : .clear, in: .rect(cornerRadius: Radius.radiusLg))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.radiusLg)
+                    .strokeBorder(NativePalette.border.style, lineWidth: Stroke.strokeHairline)
+            }
+            .contentShape(.rect)
+            .onHover { hovering = $0 }
+    }
+}
+
+extension View {
+    fileprivate func switcherSurface() -> some View { modifier(SwitcherSurface()) }
+}
+#endif

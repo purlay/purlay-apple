@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""The one required check's judgement: every lane passed, or was skipped because `changes` said it was not needed.
+
+Usage: NEEDS='${{ toJSON(needs) }}' scripts/ci/verify-needs
+
+`changes` and `security` must succeed on every run. A lane may be skipped only when `changes` succeeded and said that lane was
+not needed; a lane that failed, was cancelled, or was skipped for any other reason fails the check. A lane `changes` does not
+name (a new job added to `needs` and forgotten here) must succeed.
+"""
+import json
+import os
+import sys
+
+ALWAYS = ("changes", "security")
+
+
+def judge(needs: dict) -> list[str]:
+    problems = []
+    for name in ALWAYS:
+        result = needs.get(name, {}).get("result", "missing")
+        if result != "success":
+            problems.append(f"{name}: {result} (it must succeed on every run)")
+    lanes = needs.get("changes", {}).get("outputs", {})
+    for name, job in sorted(needs.items()):
+        if name in ALWAYS:
+            continue
+        result = job.get("result", "missing")
+        if result == "success":
+            continue
+        if result == "skipped" and lanes.get(name) == "false":
+            continue
+        reason = "not needed" if lanes.get(name) == "false" else f"needed (changes said {lanes.get(name, 'nothing')!r})"
+        problems.append(f"{name}: {result}, {reason}")
+    return problems
+
+
+def main() -> None:
+    raw = os.environ.get("NEEDS", "")
+    try:
+        needs = json.loads(raw)
+    except ValueError:
+        sys.exit("FAIL: NEEDS is not the JSON of the job's needs")
+    if not needs:
+        sys.exit("FAIL: NEEDS is empty")
+    for name, job in sorted(needs.items()):
+        print(f"{name:<10} {job.get('result', 'missing')}")
+    problems = judge(needs)
+    if problems:
+        sys.exit("FAIL:\n  " + "\n  ".join(problems))
+    print("every lane passed, or was not needed")
+
+
+if __name__ == "__main__":
+    main()

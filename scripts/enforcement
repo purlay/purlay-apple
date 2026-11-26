@@ -1,0 +1,414 @@
+#!/usr/bin/env bash
+# The architecture rules a compiler does not state by itself, and the values that must be one value. Each rule is also run
+# against a copy of the tree with the violation planted, so a rule that stopped looking is seen here and not discovered in review.
+#
+#   scripts/enforcement [GROUP]          check the tree
+#   scripts/enforcement --demo [GROUP]   plant each violation in a copy and require the check to refuse it
+#
+# GROUP is `tree`, `layers`, or both when it is left out. `tree` is shell, grep and Python only, so it runs on a Linux runner
+# without Swift (scripts/verify rules). `layers` reads the package through `swift package dump-package`, which compiles the
+# manifest and so needs the Swift toolchain: it runs on macOS (scripts/verify packages).
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+demo=false
+if [ "${1:-}" = "--demo" ]; then demo=true; shift; fi
+case "${1:-all}" in
+  tree | layers) RULE_GROUPS="$1" ;;
+  all) RULE_GROUPS="tree layers" ;;
+  *) echo "usage: scripts/enforcement [--demo] [tree|layers]" >&2; exit 2 ;;
+esac
+wants() { case " $RULE_GROUPS " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
+
+# What a copy for the demonstration holds: everything a rule reads.
+TREE=(Package.swift Sources Tests Apps Config Design TestPlans Tools ContractTests)
+
+png_field() { # file offset length: that many bytes of the PNG header as a number (od and bash only: this runs on a Linux runner too)
+  local hex
+  hex="$(od -An -tx1 -j"$2" -N"$3" "$1" | tr -d ' \n')"
+  echo "$((16#$hex))"
+}
+
+# The layers: which module may depend on which. A module the table does not name is refused, so a new one is placed on purpose.
+# The manifest is read through SwiftPM, which compiles it; what it says is kept by the manifest's digest, so the demonstration,
+# which copies the same manifest many times, reads it once.
+dump_package() { # root
+  local cache digest
+  cache="${TMPDIR:-/tmp}/purlay-enforcement"
+  digest="$(shasum -a 256 "$1/Package.swift" | cut -d' ' -f1)"
+  if [ ! -s "$cache/$digest.json" ]; then
+    mkdir -p "$cache"
+    (cd "$1" && swift package dump-package) > "$cache/$digest.json.partial" || { rm -f "$cache/$digest.json.partial"; return 1; }
+    mv "$cache/$digest.json.partial" "$cache/$digest.json"
+  fi
+  cat "$cache/$digest.json"
+}
+
+layers() { # root
+  local dump
+  dump="$(dump_package "$1")" || { echo "FAIL: swift package dump-package cannot read $1/Package.swift" >&2; return 1; }
+  printf '%s' "$dump" | python3 -c '
+import json, re, sys
+allowed = {
+    "PurlayContract": set(), "PurlayTokens": set(),
+    "PurlayKit": {"PurlayContract"},
+    "PurlayTestSupport": {"PurlayKit", "PurlayContract"},
+    "PurlayDesign": {"PurlayTokens"},
+    "PurlayModuleAPI": set(),
+    "PurlayMacUI": {"PurlayKit", "PurlayContract", "PurlayTokens", "PurlayDesign"},
+}
+feature = {"PurlayKit", "PurlayContract", "PurlayTokens", "PurlayDesign", "PurlayModuleAPI"}
+package = json.load(sys.stdin)
+failed = False
+for target in package["targets"]:
+    if target["type"] != "regular":
+        continue
+    name = target["name"]
+    names = set()
+    for dependency in target.get("dependencies", []):
+        (kind, value), = dependency.items()
+        names.add(value[0])
+    if re.fullmatch(r"Feature[A-Z][A-Za-z0-9]*", name):
+        may = feature
+    elif name in allowed:
+        may = allowed[name]
+    else:
+        print(f"FAIL: {name} is a module the layer table does not name", file=sys.stderr); failed = True; continue
+    for wrong in sorted(names - may):
+        print(f"FAIL: {name} depends on {wrong}, which its layer does not allow", file=sys.stderr); failed = True
+sys.exit(1 if failed else 0)'
+}
+
+# Every floor, as each file that states one says it: "platform major", one per line.
+floors() { # root
+  local root="$1"
+  find "$root" -name Package.swift -not -path '*/.build/*' -print0 | xargs -0 grep -hoE '\.(iOS|macOS)\(\.v[0-9]+\)' \
+    | sed -E 's/\.(iOS|macOS)\(\.v([0-9]+)\)/\1 \2/'
+  grep -hE '^IPHONEOS_DEPLOYMENT_TARGET *=' "$root"/Config/*.xcconfig | sed -E 's/.*= *([0-9]+).*/iOS \1/'
+  grep -hE '^MACOSX_DEPLOYMENT_TARGET *=' "$root"/Config/*.xcconfig | sed -E 's/.*= *([0-9]+).*/macOS \1/'
+}
+
+check() { # root: the groups asked for
+  local failed=0
+  if wants layers && ! layers "$1"; then failed=1; fi
+  if wants tree && ! check_tree "$1"; then failed=1; fi
+  return $failed
+}
+
+check_tree() { # root: every rule but the layers
+  local root="$1" failed=0
+
+  # --- The structure.
+  # A feature never imports another feature (the layer rule sees the manifest; this sees the code).
+  for feature in "$root"/Sources/Feature*/; do
+    [ -d "$feature" ] || continue
+    name="$(basename "$feature")"
+    if grep -rnE --include='*.swift' '^\s*(@testable )?import Feature' "$feature" | grep -vE "import $name\b"; then
+      echo "FAIL: $name imports another feature" >&2; failed=1
+    fi
+  done
+  # The engine, the contract and the tokens are platform-neutral: no UI framework. Each app draws its own interface.
+  if grep -rnE '^\s*(@_exported )?import (SwiftUI|AppKit|UIKit|WatchKit)\b' \
+      "$root"/Sources/{PurlayContract,PurlayTokens,PurlayKit,PurlayTestSupport}; then
+    echo "FAIL: the engine, the contract or the tokens import a UI framework" >&2; failed=1
+  fi
+  # OS-version branching lives in PurlayDesign alone.
+  if grep -rnE --include='*.swift' '#available|#unavailable|@available' "$root/Sources" "$root/Tests" "$root/Apps" \
+      | grep -v "^$root/Sources/PurlayDesign/"; then
+    echo "FAIL: an OS-version check outside Sources/PurlayDesign" >&2; failed=1
+  fi
+  # One floor per platform, and Package.swift and Config/ both state it.
+  for platform in iOS macOS; do
+    numbers="$(floors "$root" | awk -v p="$platform" '$1 == p {print $2}' | sort -u)"
+    if [ "$(printf '%s\n' "$numbers" | grep -c .)" != "1" ]; then
+      echo "FAIL: the $platform floor is not one number:" >&2; floors "$root" | grep "^$platform " | sort | uniq -c >&2; failed=1
+    fi
+  done
+  if ! grep -qE '\.iOS\(\.v[0-9]+\)' "$root/Package.swift" || ! grep -qE '\.macOS\(\.v[0-9]+\)' "$root/Package.swift" \
+      || ! grep -qE '^IPHONEOS_DEPLOYMENT_TARGET *=' "$root"/Config/*.xcconfig \
+      || ! grep -qE '^MACOSX_DEPLOYMENT_TARGET *=' "$root"/Config/*.xcconfig; then
+    echo "FAIL: a floor is not stated in both Package.swift and Config/" >&2; failed=1
+  fi
+  # The project holds no build setting: every one is in Config/, where a review sees it.
+  if grep -nE '"build-settings"' "$root/Apps/Purlay.xcodeproj/project.xcproj"; then
+    echo "FAIL: Apps/Purlay.xcodeproj holds build settings; put them in Config/" >&2; failed=1
+  fi
+  # Every test target runs: each is in the test plan of a lane (scripts/verify runs macOS and iOS).
+  for target in $(tr '\n' ' ' < "$root/Package.swift" | grep -oE 'tests\( *"[A-Za-z0-9]+"' | grep -oE '"[A-Za-z0-9]+"' | tr -d '"') \
+      PurlayTests PurlayUITests; do
+    if ! grep -qE "\"name\" : \"$target\"" "$root"/TestPlans/{macOS,iOS}.xctestplan; then
+      echo "FAIL: the test target $target is in no test plan a lane runs" >&2; failed=1
+    fi
+  done
+
+  # --- Dependencies and code that can trap.
+  # The package has no third-party dependency; the project's are the ones M-8 allows (Sparkle; swift-markdown if needed).
+  if grep -nE '\.package\(' "$root/Package.swift"; then
+    echo "FAIL: a package dependency in Package.swift; the modules have none" >&2; failed=1
+  fi
+  if grep -oE '"repository": *"[^"]+"' "$root/Apps/Purlay.xcodeproj/project.xcproj" \
+      | grep -vE 'github\.com/(sparkle-project/Sparkle|swiftlang/swift-markdown)"'; then
+    echo "FAIL: a project dependency M-8 does not allow" >&2; failed=1
+  fi
+  # Only the Mac app's own folder for updates may import Sparkle.
+  if grep -rnE --include='*.swift' '^\s*import Sparkle\b' "$root/Sources" "$root/Apps" | grep -v '/Apps/macOS/App/Updates/'; then
+    echo "FAIL: Sparkle imported outside Apps/macOS/App/Updates" >&2; failed=1
+  fi
+  # The Mac screens open no connection: they reach the network only through PurlayKit's protocols.
+  if grep -rnE '\b(URLSession|URLRequest|NWConnection|URLSessionWebSocketTask)\b' "$root/Sources/PurlayMacUI"; then
+    echo "FAIL: PurlayMacUI touches the network" >&2; failed=1
+  fi
+  # No escape from the compiler's concurrency checking.
+  if grep -rnE --include='*.swift' '(@unchecked Sendable|nonisolated\(unsafe\))' "$root/Sources" "$root/Apps" \
+      | grep -v 'enforcement-allow'; then
+    echo "FAIL: an unchecked concurrency escape" >&2; failed=1
+  fi
+  # Production code cannot trap on a value it was handed: no `try!`, `as!`, `fatalError`, and no force unwrap or implicitly
+  # unwrapped optional. A trap cannot be caught, so the rule is prevention. Comment lines, generated code, the test support
+  # library and the tests are not looked at.
+  if grep -rnE --include='*.swift' '(try!|as!|fatalError\(|unsafelyUnwrapped|[]A-Za-z0-9_)]!([].),]|[[:space:]]*$))' \
+      "$root/Sources" "$root"/Apps/*/App | grep -v '/Generated/' | grep -v '/PurlayTestSupport/' \
+      | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
+    echo "FAIL: production code that can trap" >&2; failed=1
+  fi
+
+  # --- The iOS app.
+  # The icon is one 1024 by 1024 picture with no alpha channel (the App Store refuses one that has it, and the system rounds the
+  # corners itself); scripts/icon writes it from Design/purlay.svg. PNG colour type 0 (grey) and 2 (RGB) have no alpha.
+  local set="$root/Apps/iOS/App/Resources/Assets.xcassets/AppIcon.appiconset" icon="icon-1024.png"
+  if [ ! -f "$set/$icon" ] || ! grep -q "\"$icon\"" "$set/Contents.json"; then
+    echo "FAIL: the iOS icon set has no $icon" >&2; failed=1
+  else
+    if [ "$(png_field "$set/$icon" 16 4)x$(png_field "$set/$icon" 20 4)" != "1024x1024" ]; then
+      echo "FAIL: $icon is not 1024x1024" >&2; failed=1
+    fi
+    case "$(png_field "$set/$icon" 25 1)" in
+      0 | 2) ;;
+      *) echo "FAIL: $icon has an alpha channel" >&2; failed=1 ;;
+    esac
+  fi
+  # The launch screen's mark is the logo, drawn at the size PurlayMark has on the first frame: Design/purlay.svg with the root
+  # width and height set to 120. Apart from that first line it is the logo byte for byte, so a change to the logo cannot leave it behind.
+  local launch="$root/Apps/iOS/App/Resources/Assets.xcassets/LaunchMark.imageset/purlay-mark.svg"
+  if [ ! -f "$launch" ]; then
+    echo "FAIL: there is no launch mark ($launch)" >&2; failed=1
+  elif ! cmp -s <(tail -n +2 "$launch") <(tail -n +2 "$root/Design/purlay.svg") \
+      || ! head -n 1 "$launch" | grep -q '^<svg [^>]*width="120" height="120" viewBox="0 0 1024 1024"'; then
+    echo "FAIL: the launch mark is not Design/purlay.svg at 120 pt (run scripts/icon)" >&2; failed=1
+  fi
+  # Every string of the catalogue is translated into every language the app declares (CFBundleLocalizations).
+  if ! python3 - "$root/Apps/iOS/App/Resources/Localizable.xcstrings" "$root/Apps/iOS/Info.plist" <<'PY'
+import json, plistlib, re, sys
+catalogue = json.load(open(sys.argv[1]))
+# The Info.plist is preprocessed by the build, so its #ifdef lines are taken out before it is read here.
+plist = plistlib.loads(re.sub(rb"(?m)^#.*\n", b"", open(sys.argv[2], "rb").read()))
+languages = plist.get("CFBundleLocalizations", [])
+problems = []
+if catalogue.get("sourceLanguage") != "en":
+    problems.append("the catalogue's source language is not en")
+if "tr" not in languages:
+    problems.append("the app does not declare Turkish (CFBundleLocalizations)")
+for key, entry in catalogue["strings"].items():
+    for language in languages:
+        if language == "en":
+            continue
+        unit = entry.get("localizations", {}).get(language, {}).get("stringUnit", {})
+        if unit.get("state") != "translated" or not unit.get("value", "").strip():
+            problems.append("not translated into %s: %s" % (language, key))
+for problem in problems:
+    print("FAIL: " + problem, file=sys.stderr)
+sys.exit(1 if problems else 0)
+PY
+  then failed=1; fi
+  # A button is built from a text label, never from a LocalizedStringResource: on the simulator `Button(Words.x)` showed English on a
+  # Turkish device while `Text(Words.x)` beside it was Turkish.
+  if grep -rnE --include='*.swift' 'Button\(Words\.' "$root/Apps/iOS/App"; then
+    echo "FAIL: a button built from a LocalizedStringResource (use a Text label)" >&2; failed=1
+  fi
+  # A required-reason API that code in the iOS app uses is declared, with its category, in the privacy manifest (App Store refuses
+  # a build otherwise). The app's code is its own folder and the modules it links.
+  local manifest="$root/Apps/iOS/App/Resources/PrivacyInfo.xcprivacy"
+  [ -f "$manifest" ] || { echo "FAIL: there is no privacy manifest" >&2; failed=1; }
+  while IFS='|' read -r category pattern; do
+    if grep -rlE --include='*.swift' "$pattern" "$root/Apps/iOS/App" \
+        "$root"/Sources/{PurlayContract,PurlayTokens,PurlayKit,PurlayDesign,PurlayModuleAPI} | grep -q .; then
+      grep -q "NSPrivacyAccessedAPICategory$category" "$manifest" 2>/dev/null \
+        || { echo "FAIL: code uses a $category API the privacy manifest does not declare" >&2; failed=1; }
+    fi
+  done <<'APIS'
+UserDefaults|UserDefaults
+FileTimestamp|creationDate|modificationDate|fileModificationDate|fileCreationDate|attributesOfItem
+SystemBootTime|systemUptime|mach_absolute_time
+DiskSpace|volumeAvailableCapacity|volumeTotalCapacity|systemFreeSize|statfs|getattrlist
+ActiveKeyboards|activeInputModes
+APIS
+
+  # --- The Mac app.
+  # The icon is the whole set the catalogue names, each at its own pixel size; scripts/icon writes it from Design/purlay.svg.
+  local macset="$root/Apps/macOS/App/Resources/Assets.xcassets/AppIcon.appiconset" entry file pixels
+  for entry in icon_16x16.png:16 icon_16x16@2x.png:32 icon_32x32.png:32 icon_32x32@2x.png:64 icon_128x128.png:128 \
+    icon_128x128@2x.png:256 icon_256x256.png:256 icon_256x256@2x.png:512 icon_512x512.png:512 icon_512x512@2x.png:1024; do
+    file="${entry%%:*}"; pixels="${entry##*:}"
+    if [ ! -f "$macset/$file" ] || ! grep -q "\"$file\"" "$macset/Contents.json"; then
+      echo "FAIL: the Mac icon set lacks $file" >&2; failed=1
+    elif [ "$(png_field "$macset/$file" 16 4)x$(png_field "$macset/$file" 20 4)" != "${pixels}x${pixels}" ]; then
+      echo "FAIL: $file is not ${pixels}x${pixels}" >&2; failed=1
+    fi
+  done
+  # Sparkle needs its public key to check an update's signature, and the feed it reads.
+  for key in SUPublicEDKey SUFeedURL; do
+    if ! python3 - "$root/Apps/macOS/Info.plist" "$key" <<'PY'
+import plistlib, re, sys
+plist = plistlib.loads(re.sub(rb"(?m)^#.*\n", b"", open(sys.argv[1], "rb").read()))
+sys.exit(0 if str(plist.get(sys.argv[2], "")).strip() else 1)
+PY
+    then echo "FAIL: the Mac app's Info.plist has no $key" >&2; failed=1; fi
+  done
+
+  # --- Both apps: App Transport Security stays strict in a release build. The local-networking exception is written by the
+  # Debug configuration alone, and nothing ever allows arbitrary loads.
+  if grep -nE 'PURLAY_ALLOWS_LOCAL_NETWORKING|^PURLAY_PLIST_DEFINITIONS *= *[^ ]' \
+      "$root"/Config/{Shared,Release,iOS,macOS,iOSTests,iOSUITests}.xcconfig; then
+    echo "FAIL: a transport-security exception outside the Debug configuration" >&2; failed=1
+  fi
+  if grep -nE 'NSAllowsArbitraryLoads' "$root/Apps/iOS/Info.plist" "$root/Apps/macOS/Info.plist"; then
+    echo "FAIL: arbitrary loads allowed" >&2; failed=1
+  fi
+  # The sandbox's entitlements are the allowlist; only the Debug file may add one key, and scripts/verify checks the signed apps.
+  if ! python3 - "$root/Apps/macOS/App/Resources/Purlay.entitlements" "$root/Apps/macOS/App/Resources/Purlay.Debug.entitlements" <<'PY'
+import plistlib, sys
+allowlist = {
+    "com.apple.security.app-sandbox": True,
+    "com.apple.security.files.user-selected.read-write": True,
+    "com.apple.security.network.client": True,
+    "com.apple.security.temporary-exception.mach-lookup.global-name": [
+        "$(PRODUCT_BUNDLE_IDENTIFIER)-spks", "$(PRODUCT_BUNDLE_IDENTIFIER)-spki"],
+}
+release = plistlib.load(open(sys.argv[1], "rb"))
+debug = plistlib.load(open(sys.argv[2], "rb"))
+ok = release == allowlist and debug.pop("com.apple.security.cs.disable-library-validation", None) is True and debug == allowlist
+sys.exit(0 if ok else 1)
+PY
+  then echo "FAIL: the Mac entitlements are not the allowlist" >&2; failed=1; fi
+  return $failed
+}
+
+if ! $demo; then
+  check . && echo "enforcement ($RULE_GROUPS): the tree holds every rule"
+  exit
+fi
+
+fail=0
+copy_tree() { # a copy of what the rules read, without build products
+  local copy
+  copy="$(mktemp -d)"
+  rsync -a --exclude .build --exclude .swiftpm --exclude Generated --exclude 'xcuserdata' "${TREE[@]}" "$copy"/
+  echo "$copy"
+}
+judge() { # name copy
+  if check "$2" >/dev/null 2>&1; then echo "  NOT REFUSED  $1" >&2; fail=1; else echo "  refused      $1"; fi
+  rm -rf "$2"
+}
+plant() { # name, file (relative), line appended to it
+  local copy
+  wants "$group" || return 0
+  copy="$(copy_tree)"
+  mkdir -p "$(dirname "$copy/$2")"
+  printf '%s\n' "$3" >> "$copy/$2"
+  judge "$1" "$copy"
+}
+plant_in() { # name, folder (relative), shell command run there
+  local copy
+  wants "$group" || return 0
+  copy="$(copy_tree)"
+  (cd "$copy/$2" && eval "$3")
+  judge "$1" "$copy"
+}
+check . >/dev/null
+# The copies the violations are planted in must hold every rule before anything is planted, or a refusal would prove nothing.
+clean="$(copy_tree)"
+check "$clean" >/dev/null 2>&1 || { echo "  the unmodified copy already fails a rule: the demonstration proves nothing" >&2; fail=1; }
+rm -rf "$clean"
+
+# The layers. Each plant below belongs to the group named before it, and runs only when that group is asked for.
+group=layers
+# shellcheck disable=SC2016 # Swift source, planted as it is written
+plant "Kit depending on Design" Package.swift \
+  'package.targets.first { $0.name == "PurlayKit" }?.dependencies.append("PurlayDesign")'
+# shellcheck disable=SC2016 # Swift source, planted as it is written
+plant "Contract depending on Kit" Package.swift \
+  'package.targets.first { $0.name == "PurlayContract" }?.dependencies.append("PurlayKit")'
+# shellcheck disable=SC2016 # Swift source, planted as it is written
+plant "Design depending on Kit" Package.swift \
+  'package.targets.first { $0.name == "PurlayDesign" }?.dependencies.append("PurlayKit")'
+plant "a feature depending on a feature" Package.swift \
+  'package.targets += [.target(name: "FeatureChat", dependencies: ["PurlayKit", "FeatureAccount"]), .target(name: "FeatureAccount")]'
+plant "a module the layer table does not name" Package.swift 'package.targets += [.target(name: "PurlayHelpers")]'
+# The structure, the rest of it.
+group=tree
+plant "a feature importing a feature" Sources/FeatureChat/Chat.swift "import FeatureAccount"
+plant "Kit imports SwiftUI" Sources/PurlayKit/App/AppEnvironment.swift "import SwiftUI"
+plant "Tokens imports UIKit" Sources/PurlayTokens/PurlayTokens.swift "import UIKit"
+plant "#available in an app" Apps/iOS/App/PurlayApp.swift 'func gated() { if #available(iOS 26, *) {} }'
+plant "@available in the Mac screens" Sources/PurlayMacUI/Strings.swift '@available(macOS 27, *) func gated() {}'
+plant "#unavailable in the engine" Sources/PurlayKit/App/AppEnvironment.swift 'func gated() { if #unavailable(iOS 26) {} }'
+plant "a second iOS floor in Package.swift" Package.swift "// .iOS(.v17)"
+plant "a second macOS floor in a tool's package" Tools/PurlayGen/Package.swift "// .macOS(.v15)"
+plant "a different iOS floor in Config" Config/iOSTests.xcconfig "IPHONEOS_DEPLOYMENT_TARGET = 17.0"
+plant_in "a floor stated in Package.swift alone" Config 'sed -i.bak "/^MACOSX_DEPLOYMENT_TARGET/d" macOS.xcconfig && rm macOS.xcconfig.bak'
+plant_in "a build setting in the project" Apps/Purlay.xcodeproj \
+  'python3 -c "import sys; p=\"project.xcproj\"; s=open(p).read(); open(p,\"w\").write(s.replace(\"\\\"last-upgrade\\\"\", \"\\\"build-settings\\\": { \\\"SWIFT_VERSION\\\": \\\"5\\\" },\\n  \\\"last-upgrade\\\"\", 1))"'
+plant "a test target in no test plan" Package.swift '// tests("PurlayOrphanTests", [])'
+# Dependencies and code that can trap.
+plant "a package dependency" Package.swift '// .package(url: "https://example.test/Alamofire", from: "1.0.0")'
+plant_in "a project dependency M-8 does not allow" Apps/Purlay.xcodeproj \
+  'sed -i.bak "s#https://github.com/sparkle-project/Sparkle#https://example.test/KeychainAccess#" project.xcproj && rm project.xcproj.bak'
+plant "Sparkle in the Mac screens" Sources/PurlayMacUI/Strings.swift "import Sparkle"
+plant "the Mac screens open a session" Sources/PurlayMacUI/Strings.swift "let session = URLSession.shared"
+plant "an unchecked Sendable" Apps/iOS/App/PurlayApp.swift "final class Leaky: @unchecked Sendable {}"
+plant "nonisolated(unsafe) in the engine" Sources/PurlayKit/App/AppEnvironment.swift "nonisolated(unsafe) var leaked = 0"
+plant "a force try" Apps/iOS/App/PurlayApp.swift 'let leaked = try! Data(contentsOf: URL(fileURLWithPath: "/"))'
+plant "a fatalError in the engine" Sources/PurlayKit/App/AppEnvironment.swift "func leak() { fatalError() }"
+plant "a force unwrap in the Mac screens" Sources/PurlayMacUI/Strings.swift "let first = [1].first!.description"
+plant "an implicitly unwrapped optional in the Mac app" Apps/macOS/App/PurlayApp.swift "var window: NSWindow!"
+# The iOS app.
+plant_in "an iOS icon missing" Apps/iOS/App/Resources/Assets.xcassets/AppIcon.appiconset 'rm icon-1024.png'
+plant_in "an iOS icon at the wrong size" Apps/iOS/App/Resources/Assets.xcassets/AppIcon.appiconset \
+  'printf "\x00\x00\x01\x00" | dd of=icon-1024.png bs=1 seek=16 conv=notrunc 2>/dev/null'
+plant_in "an iOS icon with an alpha channel" Apps/iOS/App/Resources/Assets.xcassets/AppIcon.appiconset \
+  'printf "\x06" | dd of=icon-1024.png bs=1 seek=25 conv=notrunc 2>/dev/null'
+plant_in "a launch mark missing" Apps/iOS/App/Resources/Assets.xcassets/LaunchMark.imageset 'rm purlay-mark.svg'
+plant_in "a launch mark that has drifted from the logo" Apps/iOS/App/Resources/Assets.xcassets/LaunchMark.imageset \
+  'echo "<!-- drift -->" >> purlay-mark.svg'
+plant_in "a launch mark at the wrong size" Apps/iOS/App/Resources/Assets.xcassets/LaunchMark.imageset \
+  'sed -i.bak "1s/width=\"120\"/width=\"121\"/" purlay-mark.svg'
+plant_in "a string with no translation" Apps/iOS/App/Resources 'python3 -c "
+import json
+catalogue = json.load(open(\"Localizable.xcstrings\"))
+del catalogue[\"strings\"][\"Try Again\"][\"localizations\"][\"tr\"]
+json.dump(catalogue, open(\"Localizable.xcstrings\", \"w\"), ensure_ascii=False)"'
+plant "a button built from a LocalizedStringResource" Apps/iOS/App/Root/RootView.swift 'let leaked = Button(Words.tryAgain) {}'
+plant "an undeclared required-reason API in the app" Apps/iOS/App/PurlayApp.swift 'let booted = ProcessInfo.processInfo.systemUptime'
+plant "an undeclared required-reason API in the engine" Sources/PurlayKit/App/AppEnvironment.swift \
+  'let free = URLResourceKey.volumeAvailableCapacityKey'
+# The Mac app.
+plant_in "a Mac icon size missing" Apps/macOS/App/Resources/Assets.xcassets/AppIcon.appiconset 'rm icon_16x16@2x.png'
+plant_in "a Mac icon at the wrong size" Apps/macOS/App/Resources/Assets.xcassets/AppIcon.appiconset \
+  'printf "\x00\x00\x01\x00" | dd of=icon_512x512.png bs=1 seek=16 conv=notrunc 2>/dev/null'
+plant_in "no Sparkle key" Apps/macOS 'python3 -c "
+import re
+text = open(\"Info.plist\").read()
+open(\"Info.plist\", \"w\").write(re.sub(r\"\\s*<key>SUPublicEDKey</key>\\s*<string>[^<]*</string>\", \"\", text))"'
+# Both apps.
+plant "a transport-security exception in Release" Config/Release.xcconfig "PURLAY_PLIST_DEFINITIONS = PURLAY_ALLOWS_LOCAL_NETWORKING=1"
+plant "a transport-security exception for the Mac in every configuration" Config/macOS.xcconfig \
+  "PURLAY_PLIST_DEFINITIONS = PURLAY_ALLOWS_LOCAL_NETWORKING=1"
+plant "arbitrary loads on iOS" Apps/iOS/Info.plist "<key>NSAllowsArbitraryLoads</key>"
+plant "arbitrary loads on the Mac" Apps/macOS/Info.plist "<key>NSAllowsArbitraryLoads</key>"
+entitle() { # key: a line of Python that adds the key to the copy's Release entitlements
+  printf 'import plistlib; p = "Purlay.entitlements"; e = plistlib.load(open(p, "rb")); e["%s"] = True; plistlib.dump(e, open(p, "wb"))' "$1"
+}
+plant_in "an entitlement beyond the allowlist" Apps/macOS/App/Resources "python3 -c '$(entitle com.apple.security.network.server)'"
+plant_in "library validation off in Release" Apps/macOS/App/Resources \
+  "python3 -c '$(entitle com.apple.security.cs.disable-library-validation)'"
+exit $fail
