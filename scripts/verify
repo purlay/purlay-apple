@@ -59,11 +59,17 @@ CAS="${PURLAY_CACHE_DIR:-$HOME/Library/Caches/dev.purlay/compilation-cache}"
 # xcodebuild's -quiet hides what a failed test asserted, so the output is kept and, on a failure, the lines that say what failed
 # are printed with the end of it.
 quiet() { # xcodebuild arguments
-  local log status=0
+  local log status=0 results
   log="$(mktemp)"
-  xcodebuild ${PURLAY_DERIVED_DATA:+-derivedDataPath "$PURLAY_DERIVED_DATA"} "$@" >"$log" 2>&1 || status=$?
-  # What ran, in one or two lines, so that a passing log still says how many tests there were.
-  [ "$status" -ne 0 ] || grep -E "^(✔|✘)? ?Test run with|Executed [1-9][0-9]* tests?, with" "$log" | sort -u || true
+  xcodebuild ${PURLAY_DERIVED_DATA:+-derivedDataPath "$PURLAY_DERIVED_DATA"} \
+    ${PURLAY_PACKAGES_DIR:+-clonedSourcePackagesDirPath "$PURLAY_PACKAGES_DIR"} "$@" >"$log" 2>&1 || status=$?
+  # How many tests ran, passed, failed and were skipped, from the result bundle, so that a passing log says it too.
+  results="$(sed -nE 's/^[[:space:]]+(\/.*\.xcresult)$/\1/p' "$log" | tail -n 1)"
+  [ -z "$results" ] || xcrun xcresulttool get test-results summary --path "$results" 2>/dev/null | python3 -c '
+import json, sys
+s = json.load(sys.stdin)
+counts = tuple(s.get(key) for key in ("totalTestCount", "passedTests", "failedTests", "skippedTests"))
+print("tests: %s in all, %s passed, %s failed, %s skipped" % counts)' || true
   if [ "$status" -ne 0 ]; then
     grep -E "error:|✘|recorded an issue|Expectation failed|Failing tests|\*\* (TEST|BUILD) FAILED" "$log" | sort -u | head -40 >&2 || true
     echo "--- the end of the log:" >&2
@@ -133,7 +139,8 @@ packages() {
   cached "${test[@]}" build-for-testing
   step test "every package test on macOS, and the Mac screens drawn from state, light and dark (pictures in a temporary folder)"
   snapshots="$(mktemp -d)"
-  TEST_RUNNER_PURLAY_SNAPSHOT_DIR="$snapshots" cached "${test[@]}" test-without-building
+  # The test targets run side by side, each suite in one of several processes: on macOS a worker is a process, not a device.
+  TEST_RUNNER_PURLAY_SNAPSHOT_DIR="$snapshots" cached "${test[@]}" -parallel-testing-enabled YES test-without-building
   [ -n "$(ls "$snapshots" 2>/dev/null)" ] || { echo "FAIL: no screen was drawn" >&2; exit 1; }
   rm -rf "$snapshots"
 }
