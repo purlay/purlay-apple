@@ -1,3 +1,4 @@
+import PurlayDesign
 import PurlayKit
 import SwiftUI
 
@@ -5,47 +6,30 @@ import SwiftUI
 /// chrome and materials are the system's, and any OS-version branching would live in `PurlayDesign`, never here.
 struct RootView: View {
     let model: AppModel
+    /// The mark the entry screens share: it travels from the launch screen's place to Welcome and back.
+    @Namespace private var brand
 
     var body: some View {
-        screen
+        let screen = RootScreen(model)
+        // The switch sits inside the animated container, so a screen that leaves animates as well as the one that arrives.
+        ZStack { content(screen) }
+            .purlayAnimation(.smooth, value: screen)
             .safeAreaInset(edge: .top, spacing: 0) { NoticeList(model: model) }
     }
 
     @ViewBuilder
-    private var screen: some View {
-        switch RootScreen(model) {
-        case .busy(let busy): BusyView(busy: busy)
+    private func content(_ screen: RootScreen) -> some View {
+        switch screen {
+        case .busy(let busy): ConnectingView(busy: busy, brand: brand)
         case .problem(let problem): ProblemView(problem: problem, retry: { await RootActions.retry(model) })
-        case .signIn: SignInView(signIn: { await RootActions.signIn(model) })
+        case .signIn:
+            WelcomeView(server: model.server?.origin.host(), brand: brand, signIn: { await RootActions.signIn(model) })
         case .ready, .twoFactorRequired, .noWorkspace:
             ContentUnavailableView {
                 Label(Words.signedInTitle, systemImage: "checkmark.circle")
             } description: {
                 Text(Words.signedInDetail)
             }
-        }
-    }
-}
-
-/// Something is under way: a spinner, and in words what it is. Read as one thing by VoiceOver.
-private struct BusyView: View {
-    let busy: RootScreen.Busy
-
-    var body: some View {
-        VStack(spacing: 16) {
-            ProgressView().controlSize(.large)
-            Text(words).font(.headline).multilineTextAlignment(.center)
-        }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var words: LocalizedStringResource {
-        switch busy {
-        case .connecting: Words.connecting
-        case .signingIn: Words.waitingForBrowser
-        case .loading: Words.loadingWorkspace
         }
     }
 }
@@ -71,27 +55,6 @@ private struct ProblemView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
             }
-        }
-    }
-}
-
-private struct SignInView: View {
-    let signIn: () async -> Void
-
-    var body: some View {
-        Scrolling {
-            VStack(spacing: 24) {
-                Text(verbatim: "Purlay").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
-                Text(Words.signInPrompt).font(.body).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                Button {
-                    Task { await signIn() }
-                } label: {
-                    Text(Words.signInButton)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-            }
-            .padding()
         }
     }
 }
@@ -122,20 +85,6 @@ private struct NoticeList: View {
                     .accessibilityElement(children: .contain)
                 }
             }
-        }
-    }
-}
-
-/// Centres its content when it fits and scrolls when it does not (a large Dynamic Type size), instead of clipping.
-private struct Scrolling<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        GeometryReader { proxy in
-            ScrollView {
-                content.frame(maxWidth: .infinity, minHeight: proxy.size.height)
-            }
-            .scrollBounceBehavior(.basedOnSize)
         }
     }
 }
