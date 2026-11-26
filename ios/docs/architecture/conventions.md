@@ -21,7 +21,7 @@ Only what is specific to this repository and checkable. A rule held by a tool na
 - Packages are built for iOS 18 and macOS (macOS is there so `scripts/verify packages` can test them without a simulator). Every
   package states the same macOS number, the one `purlay-swift` requires of whatever depends on it (enforced).
 - Bundle id `dev.purlay.ios`; tests `dev.purlay.ios.tests` and `dev.purlay.ios.uitests`.
-- The app icon is generated: `scripts/icon` writes `AppIcon.appiconset` from `Design/purlay.svg`. Change the SVG and run the script; never edit the PNG. It is one 1024 by 1024 picture with no alpha channel (the App Store refuses transparency), and `scripts/enforcement` refuses a missing, mis-sized or transparent one.
+- The app icon is generated: `scripts/icon` writes `AppIcon.appiconset` from `Design/purlay.svg`. Change the SVG and run the script; never edit the PNG. It is one 1024 by 1024 picture with no alpha channel (the App Store refuses transparency), and `scripts/enforcement` refuses a missing, mis-sized or transparent one. The same script writes the launch screen's mark, `LaunchMark.imageset`: the logo with its root width and height set to 120 (the size `PurlayMark` has on the first frame; the viewBox is unchanged), never hand-edited, and `scripts/enforcement` refuses one that is missing or differs from the logo in anything but that first line.
 
 ## Layers
 
