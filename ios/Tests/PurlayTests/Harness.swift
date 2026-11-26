@@ -43,6 +43,26 @@ struct Harness {
 
     struct NoSocket: Error {}
 
+    /// A session kept from an earlier launch, so the next connection resumes it instead of asking to sign in.
+    func rememberSession(serverAddress: String = "https://purlay.test") throws {
+        try sessions.save(
+            StoredSession(
+                cookie: "session-value", expiresAt: Date(timeIntervalSince1970: 4_000_000_000), origin: serverAddress),
+            for: try ServerAddress.parse(serverAddress, allowsLocalHTTP: false))
+    }
+
+    /// The server's answer to `/api/me` for an account that belongs to no workspace.
+    nonisolated static func meWithoutWorkspace(mustEnrolTwoFactor: Bool = false) -> ScriptedTransport.Step {
+        ScriptedTransport.json(
+            200,
+            """
+            {"user":{"id":"0199155c-6200-7b7f-8c11-0000000000e1","username":"ada","displayName":"Ada","avatarUrl":null,"email":"ada@example.test"},\
+            "profile":{"title":null,"timeZone":null,"status":null},"memberships":[],"mayCreateWorkspace":false,\
+            "isServerAdmin":false,"nameFromGitHub":false,"mustEnrolTwoFactor":\(mustEnrolTwoFactor),\
+            "scheduledDeletions":[],"modules":["chat","issues"],"awayChosen":false}
+            """)
+    }
+
     /// A server's answer to the handshake, as a Purlay server of the current release gives it.
     nonisolated static func clientInfo(
         minApp: String = "0.1.0", contract: Int = ContractConstants.contractVersion,
