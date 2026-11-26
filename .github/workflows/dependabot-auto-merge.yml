@@ -1,5 +1,6 @@
-# A Dependabot pull request that moves a dependency by a patch version merges by itself once `verify` passes (auto-merge waits
-# for the required check; the ruleset still applies). Minor and major updates wait for a person.
+# A Dependabot pull request that moves a Swift package by a patch version merges by itself once `verify` passes (auto-merge waits
+# for the required check; the ruleset still applies). Minor and major updates wait for a person, and so does every action update:
+# actions run in the job that holds the signing keychain, so a person reads each one's diff.
 name: Dependabot auto-merge
 on:
   pull_request:
@@ -24,7 +25,7 @@ jobs:
       - id: metadata
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
       - name: Merge a patch update when verify passes
-        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch' && steps.metadata.outputs.package-ecosystem != 'github_actions'
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
