@@ -31,8 +31,8 @@ enum NativePalette {
     /// themes, where a blue line reads as an unrelated colour on a grey surface.
     static let focusRing = token("focus-ring", light: 0x5479dd, dark: 0xc4c4cc)
 
-    /// Brand colour for primary actions, separate from neutral window chrome.
-    static let brand = token("brand", light: 0x015bf7, dark: 0x5b96ff)
+    /// The brand's blue for primary actions: the server's accent token, the one blue both apps draw, never a value of its own.
+    static let brand = Colors.accent
 
     private static func token(_ name: String, light: UInt32, dark: UInt32) -> TokenColor {
         TokenColor(name: "mac-\(name)", light: RGBA(hex: light), dark: RGBA(hex: dark), midnight: RGBA(hex: dark))

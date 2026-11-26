@@ -60,4 +60,11 @@ struct NativePaletteTests {
         #expect(RGBA.contrast(well, canvas) > 1.05)
         #expect(RGBA.contrast(chip, canvas) > RGBA.contrast(well, canvas))
     }
+
+    // The Mac draws one brand blue. `NativePalette.brand` (0x015bf7 / 0x5b96ff) tints the composer, while every
+    // other chosen or acted-on mark on the Mac, and the iOS app, use the server's `accent` token (0x2563eb).
+    @Test("the composer's brand blue is the accent token, in every appearance", arguments: Appearance.allCases)
+    func brandIsAccent(_ appearance: Appearance) {
+        #expect(NativePalette.brand.value(in: appearance) == Colors.accent.value(in: appearance))
+    }
 }
