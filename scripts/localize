@@ -18,9 +18,10 @@ WORDS_CATALOG=Sources/PurlayWords/Resources/Localizable.xcstrings
 derived="$(mktemp -d)"; trap 'rm -rf "$derived"' EXIT
 xcodebuild -project Apps/Purlay.xcodeproj -scheme Purlay-macOS -configuration Debug -destination 'platform=macOS,arch=arm64' \
   -derivedDataPath "$derived" SWIFT_EMIT_LOC_STRINGS=YES LOCALIZATION_PREFERS_STRING_CATALOGS=YES build >/dev/null
-# The engine's words are extracted from PurlayWords' own build; everything else the Mac app and PurlayMacUI say is the Mac's.
-find "$derived" -name '*.stringsdata' -path '*/PurlayWords.build/*' -print0 \
+# The engine's words are extracted from PurlayWords' own build (PurlayWords-t.build under Xcode 27); everything else the Mac app
+# and PurlayMacUI say is the Mac's.
+find "$derived" -name '*.stringsdata' -path '*/PurlayWords*.build/*' -print0 \
   | xargs -0 xcrun xcstringstool sync "$WORDS_CATALOG" --stringsdata
-find "$derived" -name '*.stringsdata' -not -path '*SourcePackages*' -not -path '*/PurlayWords.build/*' -print0 \
+find "$derived" -name '*.stringsdata' -not -path '*SourcePackages*' -not -path '*/PurlayWords*.build/*' -print0 \
   | xargs -0 xcrun xcstringstool sync "$MAC_CATALOG" --stringsdata
 echo "synced; add the Turkish value of every new sentence, then run scripts/enforcement tree"
