@@ -1,0 +1,29 @@
+# Contract/bundle, the pinned contract the generated code and the package tests read: restored from the cache keyed by the lock's
+# digest, downloaded and checked by scripts/prepare-contract on a miss, and kept for later runs when main downloaded it.
+# Every job that needs the bundle uses this, after its checkout.
+name: The pinned contract bundle
+description: Restores or prepares Contract/bundle, the bundle Contract/contract.lock pins.
+inputs:
+  token:
+    description: A token that can read the server's releases (the job's GITHUB_TOKEN).
+    required: true
+runs:
+  using: composite
+  steps:
+    - id: bundle
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: Contract/bundle
+        key: contract-bundle-${{ hashFiles('Contract/contract.lock') }}
+    - name: The pinned contract bundle
+      if: steps.bundle.outputs.cache-hit != 'true'
+      shell: bash
+      run: scripts/ci/retry-infra scripts/prepare-contract
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+    - name: Keep the contract bundle
+      if: github.ref == 'refs/heads/main' && steps.bundle.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: Contract/bundle
+        key: contract-bundle-${{ hashFiles('Contract/contract.lock') }}

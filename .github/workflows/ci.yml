@@ -6,9 +6,9 @@ on:
     branches: [main]
   push:
     branches: [main]
-  # Monday morning: main builds every lane, so the week's compilation caches start warm.
+  # Every night: main builds every lane, the simulator's included, so each day's compilation caches start warm.
   schedule:
-    - cron: "17 3 * * 1"
+    - cron: "17 3 * * *"
   workflow_dispatch:
 
 permissions: {}
@@ -23,6 +23,8 @@ defaults:
 
 env:
   PURLAY_CACHE_DIR: ${{ github.workspace }}/.cache/compilation
+  # The target a pull request's run is held to; scripts/verify writes each lane's phases against it to the run's summary.
+  PURLAY_TARGET_SECONDS: 180
 
 jobs:
   # Which lanes this change needs (scripts/ci/changes); whether the branch is named as CONTRIBUTING.md asks; and whether each
@@ -114,22 +116,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - id: bundle
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - uses: ./.github/actions/contract-bundle
         with:
-          path: Contract/bundle
-          key: contract-bundle-${{ hashFiles('Contract/contract.lock') }}
-      - name: The pinned contract bundle
-        if: steps.bundle.outputs.cache-hit != 'true'
-        run: scripts/ci/retry-infra scripts/prepare-contract
-        env:
-          GH_TOKEN: ${{ github.token }}
-      - name: Keep the contract bundle
-        if: github.ref == 'refs/heads/main' && steps.bundle.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: Contract/bundle
-          key: contract-bundle-${{ hashFiles('Contract/contract.lock') }}
+          token: ${{ github.token }}
       - name: Xcode, as .github/toolchain.env names it
         run: scripts/ci/select-xcode
       - id: keys
@@ -144,8 +133,10 @@ jobs:
             ${{ github.ref != 'refs/heads/main' && steps.keys.outputs.last_week || '' }}
       - name: Format and the package tests
         run: scripts/verify packages
+      # Main keeps it; so does a pull request that found nothing at all to restore (main not yet warm, or a new Xcode), so that
+      # its next push is warm. GitHub scopes a pull request's cache to that pull request: no other branch can read it.
       - name: Keep the compilation cache
-        if: success() && github.ref == 'refs/heads/main' && steps.cas.outputs.cache-hit != 'true'
+        if: success() && steps.cas.outputs.cache-hit != 'true' && (github.ref == 'refs/heads/main' || steps.cas.outputs.cache-matched-key == '')
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.PURLAY_CACHE_DIR }}
@@ -179,8 +170,10 @@ jobs:
             ${{ github.ref != 'refs/heads/main' && steps.keys.outputs.last_week || '' }}
       - name: Build for iOS
         run: scripts/verify ios
+      # Main keeps it; so does a pull request that found nothing at all to restore (main not yet warm, or a new Xcode), so that
+      # its next push is warm. GitHub scopes a pull request's cache to that pull request: no other branch can read it.
       - name: Keep the compilation cache
-        if: success() && github.ref == 'refs/heads/main' && steps.cas.outputs.cache-hit != 'true'
+        if: success() && steps.cas.outputs.cache-hit != 'true' && (github.ref == 'refs/heads/main' || steps.cas.outputs.cache-matched-key == '')
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.PURLAY_CACHE_DIR }}
@@ -215,8 +208,10 @@ jobs:
             ${{ github.ref != 'refs/heads/main' && steps.keys.outputs.last_week || '' }}
       - name: Build the Mac app, and check its transport security and entitlements
         run: scripts/ci/retry-infra scripts/verify macos "$CONFIGURATIONS"
+      # Main keeps it; so does a pull request that found nothing at all to restore (main not yet warm, or a new Xcode), so that
+      # its next push is warm. GitHub scopes a pull request's cache to that pull request: no other branch can read it.
       - name: Keep the compilation cache
-        if: success() && github.ref == 'refs/heads/main' && steps.cas.outputs.cache-hit != 'true'
+        if: success() && steps.cas.outputs.cache-hit != 'true' && (github.ref == 'refs/heads/main' || steps.cas.outputs.cache-matched-key == '')
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.PURLAY_CACHE_DIR }}
@@ -236,20 +231,15 @@ jobs:
           persist-credentials: false
       - name: Xcode, as .github/toolchain.env names it
         run: scripts/ci/select-xcode
-      - id: bundle
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - uses: ./.github/actions/contract-bundle
         with:
-          path: Contract/bundle
-          key: contract-bundle-${{ hashFiles('Contract/contract.lock') }}
-      - name: The pinned contract bundle
-        if: steps.bundle.outputs.cache-hit != 'true'
-        run: scripts/ci/retry-infra scripts/prepare-contract
-        env:
-          GH_TOKEN: ${{ github.token }}
+          token: ${{ github.token }}
       - name: The contract, the generated code and the generator
         run: scripts/verify generated
 
-  # The iOS tests on a simulator: on main, on the schedule, and for a pull request that changes the iOS app or its test plans.
+  # The iOS tests on a simulator: on main, every night, and for a pull request that changes the iOS app or the design system
+  # (scripts/ci/changes). The simulator boots in the background from the job's start, while the cache is restored and the build
+  # runs; scripts/verify waits for it only before testing.
   simulator:
     needs: changes
     if: needs.changes.outputs.simulator == 'true'
@@ -264,6 +254,10 @@ jobs:
           persist-credentials: false
       - name: Xcode, as .github/toolchain.env names it
         run: scripts/ci/select-xcode
+      - name: The simulator .github/toolchain.env names
+        run: scripts/ci/simulator-destination
+      - name: Boot it in the background
+        run: scripts/ci/boot-simulator start "${PURLAY_DESTINATION#id=}"
       - id: keys
         run: scripts/ci/cache-keys simulator
       - id: cas
@@ -274,13 +268,13 @@ jobs:
           restore-keys: |
             ${{ steps.keys.outputs.this_week }}
             ${{ github.ref != 'refs/heads/main' && steps.keys.outputs.last_week || '' }}
-      - name: The simulator .github/toolchain.env names
-        run: scripts/ci/simulator-destination
-      - name: The iOS tests on a simulator
+      - name: Build for testing, wait for the simulator, test without building
         # Retried once only when the simulator, not a test, failed (scripts/ci/retry-infra).
         run: scripts/ci/retry-infra scripts/verify simulator
+      # Main keeps it; so does a pull request that found nothing at all to restore (main not yet warm, or a new Xcode), so that
+      # its next push is warm. GitHub scopes a pull request's cache to that pull request: no other branch can read it.
       - name: Keep the compilation cache
-        if: success() && github.ref == 'refs/heads/main' && steps.cas.outputs.cache-hit != 'true'
+        if: success() && steps.cas.outputs.cache-hit != 'true' && (github.ref == 'refs/heads/main' || steps.cas.outputs.cache-matched-key == '')
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.PURLAY_CACHE_DIR }}

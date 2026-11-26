@@ -20,6 +20,8 @@ defaults:
 
 env:
   PURLAY_CACHE_DIR: ${{ github.workspace }}/.cache/compilation
+  # A release ships within 10 minutes; scripts/verify writes its phases against this to the run's summary.
+  PURLAY_TARGET_SECONDS: 600
 
 jobs:
   gate:

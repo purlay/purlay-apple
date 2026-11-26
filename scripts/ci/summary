@@ -17,6 +17,9 @@ import sys
 from datetime import datetime, timezone
 
 
+STEP_WORTH_LISTING = 5
+
+
 def when(text: str | None) -> datetime | None:
     return datetime.fromisoformat(text.replace("Z", "+00:00")) if text else None
 
@@ -37,6 +40,7 @@ def main() -> None:
         return
     now = datetime.now(timezone.utc)
     rows = []
+    steps = []
     for page in jobs:
         for job in page["jobs"]:
             started, completed = when(job.get("started_at")), when(job.get("completed_at"))
@@ -44,12 +48,21 @@ def main() -> None:
             took = max(0, int(((completed or now) - started).total_seconds())) if started else 0
             waited = max(0, int((started - created).total_seconds())) if started and created else 0
             rows.append((job["name"], job.get("conclusion") or job.get("status"), took, waited))
+            for step in job.get("steps") or []:
+                began, ended = when(step.get("started_at")), when(step.get("completed_at"))
+                if began and ended and (ended - began).total_seconds() >= STEP_WORTH_LISTING:
+                    steps.append((job["name"], step["name"], int((ended - began).total_seconds())))
     wall = int((now - when(run_info["run_started_at"])).total_seconds())
     verdict = "within" if wall <= target else "OVER"
     lines = [f"### {label}: {wall} s of {target} s ({verdict} the target)", "",
              "| Job | Result | Ran (s) | Waited for a runner (s) |", "|---|---|---:|---:|"]
     lines += [f"| {name} | {result} | {took} | {waited} |" for name, result, took, waited in sorted(rows, key=lambda r: -r[2])]
     lines.append("")
+    if steps:
+        lines += [f"Steps of {STEP_WORTH_LISTING} s or more (each lane's own phases are in its job's summary):", "",
+                  "| Job | Step | Seconds |", "|---|---|---:|"]
+        lines += [f"| {job} | {step} | {took} |" for job, step, took in steps]
+        lines.append("")
     text = "\n".join(lines) + "\n"
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
