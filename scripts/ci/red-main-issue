@@ -20,8 +20,10 @@ No pull request waits for this lane, and no release can ship until it is green a
 run's summary for the phase that failed; a machine's failure was already retried once (\`scripts/ci/retry-infra\`). Close this
 issue when main is green."
 
-existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$label" --state open --search "in:title \"$title\"" \
-  --json number --jq '.[0].number // ""')"
+# The repository's issue list, not the search: search is indexed with a delay, so a red run soon after another would not find
+# the issue the first opened, and would open a second.
+existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$label" --state open --limit 100 --json number,title \
+  | python3 -c 'import json, sys; print(next((str(i["number"]) for i in json.load(sys.stdin) if i["title"] == sys.argv[1]), ""))' "$title")"
 if [ -n "$existing" ]; then
   gh issue edit "$existing" --repo "$GITHUB_REPOSITORY" --body "$body" >/dev/null
   echo "updated #$existing: $run_url"
