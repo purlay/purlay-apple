@@ -41,16 +41,6 @@
         }
       }
     },
-    "Continue in your browser to sign in securely." : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Güvenle giriş yapmak için tarayıcıda devam et."
-          }
-        }
-      }
-    },
     "Dismiss" : {
       "localizations" : {
         "tr" : {
@@ -101,6 +91,16 @@
         }
       }
     },
+    "New to Purlay? You can create an account on the sign-in page." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purlay'de yeni misin? Giriş sayfasında bir hesap oluşturabilirsin."
+          }
+        }
+      }
+    },
     "Nothing to show here yet." : {
       "localizations" : {
         "tr" : {
@@ -121,12 +121,12 @@
         }
       }
     },
-    "Sign In with Browser" : {
+    "Sign In" : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tarayıcıyla Oturum Aç"
+            "value" : "Giriş Yap"
           }
         }
       }
@@ -401,6 +401,26 @@
         }
       }
     },
+    "You'll continue in your browser on %@." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tarayıcında %@ üzerinde devam edeceksin."
+          }
+        }
+      }
+    },
+    "You'll continue in your browser." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tarayıcında devam edeceksin."
+          }
+        }
+      }
+    },
     "You're Signed In" : {
       "localizations" : {
         "tr" : {
@@ -427,6 +447,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Oturumunun süresi doldu. Yeniden oturum aç."
+          }
+        }
+      }
+    },
+    "Your team's conversations, in your pocket." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ekibinin sohbetleri, cebinde."
           }
         }
       }

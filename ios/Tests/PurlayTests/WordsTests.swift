@@ -30,7 +30,8 @@ struct WordsTests {
                 .sessionEndsSoon(Date(timeIntervalSince1970: 0)),
                 .storageProblem, .originMismatch, .loadFailed,
             ]
-        return Words.fixed + problems.flatMap { [Words.problem($0).title, Words.problem($0).detail] }
+        return Words.fixed + [Words.continuesInBrowser("purlay.app")]
+            + problems.flatMap { [Words.problem($0).title, Words.problem($0).detail] }
             + signIns.compactMap(Words.signIn) + notices.compactMap(Words.notice)
     }
 
@@ -51,6 +52,10 @@ struct WordsTests {
         #expect(text(Words.problem(.appTooOld(minimum)).detail, in: "tr").contains("9.0.0"))
         let without = ClientMinimum(appVersion: nil, contractVersion: 2, downloadUrl: nil)
         #expect(text(Words.problem(.appTooOld(without)).detail, in: "en") == "Update Purlay, then try again.")
+        #expect(
+            text(Words.continuesInBrowser("chat.örnek.test"), in: "en")
+                == "You'll continue in your browser on chat.örnek.test.")
+        #expect(text(Words.continuesInBrowser("chat.örnek.test"), in: "tr").contains("chat.örnek.test"))
         let ends = Words.notice(.sessionEndsSoon(Date(timeIntervalSince1970: 0)))
         #expect(ends.map { text($0, in: "en") }?.contains("Your session ends on") == true)
         #expect(ends.map { text($0, in: "tr") }?.contains("sona eriyor") == true)

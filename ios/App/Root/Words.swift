@@ -9,8 +9,11 @@ enum Words {
     static let connecting = LocalizedStringResource("Connecting…")
     static let waitingForBrowser = LocalizedStringResource("Waiting for the Browser…")
     static let loadingWorkspace = LocalizedStringResource("Loading your workspace…")
-    static let signInPrompt = LocalizedStringResource("Continue in your browser to sign in securely.")
-    static let signInButton = LocalizedStringResource("Sign In with Browser")
+    static let tagline = LocalizedStringResource("Your team's conversations, in your pocket.")
+    static let signInButton = LocalizedStringResource("Sign In")
+    /// Said under Sign In when the server's host is not known.
+    static let continuesInBrowserNoHost = LocalizedStringResource("You'll continue in your browser.")
+    static let newAccount = LocalizedStringResource("New to Purlay? You can create an account on the sign-in page.")
     static let tryAgain = LocalizedStringResource("Try Again")
     static let dismiss = LocalizedStringResource("Dismiss")
     static let signedInTitle = LocalizedStringResource("You're Signed In")
@@ -20,9 +23,15 @@ enum Words {
 
     /// The fixed sentences of the screens, so a test can look at each in every language.
     static let fixed: [LocalizedStringResource] = [
-        connecting, waitingForBrowser, loadingWorkspace, signInPrompt, signInButton, tryAgain, dismiss, signedInTitle,
-        signedInDetail, generic,
+        connecting, waitingForBrowser, loadingWorkspace, tagline, signInButton, continuesInBrowserNoHost, newAccount,
+        tryAgain,
+        dismiss, signedInTitle, signedInDetail, generic,
     ]
+
+    /// Where the sign-in goes on: the person's browser, on the server's host.
+    static func continuesInBrowser(_ host: String) -> LocalizedStringResource {
+        LocalizedStringResource("You'll continue in your browser on \(host).")
+    }
 
     /// What stands between the app and the server: the title, and what the person can do about it.
     static func problem(_ problem: ServerProblem) -> (title: LocalizedStringResource, detail: LocalizedStringResource) {
