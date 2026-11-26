@@ -111,6 +111,8 @@ rules() {
   scripts/enforcement --demo tree
   step check "the lanes each change runs (scripts/ci/changes)"
   scripts/ci/changes-test >/dev/null
+  step check "the release gate refuses what it must (scripts/ci/release-gate)"
+  scripts/ci/release-gate-test >/dev/null
   step check "every string of the Mac app has its Turkish translation"
   scripts/localize --check
 }

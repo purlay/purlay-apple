@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# scripts/ci/release-gate against a stand-in for `gh`: each case is what the GitHub API answers and whether a release may go on.
+# The rules lane runs it.
+#
+#   scripts/ci/release-gate-test
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+
+stub="$(mktemp -d)"; trap 'rm -rf "$stub"' EXIT
+# The stand-in answers the runs query with $STUB_RUN and the jobs query with $STUB_SIMULATOR; STUB_FAIL=1 makes every call fail.
+cat >"$stub/gh" <<'GH'
+#!/usr/bin/env bash
+[ "${STUB_FAIL:-0}" = 1 ] && { echo "HTTP 502" >&2; exit 1; }
+case "$*" in
+  *"/actions/workflows/ci.yml/runs?"*) echo "${STUB_RUN:-}" ;;
+  *"/jobs?"*) echo "${STUB_SIMULATOR:-missing}" ;;
+  *) echo "unexpected gh $*" >&2; exit 1 ;;
+esac
+GH
+chmod +x "$stub/gh"
+
+ios_version="$(sed -n 's/^MARKETING_VERSION = //p' Config/iOS.xcconfig)"
+failed=0
+expect() { # description, pass|fail, then the environment of the case
+  local description="$1" want="$2" got; shift 2
+  if env PATH="$stub:$PATH" GITHUB_REPOSITORY=purlay/purlay-apple GITHUB_SHA=0123456789abcdef GITHUB_OUTPUT=/dev/null "$@" \
+    scripts/ci/release-gate ios >/dev/null 2>&1; then got=pass; else got=fail; fi
+  if [ "$got" = "$want" ]; then echo "ok    $description"; else echo "FAIL  $description: $got, not $want" >&2; failed=1; fi
+}
+tag="GITHUB_REF=refs/tags/ios/v$ios_version"
+
+expect "a tag on a commit main's CI passed, simulator included" pass "$tag" STUB_RUN=42 STUB_SIMULATOR=success
+expect "a tag on a commit with no successful run on main" fail "$tag" STUB_RUN=
+expect "a tag whose main run skipped the simulator" fail "$tag" STUB_RUN=42 STUB_SIMULATOR=skipped
+expect "a tag whose main run's simulator failed" fail "$tag" STUB_RUN=42 STUB_SIMULATOR=failure
+expect "a tag whose main run has no simulator job" fail "$tag" STUB_RUN=42 STUB_SIMULATOR=missing
+expect "a tag that is not the configured version" fail GITHUB_REF=refs/tags/ios/v99.0.0 STUB_RUN=42 STUB_SIMULATOR=success
+expect "the API cannot be read" fail "$tag" STUB_FAIL=1
+expect "a rehearsal from a branch: tag and CI are warnings" pass GITHUB_REF=refs/heads/main DRY_RUN=true STUB_RUN=
+# The header says a rehearsal never relaxes the version and the changelog.
+work="$(mktemp -d)"; cp -R scripts Config Apps "$work/" 2>/dev/null || true
+printf '# Changelog\n' >"$work/Apps/iOS/CHANGELOG.md"
+if env PATH="$stub:$PATH" GITHUB_REPOSITORY=purlay/purlay-apple GITHUB_SHA=0 GITHUB_REF=refs/heads/main DRY_RUN=true STUB_RUN= \
+  "$work/scripts/ci/release-gate" ios >/dev/null 2>&1; then
+  echo "FAIL  a rehearsal with no changelog entry for $ios_version passed; the changelog is never relaxed" >&2; failed=1
+else
+  echo "ok    a rehearsal with no changelog entry fails"
+fi
+rm -rf "$work"
+exit "$failed"
