@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayTokens
 import SwiftUI
 
@@ -61,3 +62,4 @@ struct GlassTabs<Tab: Hashable>: View {
         }
     }
 }
+#endif

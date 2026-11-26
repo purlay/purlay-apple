@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayTokens
 import SwiftUI
 
@@ -140,3 +141,4 @@ private struct ReactionEmojiButton: View {
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
+#endif

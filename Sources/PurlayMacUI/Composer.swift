@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -381,3 +382,4 @@ private struct ComposerNotice: View {
         .background(.fill.tertiary, in: .rect(cornerRadius: Radius.radiusLg))
     }
 }
+#endif

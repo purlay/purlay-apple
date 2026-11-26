@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayKit
 import PurlayTokens
 import SwiftUI
@@ -309,3 +310,4 @@ enum MarkdownText {
         return run
     }
 }
+#endif

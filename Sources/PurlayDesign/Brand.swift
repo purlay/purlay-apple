@@ -2,41 +2,41 @@ import PurlayTokens
 import SwiftUI
 
 #if canImport(UIKit)
-    import UIKit
+import UIKit
 #elseif canImport(AppKit)
-    import AppKit
+import AppKit
 #endif
 
 extension Color {
     /// A token as a colour that follows the system appearance: its `light` value in light mode and its `dark` value in dark.
     init(_ token: TokenColor) {
         #if canImport(UIKit)
-            self.init(
-                uiColor: UIColor { traits in
-                    UIColor(token.value(in: traits.userInterfaceStyle == .dark ? .dark : .light))
-                })
+        self.init(
+            uiColor: UIColor { traits in
+                UIColor(token.value(in: traits.userInterfaceStyle == .dark ? .dark : .light))
+            })
         #else
-            self.init(
-                nsColor: NSColor(name: nil) { appearance in
-                    let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                    return NSColor(token.value(in: isDark ? .dark : .light))
-                })
+        self.init(
+            nsColor: NSColor(name: nil) { appearance in
+                let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                return NSColor(token.value(in: isDark ? .dark : .light))
+            })
         #endif
     }
 }
 
 #if canImport(UIKit)
-    extension UIColor {
-        fileprivate convenience init(_ rgba: RGBA) {
-            self.init(red: rgba.red, green: rgba.green, blue: rgba.blue, alpha: rgba.alpha)
-        }
+extension UIColor {
+    fileprivate convenience init(_ rgba: RGBA) {
+        self.init(red: rgba.red, green: rgba.green, blue: rgba.blue, alpha: rgba.alpha)
     }
+}
 #else
-    extension NSColor {
-        fileprivate convenience init(_ rgba: RGBA) {
-            self.init(srgbRed: rgba.red, green: rgba.green, blue: rgba.blue, alpha: rgba.alpha)
-        }
+extension NSColor {
+    fileprivate convenience init(_ rgba: RGBA) {
+        self.init(srgbRed: rgba.red, green: rgba.green, blue: rgba.blue, alpha: rgba.alpha)
     }
+}
 #endif
 
 /// The colours the app's own marks are drawn in, from the shared tokens, so a change on the server reaches the app with the

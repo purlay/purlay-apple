@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -730,3 +731,4 @@ enum Clipboard {
         NSPasteboard.general.setString(text, forType: .string)
     }
 }
+#endif

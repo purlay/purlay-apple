@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import PurlayKit
 import PurlayTokens
@@ -192,3 +193,4 @@ struct SignInView: View {
         }
     }
 }
+#endif

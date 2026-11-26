@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import PurlayContract
 import PurlayKit
@@ -79,3 +80,4 @@ struct TwoFactorRequiredView: View {
         }
     }
 }
+#endif

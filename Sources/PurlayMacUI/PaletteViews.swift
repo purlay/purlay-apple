@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -562,3 +563,4 @@ struct SearchScope {
         self.people = people.sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
     }
 }
+#endif

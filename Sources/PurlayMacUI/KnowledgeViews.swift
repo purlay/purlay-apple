@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -408,3 +409,4 @@ struct WebhookBadge: View {
             .help("Posted by an incoming webhook")
     }
 }
+#endif

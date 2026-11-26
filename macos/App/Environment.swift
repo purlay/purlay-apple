@@ -28,11 +28,11 @@ enum RealEnvironment {
         let directory = support.appendingPathComponent(
             Bundle.main.bundleIdentifier ?? "dev.purlay.mac", isDirectory: true)
         #if DEBUG
-            let allowsLocalHTTP = true
-            let serverAddress = ProcessInfo.processInfo.environment["PURLAY_DEV_SERVER"] ?? ServerAddress.hosted
+        let allowsLocalHTTP = true
+        let serverAddress = ProcessInfo.processInfo.environment["PURLAY_DEV_SERVER"] ?? ServerAddress.hosted
         #else
-            let allowsLocalHTTP = false
-            let serverAddress = ServerAddress.hosted
+        let allowsLocalHTTP = false
+        let serverAddress = ServerAddress.hosted
         #endif
         let clientHeader = ClientHeader.value(appVersion: version)
         return AppEnvironment(
@@ -55,15 +55,15 @@ enum RealEnvironment {
     }
 
     #if DEBUG
-        /// A development shortcut, in debug builds only: a session that is already made for the local server `PURLAY_DEV_SERVER` names, so the
-        /// screens can be looked at without the browser. `PURLAY_DEV_SERVER=http://localhost:4390 PURLAY_DEV_SESSION=<value>`.
-        static func seedDevelopmentSession(_ environment: AppEnvironment) {
-            let variables = ProcessInfo.processInfo.environment
-            guard let server = variables["PURLAY_DEV_SERVER"], let session = variables["PURLAY_DEV_SESSION"],
-                let address = try? ServerAddress.parse(server, allowsLocalHTTP: true)
-            else { return }
-            try? environment.sessions.save(
-                StoredSession(cookie: session, expiresAt: nil, origin: address.description), for: address)
-        }
+    /// A development shortcut, in debug builds only: a session that is already made for the local server `PURLAY_DEV_SERVER` names, so the
+    /// screens can be looked at without the browser. `PURLAY_DEV_SERVER=http://localhost:4390 PURLAY_DEV_SESSION=<value>`.
+    static func seedDevelopmentSession(_ environment: AppEnvironment) {
+        let variables = ProcessInfo.processInfo.environment
+        guard let server = variables["PURLAY_DEV_SERVER"], let session = variables["PURLAY_DEV_SESSION"],
+            let address = try? ServerAddress.parse(server, allowsLocalHTTP: true)
+        else { return }
+        try? environment.sessions.save(
+            StoredSession(cookie: session, expiresAt: nil, origin: address.description), for: address)
+    }
     #endif
 }

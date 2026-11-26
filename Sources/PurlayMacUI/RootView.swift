@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import PurlayKit
 import PurlayTokens
@@ -123,3 +124,4 @@ private struct ActivityReporter: ViewModifier {
             }
     }
 }
+#endif

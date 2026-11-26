@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -259,3 +260,4 @@ private struct CollectionMessagePreview: View {
         .frame(maxWidth: .infinity, alignment: .leading).contentShape(.rect)
     }
 }
+#endif

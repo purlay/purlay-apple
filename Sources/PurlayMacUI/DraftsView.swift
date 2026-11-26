@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -52,3 +53,4 @@ struct DraftsSheet: View {
         .modifier(ModalFrame(width: Size.sizePalette, height: Size.sizePaletteList + Size.sizeHeader))
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayKit
 import PurlayTokens
 import SwiftUI
@@ -96,3 +97,4 @@ struct SidebarOrganizer: View {
         }
     }
 }
+#endif

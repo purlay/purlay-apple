@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import PurlayTokens
 import SwiftUI
@@ -120,3 +121,4 @@ private struct TokenShadowModifier: ViewModifier {
 extension RGBA {
     fileprivate var color: Color { Color(nsColor: nsColor) }
 }
+#endif

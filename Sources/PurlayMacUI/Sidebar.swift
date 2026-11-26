@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -631,3 +632,4 @@ private struct SwitcherSurface: ViewModifier {
 extension View {
     fileprivate func switcherSurface() -> some View { modifier(SwitcherSurface()) }
 }
+#endif

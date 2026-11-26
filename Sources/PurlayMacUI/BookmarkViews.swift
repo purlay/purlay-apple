@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -265,3 +266,4 @@ struct PostingDetails: View {
         }
     }
 }
+#endif

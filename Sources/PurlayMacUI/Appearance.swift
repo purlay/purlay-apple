@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import PurlayTokens
 import SwiftUI
@@ -90,3 +91,4 @@ struct SidebarSurface: ViewModifier {
             }
     }
 }
+#endif

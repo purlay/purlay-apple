@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import SwiftUI
@@ -228,3 +229,4 @@ struct ScheduledSheet: View {
         }
     }
 }
+#endif

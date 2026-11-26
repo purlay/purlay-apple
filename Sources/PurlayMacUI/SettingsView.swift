@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import PurlayContract
 import PurlayKit
@@ -425,3 +426,4 @@ private struct SettingsRowLabel: LabelStyle {
         .frame(minHeight: Size.sizeIconLg + Spacing.space1)
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import SwiftUI
 import UserNotifications
@@ -68,3 +69,4 @@ struct NotificationPermissionSection: View {
         permission = NotificationPermission(await UNUserNotificationCenter.current().notificationSettings())
     }
 }
+#endif

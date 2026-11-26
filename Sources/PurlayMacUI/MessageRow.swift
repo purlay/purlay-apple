@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -571,3 +572,4 @@ private struct LinkPreviewView: View {
         .task(id: LinkKey(id: message.id, content: message.content)) { card = await model.linkPreview(for: message) }
     }
 }
+#endif

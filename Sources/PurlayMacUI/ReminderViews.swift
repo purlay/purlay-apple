@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import SwiftUI
@@ -124,3 +125,4 @@ struct RemindersSheet: View {
             }
     }
 }
+#endif

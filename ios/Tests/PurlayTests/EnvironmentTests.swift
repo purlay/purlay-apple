@@ -67,14 +67,14 @@ struct ServerChoiceTests {
     @Test("the real environment follows the choice of the build it is in")
     func realEnvironment() {
         #if DEBUG
-            let environment = RealEnvironment.make(variables: ["PURLAY_DEV_SERVER": "http://localhost:4390"])
-            #expect(environment.serverAddress == "http://localhost:4390")
-            #expect(environment.allowsLocalHTTP)
-            #expect(RealEnvironment.make(variables: [:]).serverAddress == ServerAddress.hosted)
+        let environment = RealEnvironment.make(variables: ["PURLAY_DEV_SERVER": "http://localhost:4390"])
+        #expect(environment.serverAddress == "http://localhost:4390")
+        #expect(environment.allowsLocalHTTP)
+        #expect(RealEnvironment.make(variables: [:]).serverAddress == ServerAddress.hosted)
         #else
-            let environment = RealEnvironment.make(variables: ["PURLAY_DEV_SERVER": "http://localhost:4390"])
-            #expect(environment.serverAddress == ServerAddress.hosted)
-            #expect(!environment.allowsLocalHTTP)
+        let environment = RealEnvironment.make(variables: ["PURLAY_DEV_SERVER": "http://localhost:4390"])
+        #expect(environment.serverAddress == ServerAddress.hosted)
+        #expect(!environment.allowsLocalHTTP)
         #endif
     }
 }
@@ -96,63 +96,63 @@ struct DefaultsOwnerTests {
 }
 
 #if DEBUG
-    @MainActor
-    @Suite("the development shortcuts of a debug build")
-    struct DevelopmentSessionTests {
-        private let address = "http://localhost:4390"
+@MainActor
+@Suite("the development shortcuts of a debug build")
+struct DevelopmentSessionTests {
+    private let address = "http://localhost:4390"
 
-        private func environment(_ sessions: InMemorySessionStore) -> AppEnvironment {
-            Harness.environment(sessions: sessions)
-        }
-
-        private func stored(_ sessions: InMemorySessionStore) throws -> StoredSession? {
-            try sessions.load(for: try ServerAddress.parse(address, allowsLocalHTTP: true))
-        }
-
-        @Test("stores the session it is handed for the server it names, so the screens after sign-in can be looked at")
-        func seeds() throws {
-            let sessions = InMemorySessionStore()
-            RealEnvironment.seedDevelopmentSession(
-                environment(sessions), variables: ["PURLAY_DEV_SERVER": address, "PURLAY_DEV_SESSION": "cookie-value"])
-            #expect(try stored(sessions)?.cookie == "cookie-value")
-        }
-
-        @Test("stores nothing without a server to store it for, or without a session to store")
-        func nothingToSeed() throws {
-            let sessions = InMemorySessionStore()
-            RealEnvironment.seedDevelopmentSession(
-                environment(sessions), variables: ["PURLAY_DEV_SESSION": "cookie-value"])
-            RealEnvironment.seedDevelopmentSession(environment(sessions), variables: ["PURLAY_DEV_SERVER": address])
-            #expect(sessions.saves == 0)
-        }
-
-        @Test("an address it cannot use stores nothing, rather than a session for some other place")
-        func unusableAddress() {
-            let sessions = InMemorySessionStore()
-            RealEnvironment.seedDevelopmentSession(
-                environment(sessions),
-                variables: ["PURLAY_DEV_SERVER": "ftp://x.test", "PURLAY_DEV_SESSION": "cookie-value"])
-            #expect(sessions.saves == 0)
-        }
-
-        @Test("a keychain that refuses to forget the old session does not stop the new one being stored")
-        func resetRefused() throws {
-            let sessions = InMemorySessionStore()
-            sessions.failDeletes()
-            RealEnvironment.seedDevelopmentSession(
-                environment(sessions),
-                variables: ["PURLAY_DEV_SERVER": address, "PURLAY_DEV_RESET": "1", "PURLAY_DEV_SESSION": "fresh"])
-            #expect(try stored(sessions)?.cookie == "fresh")
-        }
-
-        @Test("a reset forgets the stored session first")
-        func reset() throws {
-            let sessions = InMemorySessionStore()
-            let server = try ServerAddress.parse(address, allowsLocalHTTP: true)
-            try sessions.save(StoredSession(cookie: "old", expiresAt: nil, origin: server.description), for: server)
-            RealEnvironment.seedDevelopmentSession(
-                environment(sessions), variables: ["PURLAY_DEV_SERVER": address, "PURLAY_DEV_RESET": "1"])
-            #expect(try stored(sessions) == nil)
-        }
+    private func environment(_ sessions: InMemorySessionStore) -> AppEnvironment {
+        Harness.environment(sessions: sessions)
     }
+
+    private func stored(_ sessions: InMemorySessionStore) throws -> StoredSession? {
+        try sessions.load(for: try ServerAddress.parse(address, allowsLocalHTTP: true))
+    }
+
+    @Test("stores the session it is handed for the server it names, so the screens after sign-in can be looked at")
+    func seeds() throws {
+        let sessions = InMemorySessionStore()
+        RealEnvironment.seedDevelopmentSession(
+            environment(sessions), variables: ["PURLAY_DEV_SERVER": address, "PURLAY_DEV_SESSION": "cookie-value"])
+        #expect(try stored(sessions)?.cookie == "cookie-value")
+    }
+
+    @Test("stores nothing without a server to store it for, or without a session to store")
+    func nothingToSeed() throws {
+        let sessions = InMemorySessionStore()
+        RealEnvironment.seedDevelopmentSession(
+            environment(sessions), variables: ["PURLAY_DEV_SESSION": "cookie-value"])
+        RealEnvironment.seedDevelopmentSession(environment(sessions), variables: ["PURLAY_DEV_SERVER": address])
+        #expect(sessions.saves == 0)
+    }
+
+    @Test("an address it cannot use stores nothing, rather than a session for some other place")
+    func unusableAddress() {
+        let sessions = InMemorySessionStore()
+        RealEnvironment.seedDevelopmentSession(
+            environment(sessions),
+            variables: ["PURLAY_DEV_SERVER": "ftp://x.test", "PURLAY_DEV_SESSION": "cookie-value"])
+        #expect(sessions.saves == 0)
+    }
+
+    @Test("a keychain that refuses to forget the old session does not stop the new one being stored")
+    func resetRefused() throws {
+        let sessions = InMemorySessionStore()
+        sessions.failDeletes()
+        RealEnvironment.seedDevelopmentSession(
+            environment(sessions),
+            variables: ["PURLAY_DEV_SERVER": address, "PURLAY_DEV_RESET": "1", "PURLAY_DEV_SESSION": "fresh"])
+        #expect(try stored(sessions)?.cookie == "fresh")
+    }
+
+    @Test("a reset forgets the stored session first")
+    func reset() throws {
+        let sessions = InMemorySessionStore()
+        let server = try ServerAddress.parse(address, allowsLocalHTTP: true)
+        try sessions.save(StoredSession(cookie: "old", expiresAt: nil, origin: server.description), for: server)
+        RealEnvironment.seedDevelopmentSession(
+            environment(sessions), variables: ["PURLAY_DEV_SERVER": address, "PURLAY_DEV_RESET": "1"])
+        #expect(try stored(sessions) == nil)
+    }
+}
 #endif

@@ -14,7 +14,7 @@ struct PurlayApp: App {
     init() {
         let environment = RealEnvironment.make(attention: attention)
         #if DEBUG
-            RealEnvironment.seedDevelopmentSession(environment)
+        RealEnvironment.seedDevelopmentSession(environment)
         #endif
         let sessions = DesktopSessions(environment)
         attention.open = { channel, source in

@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -475,3 +476,4 @@ private struct ModuleGlyph: View {
             .accessibilityHidden(true)
     }
 }
+#endif

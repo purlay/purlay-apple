@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayTokens
 import SwiftUI
 
@@ -47,3 +48,4 @@ struct ChannelEntrance: ViewModifier {
             }
     }
 }
+#endif

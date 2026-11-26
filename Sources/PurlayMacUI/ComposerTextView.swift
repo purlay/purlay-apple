@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import PurlayContract
 import PurlayKit
@@ -496,3 +497,4 @@ final class KeyedTextView: NSTextView {
             withAttributes: attributes)
     }
 }
+#endif

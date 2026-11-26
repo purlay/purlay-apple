@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -81,3 +82,4 @@ struct PersonCard: View {
             : String(localized: "\(time) · \(hours) h behind you")
     }
 }
+#endif

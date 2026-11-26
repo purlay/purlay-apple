@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayKit
 import PurlayTokens
 import SwiftUI
@@ -85,3 +86,4 @@ struct CommandList: View {
         .modifier(ControlSurface(radius: Radius.radiusXl))
     }
 }
+#endif

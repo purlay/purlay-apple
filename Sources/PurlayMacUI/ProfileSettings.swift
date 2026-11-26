@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -163,3 +164,4 @@ struct ProfileForm: View {
         return all
     }
 }
+#endif

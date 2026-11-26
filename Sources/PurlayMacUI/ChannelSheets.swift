@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -403,3 +404,4 @@ struct NewConversationSheet: View {
         }
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayTokens
 import SwiftUI
 
@@ -105,3 +106,4 @@ struct ShortcutsSheet: View {
         .frame(width: Size.sizePalette, height: Size.sizeDialog + Spacing.space5)
     }
 }
+#endif

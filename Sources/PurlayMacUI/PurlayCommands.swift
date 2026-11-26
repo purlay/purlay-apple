@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import PurlayContract
 import PurlayKit
@@ -258,3 +259,4 @@ public struct PurlayCommands: Commands {
             .disabled(!chatReady)
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import PurlayTokens
 import QuartzCore
@@ -110,3 +111,4 @@ final class AppearanceSnapshot: NSView {
         alphaValue = CGFloat(opacity)
     }
 }
+#endif

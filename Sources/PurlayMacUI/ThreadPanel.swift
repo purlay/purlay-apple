@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -230,3 +231,4 @@ private struct Status: View {
         .padding(.vertical, Spacing.space2)
     }
 }
+#endif

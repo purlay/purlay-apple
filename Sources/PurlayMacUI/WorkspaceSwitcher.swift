@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import PurlayContract
 import PurlayKit
@@ -111,3 +112,4 @@ struct WorkspaceChoice: View {
         return waiting > 0 ? "\(workspace.name) (\(waiting))" : workspace.name
     }
 }
+#endif

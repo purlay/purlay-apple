@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayKit
 import SwiftUI
 
@@ -32,3 +33,4 @@ public struct DesktopSwitcher: View {
         .help("Switch Workspace")
     }
 }
+#endif

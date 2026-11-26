@@ -24,7 +24,7 @@ final class UpdateController: ObservableObject {
             .removeDuplicates()
             .assign(to: &$automaticallyChecksForUpdates)
         #if !DEBUG
-            controller.startUpdater()
+        controller.startUpdater()
         #endif
     }
 
@@ -53,8 +53,8 @@ struct UpdateSettings: View {
                 Text("Updates are downloaded from Purlay’s GitHub releases and verified before installation.")
                     .font(.caption).foregroundStyle(.secondary)
                 #if DEBUG
-                    Text("Update checks are disabled in development builds.")
-                        .font(.caption).foregroundStyle(.secondary)
+                Text("Update checks are disabled in development builds.")
+                    .font(.caption).foregroundStyle(.secondary)
                 #endif
             }
         }

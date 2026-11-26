@@ -9,7 +9,7 @@ struct PurlayApp: App {
     init() {
         let environment = RealEnvironment.make()
         #if DEBUG
-            RealEnvironment.seedDevelopmentSession(environment)
+        RealEnvironment.seedDevelopmentSession(environment)
         #endif
         _model = State(initialValue: AppModel(environment))
     }

@@ -2,6 +2,7 @@
   "version": 1,
   "lineLength": 120,
   "indentation": { "spaces": 4 },
+  "indentConditionalCompilationBlocks": false,
   "maximumBlankLines": 1,
   "respectsExistingLineBreaks": true,
   "lineBreakBeforeEachArgument": false,

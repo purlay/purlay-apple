@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -399,3 +400,4 @@ struct ChannelEmblem: View {
         .accessibilityHidden(true)
     }
 }
+#endif

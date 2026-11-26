@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import PurlayContract
 import PurlayKit
@@ -365,3 +366,4 @@ enum FileSaving {
         }
     }
 }
+#endif

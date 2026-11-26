@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayKit
 import PurlayTokens
 import SwiftUI
@@ -70,3 +71,4 @@ private struct OpenLinkSheet: View {
         Task { await sessions.openLink(url) }
     }
 }
+#endif
