@@ -1,6 +1,6 @@
 # Release the Mac app
 
-A release is a `macos/vX.Y.Z` tag on a commit that passed CI on main; `release-macos.yml` does the rest in about 4–6 minutes once
+A release is a `macos/vX.Y.Z` tag on a commit that passed CI on main; `release-macos.yml` does the rest in about 4–6 minutes (a notarization that takes Apple longer is waited for up to 30 minutes; the job stops at 40) once
 the owner approves the `release` environment. Nothing is signed on a person's Mac. Background: [releasing.md](../development/releasing.md).
 
 ## Before tagging
@@ -42,7 +42,9 @@ The keychain and keys are removed at the end whatever happened.
 ## When it goes wrong
 
 - **The gate refuses the commit** (main's CI not finished or failed): a tag cannot be moved or deleted. If CI was still running,
-  wait for it and re-run the release (`gh run rerun <run-id>`). If it failed, fix main, raise the patch version, and tag again.
+  wait for it and re-run the release (`gh run rerun <run-id>`). If main's push run for that commit was *cancelled* (a newer push
+  replaced it in the queue), re-run it (`gh run rerun <its-run-id>`): a re-run keeps its event, the gate accepts the run once it
+  succeeds, and then re-run the release. If it failed, fix main, raise the patch version, and tag again.
 - **Signing or notarization fails:** [signing-credentials.md](signing-credentials.md). Then re-run the failed jobs
   (`gh run rerun <run-id> --failed`); nothing was published.
 - **A published release is broken, or its appcast is:** [rollback-mac-release.md](rollback-mac-release.md). Never edit or replace a

@@ -4,6 +4,8 @@ name: CI
 on:
   pull_request:
     branches: [main]
+    # `edited`: the title becomes the squash commit, so a title changed after a green run is judged again.
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
   # Every night: main builds every lane, the simulator's included, so each day's compilation caches start warm.
@@ -27,8 +29,8 @@ env:
   PURLAY_TARGET_SECONDS: 180
 
 jobs:
-  # Which lanes this change needs (scripts/ci/changes); whether the branch is named as CONTRIBUTING.md asks; and whether each
-  # app's version has its changelog section. Every run: each of these is a few seconds.
+  # Which lanes this change needs (scripts/ci/changes); whether the branch is named as CONTRIBUTING.md asks; whether the title is
+  # a conventional commit; and whether each app's version has its changelog section. Every run: each of these is a few seconds.
   changes:
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -55,6 +57,11 @@ jobs:
         env:
           BRANCH: ${{ github.head_ref || github.ref_name }}
           AUTHOR: ${{ github.event.pull_request.user.login }}
+      - name: The pull request's title is a conventional commit
+        if: github.event_name == 'pull_request'
+        run: scripts/ci/check-pr-title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
       - id: lanes
         name: The lanes this change needs
         run: |
@@ -98,6 +105,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: The pinned actionlint and shellcheck
+        run: scripts/ci/retry-infra scripts/install-lint-tools
       - name: The rules
         run: scripts/verify rules
         env:

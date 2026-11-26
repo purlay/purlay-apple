@@ -5,7 +5,8 @@ What CI checks, how it stays inside its targets, and what to do when it does not
 
 ## The targets
 
-- **A pull request is mergeable within 3 minutes** of its last push: `verify`, the only required check, is green. `verify` does
+- **A pull request is mergeable within 3 minutes** of its last push: `verify`, the only required check, is green. That is the target,
+  not a guarantee: measured with every lane but the simulator needed, it took 2 min 25 s to 3 min 11 s (below), so some runs miss it. `verify` does
   not wait for the simulator lane (below), which runs on a pull request only as an early signal that is not required.
 - **A documents-only pull request is green in under 30 seconds** (expected from its jobs' times; no such run measured yet).
 - **A release ships within 10 minutes** of its tag (not counting the owner's approval of the `release` environment).
@@ -29,15 +30,16 @@ Every run shows the target and where the time went, on the run's summary page an
 | `contract-drift.yml` | Mondays 04:41 UTC, by hand | one issue when the server has released past the pin ([runbook](../runbooks/contract-drift.md)) |
 | `scorecard.yml` | every push to main, Mondays, by hand | the OpenSSF Scorecard, under Security → Code scanning |
 | `labels.yml` | a change to `.github/labels.yml`; every pull request | syncs the labels; labels a pull request by its paths |
+| `dependency-review.yml` | every pull request to main | GitHub's dependency review: refuses a pull request that adds a dependency with a known vulnerability of high severity or worse. Not required |
 | `dependabot-auto-merge.yml` | a Dependabot pull request | turns on auto-merge (squash) for a patch update; `verify` still decides |
 
 ## `ci.yml`, job by job
 
 | Job | Runner | Runs when | What | Expected time, warm |
 |---|---|---|---|---|
-| `changes` | Linux | always | each app's version has its changelog section (`scripts/ci/changelog-versions`); the branch name (`scripts/check-branch`); which lanes the change needs (`scripts/ci/changes`) | 5–10 s |
+| `changes` | Linux | always | each app's version has its changelog section (`scripts/ci/changelog-versions`); the branch name (`scripts/check-branch`); the pull request's title as a conventional commit, because it becomes the squash commit (`scripts/ci/check-pr-title`, judged again when the title is edited); which lanes the change needs (`scripts/ci/changes`) | 5–10 s |
 | `security` | Linux | always, a documents-only pull request included | gitleaks over the whole history (`scripts/verify security`) | 5–8 s |
-| `rules` | Linux | any code change | `scripts/verify rules`: the architecture rules and their demonstration, the strings | 19–22 s |
+| `rules` | Linux | any code change | `scripts/verify rules`: the architecture rules and their demonstration, actionlint and shellcheck at the versions `scripts/install-lint-tools` pins (digests checked), the strings | 19–22 s, plus the tools' download |
 | `packages` | `xcode-27` | any code change but the scripts and `Design/` alone | the layer rule, format, and every package test on macOS (`TestPlans/macOS.xctestplan`, targets side by side), the Mac screens drawn | 127–179 s |
 | `ios` | `xcode-27` | the package, `Config/`, the project or `Apps/iOS` change | the package and the iOS app built for the simulator | 99–143 s |
 | `macos` | `xcode-27` | the package, `Config/`, the project or `Apps/macOS` change | the Mac app built (Debug; Debug and Release on main), its ATS and entitlements checked | 90–121 s (main: more, unmeasured) |

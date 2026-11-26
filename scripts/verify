@@ -2,7 +2,7 @@
 # Everything the pipeline checks, in lanes, so that CI runs them side by side and a person runs them all.
 #
 #   scripts/verify               every lane, the Mac's Release build included
-#   scripts/verify rules         branch name, the architecture rules and their demonstration, strings  (no Xcode, no Swift)
+#   scripts/verify rules         branch name, the architecture rules and their demonstration, workflows and shell, strings (no Xcode, no Swift)
 #   scripts/verify generated     the pinned contract, the generated code, the generator                (needs Contract/bundle)
 #   scripts/verify packages      the layers, format, and every package test on macOS (TestPlans/macOS) (needs Contract/bundle)
 #   scripts/verify ios           the package and the iOS app, built for the simulator
@@ -111,6 +111,14 @@ rules() {
   scripts/enforcement --demo tree
   step check "the lanes each change runs (scripts/ci/changes)"
   scripts/ci/changes-test >/dev/null
+  step check "workflows (actionlint) and shell scripts (shellcheck), at the versions scripts/install-lint-tools pins"
+  lint_tools="$(scripts/install-lint-tools)"
+  PATH="$lint_tools:$PATH" actionlint -config-file .github/actionlint.yaml
+  git ls-files scripts .githooks | while IFS= read -r file; do
+    head -n 1 "$file" | grep -qE '^#!.*(bash|/sh)' && printf '%s\n' "$file"
+  done | PATH="$lint_tools:$PATH" xargs shellcheck -x
+  step check "a pull request's title is a conventional commit (scripts/ci/check-pr-title)"
+  scripts/ci/check-pr-title-test >/dev/null
   step check "the release gate refuses what it must (scripts/ci/release-gate)"
   scripts/ci/release-gate-test >/dev/null
   step check "every string of the Mac app has its Turkish translation"
@@ -187,8 +195,10 @@ macos() { # configurations to build and check
   step check "the sandbox and the entitlements are the allowlist and nothing else"
   canonical() { python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin), sort_keys=True, separators=(",", ":")))'; }
   allowlist='{"com.apple.security.app-sandbox":true,"com.apple.security.files.user-selected.read-write":true,"com.apple.security.network.client":true,"com.apple.security.temporary-exception.mach-lookup.global-name":["dev.purlay.mac-spks","dev.purlay.mac-spki"]}'
+  # shellcheck disable=SC2016 # the literal $(PRODUCT_BUNDLE_IDENTIFIER) is what is replaced
   entitlements="$(plutil -convert json -o - Apps/macOS/App/Resources/Purlay.entitlements | python3 -c 'import sys; print(sys.stdin.read().replace("$(PRODUCT_BUNDLE_IDENTIFIER)", "dev.purlay.mac"))' | canonical)"
   [ "$entitlements" = "$allowlist" ] || { echo "FAIL: entitlements are not the allowlist: $entitlements" >&2; exit 1; }
+  # shellcheck disable=SC2016 # the literal $(PRODUCT_BUNDLE_IDENTIFIER) is what is replaced
   debug_entitlements="$(plutil -convert json -o - Apps/macOS/App/Resources/Purlay.Debug.entitlements | python3 -c '
 import json,sys
 held=json.load(sys.stdin)
