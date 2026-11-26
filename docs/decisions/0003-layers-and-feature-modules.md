@@ -13,7 +13,8 @@ without later modules reshaping earlier ones, and the engine must stay usable on
   tokens import no UI framework.
 - What both apps say about what the engine reports (its phases, server problems, sign-in failures, notices, upload failures) has
   one home, `PurlayWords`, with its own catalogue, translated once. Each app's catalogue holds only that app's own sentences, and
-  `scripts/enforcement` refuses a sentence in two catalogues.
+  `scripts/enforcement` refuses a sentence in two catalogues, and a sentence no code that reads its catalogue says (each key
+  must be a string literal in that app's code, or in `PurlayWords`' for its own).
 - Each server module becomes a `Feature<Module>` target that conforms to `FeatureModule`, may depend on Kit, Contract, Tokens,
   Design, ModuleAPI and Words, and never on, or imports, another feature. The composition root lists the features in a
   `ModuleRegistry`, which shows a feature only where the workspace's membership allows its module and ignores ids it does not

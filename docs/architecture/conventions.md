@@ -102,7 +102,9 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
   both apps say about the engine is `PurlayWords`' (`EngineWords`, its own catalogue); what only one app says is that app's: on
   iOS a `LocalizedStringResource` in `Words.swift`, on the Mac English in the code (`Strings.swift`, `Text("…")`). For the Mac
   and the engine, `scripts/localize` adds new sentences to their catalogues. A view never writes a literal sentence on iOS.
-  A sentence lives in one catalogue only (enforced).
+  A sentence lives in one catalogue only, and every sentence in a catalogue is a string literal in the code that reads that
+  catalogue: the iOS app's, the Mac app's with `PurlayMacUI`, `PurlayWords`' (enforced). A sentence the code stopped saying
+  is removed; the catalogues keep no extraction state, so `stale` alone would never show it.
 - A button is built from a `Text` label: `Button(Words.x)` showed English on a Turkish simulator (enforced).
 - Turkish addresses the person as "sen", as the web client does; its wording follows `apps/web/src/i18n/catalogue/tr.ts` of the
   server repository.
@@ -131,6 +133,7 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
 | Editing a file under `Generated/` | the bundle pin or `Tools/PurlayGen` | `scripts/generate --check` |
 | A build setting in the project file | `Config/*.xcconfig` | enforced |
 | A string with no final Turkish value | the Turkish value in the catalogue | enforced |
+| A catalogue sentence no code that reads the catalogue says | remove it from the catalogue | enforced |
 | `Button(Words.x)`, a literal sentence in an iOS view, `String(describing:)` of an error shown to a person | a `Text(Words.x)` label; a sentence in `Words` | the catalogue; a person is not shown a developer's text |
 | Linking `PurlayTestSupport` into the iOS app's tests | `Apps/iOS/Tests/PurlayTests/Fakes.swift` | ADR 0006 |
 | Lowering strict concurrency, silencing a warning, `// swift-format-ignore` without a reason | fix the cause | the compiler is the first reviewer |
