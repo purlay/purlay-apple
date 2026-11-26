@@ -6,7 +6,8 @@ the logo's own shapes and colours and never a copy of them. scripts/icon runs it
   scripts/logo-swift --check [ROOT]    fail unless the file is exactly what the logo gives
 
 It reads the subset of SVG the logo uses (linear gradients in user space, and paths of absolute M, L, H, V, C and Z) and refuses
-anything else, so a logo drawn differently is a change to this script and not a silently wrong mark. Python's standard library
+anything else (another element, a transform, an opacity, a style), so a logo drawn differently is a change to this script and
+not a silently wrong mark. Python's standard library
 only: the check runs on a runner without Swift.
 """
 import re
@@ -25,6 +26,27 @@ def fail(message):
 def number(text):
     value = float(text)
     return str(int(value)) if value.is_integer() else repr(value)
+
+
+# Each element this script reads, and the attributes it reads on it. Anything else would change the drawing unseen.
+READ = {
+    "svg": {"width", "height", "viewBox"},
+    "defs": set(),
+    "linearGradient": {"id", "gradientUnits", "x1", "y1", "x2", "y2"},
+    "stop": {"offset", "stop-color"},
+    "g": set(),
+    "path": {"fill", "d"},
+}
+
+
+def refuse_unread(tree):
+    for element in tree.iter():
+        tag = element.tag.removeprefix(SVG)
+        if tag not in READ:
+            fail(f"the element <{tag}> is not one this script reads ({', '.join(sorted(READ))})")
+        unread = sorted(set(element.attrib) - READ[tag])
+        if unread:
+            fail(f"<{tag}> has {', '.join(unread)}, which this script does not read")
 
 
 def hex_colour(text):
@@ -63,6 +85,7 @@ def steps(path):
 
 def swift(root):
     tree = ElementTree.parse(root / "Design/purlay.svg").getroot()
+    refuse_unread(tree)
     if tree.get("viewBox") != "0 0 1024 1024":
         fail("the viewBox is not 0 0 1024 1024")
     gradients = {}

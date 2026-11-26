@@ -658,6 +658,15 @@ plant "the logo's Swift edited by hand" Sources/PurlayDesign/Logo.swift "// draw
 # The launch mark follows the changed logo, so only the Swift is behind it.
 plant_in "the logo changed without its Swift" . \
   'sed -i.bak "s/#0759EB/#0759EC/" Design/purlay.svg Apps/iOS/App/Resources/Assets.xcassets/LaunchMark.imageset/purlay-mark.svg'
+# scripts/logo-swift says it refuses SVG it does not read; a logo moved, faded or given a shape that is not a path is a logo the
+# Swift does not draw. The launch mark follows each change, so only the Swift is behind it.
+LOGOS="Design/purlay.svg Apps/iOS/App/Resources/Assets.xcassets/LaunchMark.imageset/purlay-mark.svg"
+plant_in "the logo moved by a transform the Swift does not read" . "sed -i.bak 's/<g>/<g transform=\"translate(200 0)\">/' $LOGOS"
+plant_in "a logo shape that is not a path" . "sed -i.bak 's#</g>#<circle cx=\"512\" cy=\"512\" r=\"300\" fill=\"url(\\#stem)\"/></g>#' $LOGOS"
+plant_in "a logo shape faded by an opacity the Swift does not read" . \
+  "sed -i.bak 's/<path fill=\"url(#stem)\"/<path opacity=\".2\" fill=\"url(#stem)\"/' $LOGOS"
+plant_in "a logo stop faded by a stop-opacity the Swift does not read" . \
+  "sed -i.bak 's/<stop offset=\"1\" stop-color=\"#0EA5EE\"/<stop offset=\"1\" stop-opacity=\".3\" stop-color=\"#0EA5EE\"/' $LOGOS"
 plant "a button built from a LocalizedStringResource" Apps/iOS/App/Root/RootView.swift 'let leaked = Button(Words.signInButton) {}'
 plant "an undeclared required-reason API in the app" Apps/iOS/App/PurlayApp.swift 'let booted = ProcessInfo.processInfo.systemUptime'
 plant "an undeclared required-reason API in the engine" Sources/PurlayKit/App/AppEnvironment.swift \
