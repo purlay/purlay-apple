@@ -40,7 +40,7 @@ extension NSColor {
 #endif
 
 /// The colours the app's own marks are drawn in, from the shared tokens, so a change on the server reaches the app with the
-/// next `purlay-swift` and nowhere else.
+/// next `scripts/generate` and nowhere else.
 public enum Brand {
     /// The one accent fill: a primary button, the tint. Never text; text on it is `onAccent`.
     public static let accent = Color(Colors.accent)

@@ -2,6 +2,9 @@ import PurlayTokens
 
 /// macOS surface roles, in the neutral greys of the system's own apps. The window chrome (sidebar, toolbar, inspector) is the
 /// system's glass and draws no palette colour; the brand's blue stays in `Colors.accent`, for what is chosen or acted on.
+///
+/// The greys and the status colours here are the system's own, which no server token states. This file is the allowlist for
+/// them: scripts/enforcement refuses a colour literal in any other file of the apps (TD-012), so a new colour is a token first.
 enum NativePalette {
     static let sidebar = token("sidebar", light: 0xf5f5f7, dark: 0x202022)
     static let canvas = token("canvas", light: 0xffffff, dark: 0x1e1e1e)

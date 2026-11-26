@@ -402,6 +402,16 @@ PY
       | grep -vE "^$root/Sources/PurlayTokens/PurlayTokens.swift:|^$root/Sources/PurlayDesign/HexColor.swift:"; then
     echo "FAIL: a second hex colour decoder; use Color(hex:) or RGBA(hex:)" >&2; failed=1
   fi
+  # A colour is a token. A colour written as a literal (a hex value, or components given as numbers) is allowed only where its
+  # value is stated: the tokens (generated from the server's tokens.json), the logo (Logo.swift, written from Design/purlay.svg),
+  # and NativePalette.swift, the allowlist of the Mac's neutral greys and status colours, which no token states yet (TD-012).
+  if grep -rnE --include='*.swift' \
+      '0x[0-9A-Fa-f]{6}\b|(Color|NSColor|UIColor)\((\.sRGB, *)?(red|srgbRed|white|hue|displayP3Red|calibratedRed|deviceRed|calibratedWhite|deviceWhite): *[0-9.]|#colorLiteral' \
+      "$root/Sources" "$root"/Apps/*/App | grep -v '/Generated/' \
+      | grep -vE "^$root/Sources/PurlayDesign/Logo.swift:|^$root/Sources/PurlayMacUI/NativePalette.swift:" \
+      | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
+    echo "FAIL: a colour literal outside the tokens, the logo and NativePalette.swift; name a token" >&2; failed=1
+  fi
   # Who the retained data belongs to is kept one way, by PurlayKit's DefaultsOwner, for both apps.
   if grep -rnE --include='*.swift' '(struct|class) DefaultsOwner\b' "$root/Sources" "$root"/Apps/*/App \
       | grep -v "^$root/Sources/PurlayKit/App/DefaultsOwner.swift:"; then
@@ -604,6 +614,11 @@ plant_in "the Mac's bundle identifier changed" Config \
   'sed -i.bak "s/^PRODUCT_BUNDLE_IDENTIFIER = dev.purlay.mac$/PRODUCT_BUNDLE_IDENTIFIER = dev.purlay.macos/" macOS.xcconfig && rm macOS.xcconfig.bak'
 plant "a third hex colour decoder in an app" Apps/iOS/App/Entry/EntryBackdrop.swift \
   'extension Color { fileprivate init(hex leaked: UInt32) { self.init(white: 0) } }'
+plant "a hex colour in an iOS view" Apps/iOS/App/Entry/WelcomeView.swift 'let leakedBlue = Color(hex: 0x2563EB)'
+plant "a colour by components in the Mac screens" Sources/PurlayMacUI/Strings.swift \
+  'let leakedGrey = Color(.sRGB, red: 0.5, green: 0.5, blue: 0.5)'
+plant "a colour by components in PurlayDesign" Sources/PurlayDesign/Brand.swift 'let leakedWhite = Color(white: 0.9)'
+plant "a hex colour in NativePalette's neighbour" Sources/PurlayMacUI/TokenBinding.swift 'let leakedHex: UInt32 = 0x015bf7'
 plant "a second DefaultsOwner in the Mac app" Apps/macOS/App/Environment.swift 'struct DefaultsOwner {}'
 plant_in "a scheme naming an app the build does not make" Apps/Purlay.xcodeproj/xcshareddata/xcschemes \
   'sed -i.bak "s/BuildableName = \"Purlay.app\"/BuildableName = \"Purlay iOS.app\"/" Purlay-iOS.xcscheme && rm Purlay-iOS.xcscheme.bak'
