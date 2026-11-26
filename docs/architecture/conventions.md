@@ -43,7 +43,9 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
   `AppEnvironment`, built in each app's composition root. Platform-specific acts arrive as protocols the app implements
   (`AttentionPresenter`, `WebAuthenticator`, `PreferenceStore`).
 - A screen is decided from a pure value (`RootScreen` on iOS) so each state is tested without drawing. A tap that must happen
-  once goes through a guard that reads the phase (`RootActions`), never a flag in the view.
+  once goes through a guard that reads the phase (`RootActions`), never a flag in the view. What leaves the phase as it is while
+  the server answers (signing out, reading the account again) runs once in the model, for both apps: a call meanwhile waits
+  for the one under way.
 - Colour, spacing, type and motion come from `PurlayTokens`: through `PurlayDesign` on iOS, through `TokenBinding.swift` and
   `NativePalette.swift` on the Mac. A view names a token, never a colour of its own; a colour literal is allowed only in the
   tokens, the logo and `NativePalette.swift` (enforced).

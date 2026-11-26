@@ -49,7 +49,7 @@ never stuck.
 - Every sentence is in the app's `Words` and its catalogue, or, for what the engine reports, in `PurlayWords`' `EngineWords`
   and its catalogue, in English and Turkish.
 - Each screen is decided from a pure value (`RootScreen`). A tap that must happen once goes through a guard that reads the
-  phase (`RootActions`).
+  phase (`RootActions`); signing out and reading the account again run once in `AppModel`, which the Mac shares.
 
 ## Approaches considered
 
