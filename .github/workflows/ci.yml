@@ -238,8 +238,7 @@ jobs:
         run: scripts/verify generated
 
   # The iOS tests on a simulator: on main, every night, and for a pull request that changes the iOS app or the design system
-  # (scripts/ci/changes). The simulator boots in the background from the job's start, while the cache is restored and the build
-  # runs; scripts/verify waits for it only before testing.
+  # (scripts/ci/changes). The simulator boots after the build, not beside it (scripts/verify says why).
   simulator:
     needs: changes
     if: needs.changes.outputs.simulator == 'true'
@@ -256,8 +255,6 @@ jobs:
         run: scripts/ci/select-xcode
       - name: The simulator .github/toolchain.env names
         run: scripts/ci/simulator-destination
-      - name: Boot it in the background
-        run: scripts/ci/boot-simulator start "${PURLAY_DESTINATION#id=}"
       - id: keys
         run: scripts/ci/cache-keys simulator
       - id: cas
@@ -268,7 +265,7 @@ jobs:
           restore-keys: |
             ${{ steps.keys.outputs.this_week }}
             ${{ github.ref != 'refs/heads/main' && steps.keys.outputs.last_week || '' }}
-      - name: Build for testing, wait for the simulator, test without building
+      - name: Build for testing, boot the simulator, test without building
         # Retried once only when the simulator, not a test, failed (scripts/ci/retry-infra).
         run: scripts/ci/retry-infra scripts/verify simulator
       # Main keeps it; so does a pull request that found nothing at all to restore (main not yet warm, or a new Xcode), so that

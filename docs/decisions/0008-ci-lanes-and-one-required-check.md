@@ -11,9 +11,12 @@ starting a simulator took about three and a half minutes whatever was tested.
   macOS runs `packages`, `ios`, `macos`, and `generated` only when the contract, the generator or the generated code change.
 - `changes` maps the changed paths to the lanes that read them (`scripts/ci/changes`). A document needs no lane; an unknown path
   runs every lane; any event but a pull request runs every lane.
-- The simulator lane runs on main, weekly and when the iOS app or its test plans change, on one named simulator.
-- Xcode's content-addressed compilation cache is restored by every macOS job; only main saves it, so a pull request cannot leave
-  anything behind for another. Each week starts a new cache.
+- The simulator lane runs on main, nightly, and for a pull request that changes the iOS app, the design system, their tests or the
+  iOS test plan, on one named simulator. It runs only what needs iOS (the app's tests and `PurlayDesignTests`); every other
+  package test runs once, on macOS. (Amended 2026-11-26: it ran every package test that builds for iOS, and on a weekly schedule.)
+- Xcode's content-addressed compilation cache is restored by every macOS job. Main saves it; a pull request saves only when it
+  found nothing at all to restore, into a scope GitHub keeps to that pull request, so it cannot leave anything behind for
+  another. Each week starts a new cache.
 - One job, `verify`, always runs, judges every lane (passed, or skipped because `changes` said so), writes each lane's time
   against the target, and is the only required check.
 - Every workflow: top-level permissions `{}` and each job its own; actions pinned by commit; timeouts on every job; no

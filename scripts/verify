@@ -205,22 +205,22 @@ print(json.dumps(held, sort_keys=True, separators=(",", ":")))' "$configuration"
 # Only what needs iOS runs here (TestPlans/iOS): the app's own tests, its UI tests, and PurlayDesignTests, whose package has
 # code of its own for UIKit. Every other package test is logic, tested once on macOS by `packages` (docs/development/testing.md).
 #
-# The simulator boots while the build runs: CI starts it at the start of the job (scripts/ci/boot-simulator), and this starts it
-# here too, which does nothing when it is already booting. The build is then made once for testing, and the tests run on the
-# booted device without building again. One device, no clones: a clone costs a boot on a three-core runner, and Swift Testing
-# already runs a target's tests in parallel inside its process.
+# The build is made once for testing; then the simulator boots, and the tests run on it without building again. The boot comes
+# after the build, not beside it: on the three-core hosted runner a booting simulator, and the daemons of its first minutes,
+# slowed the cache's restore from seconds to 4 minutes and a warm build from 78 s to 364 s (docs/development/ci.md). One device,
+# no clones: a clone costs a boot, and Swift Testing already runs a target's tests in parallel inside its process.
 simulator() {
   local destination udid test
   scripts/build-number
   destination="${PURLAY_DESTINATION:-$(scripts/ci/simulator-destination | sed -nE 's/^PURLAY_DESTINATION=([^ ]+).*/\1/p')}"
   udid="${destination#id=}"
-  scripts/ci/boot-simulator start "$udid"
   resolve Purlay-iOS
   # One plan, built once: a second plan's build-for-testing would copy the app again, without the first plan's test bundle.
   test=(-project "$PROJECT" -scheme Purlay-iOS -testPlan iOS -destination "$destination" CODE_SIGNING_ALLOWED=NO)
   step build "the iOS app and its tests, for the simulator"
   cached "${test[@]}" build-for-testing
-  step boot "the simulator, booted while the build ran"
+  step boot "the simulator"
+  scripts/ci/boot-simulator start "$udid"
   scripts/ci/boot-simulator wait "$udid"
   step test "the iOS tests on the simulator"
   cached "${test[@]}" -parallel-testing-enabled NO test-without-building

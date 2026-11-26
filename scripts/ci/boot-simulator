@@ -9,8 +9,6 @@
 set -euo pipefail
 action="${1:?usage: scripts/ci/boot-simulator start|wait UDID}"
 udid="${2:?usage: scripts/ci/boot-simulator start|wait UDID}"
-started_file="${TMPDIR:-/tmp}/purlay-boot-$udid.started"
-booted_file="${TMPDIR:-/tmp}/purlay-boot-$udid.booted"
 log="${TMPDIR:-/tmp}/purlay-boot-$udid.log"
 
 state() {
@@ -24,14 +22,9 @@ case "$action" in
     current="$(state)"
     if [ "$current" = missing ]; then echo "FAIL: no simulator $udid" >&2; exit 1; fi
     if [ "$current" != Shutdown ]; then echo "simulator $udid: $current already"; exit 0; fi
-    date +%s >"$started_file"
-    rm -f "$booted_file"
     # bootstatus -b boots the device and returns once it has finished booting; in the background, nothing waits for it here.
-    # Each line it prints is stamped with the time, and the moment it returns is kept, so `wait` can say where the boot went.
-    (
-      xcrun simctl bootstatus "$udid" -b 2>&1 | while IFS= read -r line; do printf '%s %s\n' "$(date -u +%H:%M:%S)" "$line"; done
-      date +%s >"$booted_file"
-    ) </dev/null >"$log" 2>&1 &
+    # Its lines carry their own times, so `wait` can say where the boot went.
+    xcrun simctl bootstatus "$udid" -b </dev/null >"$log" 2>&1 &
     disown
     echo "simulator $udid: booting in the background since $(date -u +%H:%M:%S)"
     ;;
@@ -55,12 +48,11 @@ case "$action" in
       tail -20 "$log" >&2 || true
       exit 1
     fi
-    took=""
-    if [ -f "$started_file" ]; then
-      took=" in $(($( [ -s "$booted_file" ] && cat "$booted_file" || date +%s) - $(cat "$started_file"))) s"
-    fi
-    echo "simulator $udid: booted${took}; waited ${second} s for it here. How the boot went:"
-    grep -vE '^[0-9:]+ *$' "$log" | uniq -f 1 | tail -n 15 || true
+    # bootstatus stamps each status itself; the last line's Elapsed is the boot's own time.
+    echo "simulator $udid: booted; waited ${second} s for it here. How the boot went:"
+    grep -E 'Status=|^[[:space:]]+(Waiting|Booting|Finished)' "$log" | sed -E 's/, isTerminal=[A-Z]+//' | paste - - | uniq -f 3 | tail -n 10 || true
+    # What the machine is busy with once the device is up: a fresh simulator's first minutes are heavy on a small runner.
+    top -l 2 -s 1 -o cpu -n 6 -stats command,cpu 2>/dev/null | tail -n 7 || true
     ;;
   *) echo "usage: scripts/ci/boot-simulator start|wait UDID" >&2; exit 2 ;;
 esac
