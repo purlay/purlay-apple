@@ -25,7 +25,8 @@ CI already passed.
 ## What every release workflow does first: the gate
 
 `scripts/ci/release-gate` refuses to go on unless the tag is `<platform>/v` plus the configured version, the changelog has that
-version's section, and **the tagged commit has a successful `ci.yml` run on main** (read from the GitHub API). A run by hand that
+version's section, and **the tagged commit has a successful `ci.yml` run on main whose `simulator` job passed** (both read from
+the GitHub API: no pull request waits for the simulator, so main's run is where a release learns the iOS tests passed). A run by hand that
 is not on a tag is a rehearsal: the tag and CI conditions become warnings, and nothing is published.
 
 ## The iPhone and iPad app, until Q-001

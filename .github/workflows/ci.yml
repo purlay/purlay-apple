@@ -237,8 +237,9 @@ jobs:
       - name: The contract, the generated code and the generator
         run: scripts/verify generated
 
-  # The iOS tests on a simulator: on main, every night, and for a pull request that changes the iOS app or the design system
-  # (scripts/ci/changes). The simulator boots after the build, not beside it (scripts/verify says why).
+  # The iOS tests on a simulator: on every push to main, every night and by hand; for a pull request that changes the iOS app or
+  # the design system (scripts/ci/changes), as a check that is not required. The simulator boots after the build, not beside it
+  # (scripts/verify says why).
   simulator:
     needs: changes
     if: needs.changes.outputs.simulator == 'true'
@@ -277,10 +278,31 @@ jobs:
           path: ${{ env.PURLAY_CACHE_DIR }}
           key: ${{ steps.keys.outputs.key }}
 
-  # The one required check: every lane passed, or was skipped because `changes` said it was not needed.
+  # A red simulator on main opens one issue labelled ci-red-main, or brings the open one up to date: never a second one.
+  simulator-red-on-main:
+    needs: simulator
+    if: failure() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ci
+      - name: The one issue for a red simulator on main
+        run: scripts/ci/red-main-issue simulator
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # The one required check: every lane passed, or was skipped because `changes` said it was not needed. The simulator is not
+  # among them: on a pull request it is an early signal that does not block the merge, and a release requires main's full run,
+  # the simulator's included (scripts/ci/release-gate).
   verify:
     if: always()
-    needs: [changes, security, rules, packages, ios, macos, generated, simulator]
+    needs: [changes, security, rules, packages, ios, macos, generated]
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:

@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# One open issue, labelled ci-red-main, for a lane that is red on main: opened the first time, and brought up to date (its body
+# names the latest red run) every time after, so a lane that stays red never opens a second issue or sends a comment a night.
+# Whoever makes the lane green again closes it.
+#
+#   scripts/ci/red-main-issue LANE     (GH_TOKEN, GITHUB_REPOSITORY, GITHUB_SERVER_URL, GITHUB_RUN_ID, GITHUB_SHA)
+set -euo pipefail
+lane="${1:?usage: scripts/ci/red-main-issue LANE}"
+: "${GITHUB_REPOSITORY:?}" "${GITHUB_RUN_ID:?}" "${GITHUB_SHA:?}"
+label=ci-red-main
+run_url="${GITHUB_SERVER_URL:-https://github.com}/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+title="The $lane lane is red on main"
+body="The \`$lane\` lane of CI failed on main.
+
+- Latest red run: $run_url
+- Commit: $GITHUB_SHA
+- Updated: $(date -u +%Y-%m-%dT%H:%MZ)
+
+No pull request waits for this lane, and no release can ship until it is green again (\`scripts/ci/release-gate\`). Read the
+run's summary for the phase that failed; a machine's failure was already retried once (\`scripts/ci/retry-infra\`). Close this
+issue when main is green."
+
+existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$label" --state open --search "in:title \"$title\"" \
+  --json number --jq '.[0].number // ""')"
+if [ -n "$existing" ]; then
+  gh issue edit "$existing" --repo "$GITHUB_REPOSITORY" --body "$body" >/dev/null
+  echo "updated #$existing: $run_url"
+else
+  # The label is in .github/labels.yml; made here too, in case main went red before the labels were synced.
+  gh label create "$label" --repo "$GITHUB_REPOSITORY" --color b60205 --description "A lane is red on main" >/dev/null 2>&1 || true
+  gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --label "$label" --body "$body"
+fi

@@ -17,4 +17,3 @@ xcuserdata/
 Config/Local.xcconfig
 # Written by scripts/verify and the release scripts: the build number is the commit count.
 Config/BuildNumber.xcconfig
-Package.resolved

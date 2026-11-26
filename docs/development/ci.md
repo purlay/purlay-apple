@@ -5,7 +5,8 @@ What CI checks, how it stays inside its targets, and what to do when it does not
 
 ## The targets
 
-- **A pull request is mergeable within 3 minutes** of its last push: `verify`, the only required check, is green.
+- **A pull request is mergeable within 3 minutes** of its last push: `verify`, the only required check, is green. `verify` does
+  not wait for the simulator lane (below), which runs on a pull request only as an early signal that is not required.
 - **A documents-only pull request is green in under 30 seconds.**
 - **A release ships within 10 minutes** of its tag (not counting the owner's approval of the `release` environment).
 
@@ -37,12 +38,13 @@ Every run shows the target and where the time went, on the run's summary page an
 | `changes` | Linux | always | each app's version has its changelog section (`scripts/ci/changelog-versions`); the branch name (`scripts/check-branch`); which lanes the change needs (`scripts/ci/changes`) | 5–10 s |
 | `security` | Linux | always, a documents-only pull request included | gitleaks over the whole history (`scripts/verify security`) | 10–20 s |
 | `rules` | Linux | any code change | `scripts/verify rules`: the architecture rules and their demonstration, the strings | 60–120 s (unmeasured on Linux; 50–85 s on a developer Mac) |
-| `packages` | `xcode-27` | any code change but the scripts and `Design/` alone | the layer rule, format, and every package test on macOS (`TestPlans/macOS.xctestplan`, targets side by side), the Mac screens drawn | 130–180 s |
-| `ios` | `xcode-27` | the package, `Config/`, the project or `Apps/iOS` change | the package and the iOS app built for the simulator | 100–115 s |
-| `macos` | `xcode-27` | the package, `Config/`, the project or `Apps/macOS` change | the Mac app built (Debug; Debug and Release on main), its ATS and entitlements checked | 90–135 s (main: more, unmeasured) |
-| `generated` | `xcode-27` | `Contract/`, `Tools/`, `Sources/*/Generated` or their scripts change | the pinned bundle, `scripts/generate --check`, the generator's tests | 60–90 s |
-| `simulator` | `xcode-27` | main, nightly, by hand, and a pull request that changes `Apps/iOS`, `Sources/PurlayDesign`, `Tests/PurlayDesignTests`, `TestPlans/iOS.xctestplan` or the simulator's scripts | the tests that need iOS (`TestPlans/iOS.xctestplan`: `PurlayTests`, `PurlayUITests`, `PurlayDesignTests`), built for testing, then the simulator booted, then tested without building | 6–8½ min: over the target (below) |
-| `verify` | Linux | always, after the others | the timing summary; every lane passed or was not needed (`scripts/ci/verify-needs`) | 5–10 s |
+| `packages` | `xcode-27` | any code change but the scripts and `Design/` alone | the layer rule, format, and every package test on macOS (`TestPlans/macOS.xctestplan`, targets side by side), the Mac screens drawn | 127–179 s |
+| `ios` | `xcode-27` | the package, `Config/`, the project or `Apps/iOS` change | the package and the iOS app built for the simulator | 99–143 s |
+| `macos` | `xcode-27` | the package, `Config/`, the project or `Apps/macOS` change | the Mac app built (Debug; Debug and Release on main), its ATS and entitlements checked | 90–121 s (main: more, unmeasured) |
+| `generated` | `xcode-27` | `Contract/`, `Tools/`, `Sources/*/Generated` or their scripts change | the pinned bundle, `scripts/generate --check`, the generator's tests | 57–100 s |
+| `simulator` | `xcode-27` | main, nightly, by hand, and a pull request that changes `Apps/iOS`, `Sources/PurlayDesign`, `Tests/PurlayDesignTests`, `TestPlans/iOS.xctestplan` or the simulator's scripts | the tests that need iOS (`TestPlans/iOS.xctestplan`: `PurlayTests`, `PurlayUITests`, `PurlayDesignTests`), built for testing, then the simulator booted, then tested without building. **Not required on a pull request**; a release requires it on main | 369–594 s: over the target (below) |
+| `simulator-red-on-main` | Linux | the simulator failed on main | opens the one issue labelled `ci-red-main`, or brings the open one up to date (`scripts/ci/red-main-issue`) | 5–10 s |
+| `verify` | Linux | always, after every lane but the simulator | the timing summary; every lane passed or was not needed (`scripts/ci/verify-needs`) | 5–10 s |
 
 The exact mapping from paths to lanes is `scripts/ci/changes`, which a person can run: `git diff --name-only main | scripts/ci/changes
 pull_request`. A path it does not know runs every lane; a workflow, the `Makefile`, `scripts/verify` or `scripts/ci` runs every lane;
@@ -50,11 +52,16 @@ any event but a pull request runs every lane, so main always checks and caches e
 `scripts/verify` or `scripts/ci` alone runs every lane but the simulator; `scripts/ci/changes-test`, run by `rules`, holds the
 mapping to the cases that matter.
 
-**A pull request's time** is its slowest needed lane plus the wait for a runner: about 2 to 2½ minutes for a change to the engine,
-which needs `packages`, `ios`, `macos` and `rules`: measured 3 min 11 s and 2 min 25 s warm to the last lane, plus about 10 s for `verify` (runs 45890766300, 45892203168, the
-slowest lane `packages` at 134–179 s). **A documents-only pull request** runs `changes` and `security` side by side and then
-`verify`: about 25 seconds. A pull request that changes the iOS app or the design system also runs the simulator, which does not
-fit 3 minutes on the hosted runner (below); that is why it runs for nothing else.
+**A pull request's time** is its slowest needed lane plus the wait for a runner, plus about 10 s for `verify`. Measured warm with
+every lane but the simulator needed (runs 45890766300, 45892203168, 45893442148): 2 min 25 s to 3 min 11 s to the last lane, the
+slowest being `packages` (127–179 s) or `ios` (up to 143 s); the variance is the shared runners'. **A documents-only pull
+request** runs `changes` and `security` side by side and then `verify`: about 25 seconds. A pull request that changes the iOS
+app or the design system also runs the simulator, which takes 6 to 10 minutes; `verify` does not wait for it.
+
+**The trade-off.** The simulator gives a pull request early signal without holding its merge to 6–10 minutes. A change can
+therefore merge with the iOS tests red; main's run catches it on the push, `simulator-red-on-main` opens (or updates) one
+`ci-red-main` issue, and no release ships from a commit whose main run, simulator included, did not pass
+([releasing.md](releasing.md#what-every-release-workflow-does-first-the-gate)). Whoever reads that issue fixes main first.
 
 ## What the times rest on
 
@@ -69,8 +76,8 @@ previous push.
 | `macos` | 161 s / 117 s | 90 s / 90 s |
 | `generated` | 109 s / 87 s | 59 s / 57 s |
 | `rules`, `security`, `changes` | 20 s, 5 s, 8 s | 21 s, 5 s, 5 s |
-| `simulator` | 1091 s, **failed** / 926 s | 369 s / 509 s |
-| **The pull request, wall** | 18 min 38 s / 17 min 21 s | 6 min 27 s / 8 min 46 s; **without the simulator: 3 min 11 s / 2 min 25 s** to the last lane |
+| `simulator` | 1091 s, **failed** / 926 s | 369 s / 509 s / 594 s (45893442148) |
+| **The pull request, wall** | 18 min 38 s / 17 min 21 s | 6 min 27 s to 10 min 13 s with the simulator; **without it: 2 min 25 s to 3 min 11 s** to the last lane |
 
 **The simulator lane, before and after.**
 
@@ -86,10 +93,17 @@ previous push.
   `PurlayTests` 221 s for 33 tests that run in a second, `PurlayDesignTests` 12 s, the two skipped UI tests 36 s.
 
 **Why the simulator does not fit 3 minutes, and what would.** Build and fetch are under a minute warm; the rest is the fresh
-device: its boot (65–85 s) and its first minutes, during which the first app launch takes over three minutes on three cores.
-A hosted runner is clean every time, so every run pays it. What would fit: a larger runner (more cores; a paid plan), or a
-self-hosted Mac that keeps a booted, settled device between runs. Until then the lane runs only for the iOS app and the design
-system, and nightly on main.
+device: its boot (65–85 s) and its first minutes, during which the first test launch takes 165–394 s on three cores. A hosted
+runner is clean every time, so every run pays it. The paths to a faster simulator, cheapest first:
+
+1. **Move logic out of the app target into packages**, where it is tested on macOS in seconds; the app's own tests then shrink to
+   wiring, and the simulator lane to what only a device shows. This shortens what runs, not the device's first minutes.
+2. **A larger hosted runner** (more cores; a paid plan): the device's settling competes with fewer things.
+3. **A self-hosted Mac** that keeps a booted, settled device between runs: no boot, no first-minutes cost; it needs a machine
+   kept up to date and isolated from pull requests' code (fork pull requests never run on it).
+
+Until one of these is taken, the lane runs on main, nightly and by hand, and as a non-required check for the iOS app and the
+design system.
 
 **On a developer's Apple silicon Mac** (10 cores, warm): `packages` 75 s, `simulator` 54 s (boot 6 s), `rules` about 40 s.
 The hosted runner's first `xcodebuild` of a job costs some 25–45 s whatever the cache holds (it shows in each lane's `resolve`).
@@ -117,7 +131,9 @@ The hosted runner's first `xcodebuild` of a job costs some 25–45 s whatever th
 
 `.github/toolchain.env` states the Xcode (27.2) and the simulator (iPhone 17, iOS 27.2). Every macOS job selects that Xcode
 with `scripts/ci/select-xcode` and fails at once if the runner image lacks it or another answers; the simulator lane picks the
-named device by its identifier (`scripts/ci/simulator-destination`). The runner label is `xcode-27` (GitHub's image with Xcode
+named device by its identifier (`scripts/ci/simulator-destination`). The project's one package, Sparkle, is pinned by revision
+in the committed `Apps/Purlay.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`, so every build and every
+release resolves the same code; Dependabot proposes its updates. The runner label is `xcode-27` (GitHub's image with Xcode
 27.0, 27.1 and 27.2; 27.1 is its default, which cannot read the project). When the image changes:
 [runbook](../runbooks/xcode-update.md).
 
@@ -143,4 +159,6 @@ named device by its identifier (`scripts/ci/simulator-destination`). The runner 
   run by hand (*Actions → CI → Run workflow* on main) to warm the week.
 - **CI down, or out of macOS minutes:** [runbook](../runbooks/ci-outage.md).
 - **A change that makes the check slower** says why in its description, with the run's times.
-- **A new lane** is a job that `verify` needs and `scripts/ci/changes` maps, or it is not checked.
+- **A new lane** is a job that `verify` needs and `scripts/ci/changes` maps, or it is not checked. The simulator is the one
+  exception: main and the release gate check it, and `verify` does not wait for it.
+- **A `ci-red-main` issue:** main's simulator is red. Fix main before anything else; until it is green no release can ship.

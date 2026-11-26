@@ -31,4 +31,5 @@
 - { name: "dependencies", color: "0366d6", description: "A dependency update (Dependabot)" }
 - { name: "github_actions", color: "000000", description: "An update of a GitHub Action (Dependabot)" }
 - { name: "swift", color: "f05138", description: "An update of a Swift package (Dependabot)" }
+- { name: "ci-red-main", color: "b60205", description: "A lane is red on main (the simulator's, which no pull request waits for)" }
 - { name: "contract-drift", color: "fef2c0", description: "The server has released past the pinned contract (weekly workflow)" }

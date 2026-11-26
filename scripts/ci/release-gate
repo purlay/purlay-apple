@@ -45,12 +45,21 @@ else
 fi
 echo "ok  the changelog has $version"
 
-passed="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&branch=main&event=push&status=success&per_page=1" \
-  --jq .total_count)" || fail "the CI runs of $GITHUB_SHA could not be read"
-if [ "$passed" -gt 0 ]; then
-  echo "ok  $GITHUB_SHA passed CI on main"
-else
+# The run main made for this commit succeeded, and its simulator lane with it: no pull request waits for the simulator, so main's
+# run is where a release learns the iOS tests passed. Skipped is not passed: on a push to main every lane runs.
+run="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&branch=main&event=push&status=success&per_page=1" \
+  --jq '.workflow_runs[0].id // ""')" || fail "the CI runs of $GITHUB_SHA could not be read"
+if [ -z "$run" ]; then
   condition "$GITHUB_SHA has no successful CI run on main: merge it, wait for main to be green, then tag that commit"
+else
+  echo "ok  $GITHUB_SHA passed CI on main (run $run)"
+  simulator="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs?per_page=100" \
+    --jq '[.jobs[] | select(.name == "simulator") | .conclusion] | first // "missing"')" || fail "the jobs of run $run could not be read"
+  if [ "$simulator" = success ]; then
+    echo "ok  its simulator lane passed"
+  else
+    condition "the simulator lane of run $run is '$simulator', not success: a release needs main's iOS tests to have passed"
+  fi
 fi
 
 echo "version=$version" >> "${GITHUB_OUTPUT:-/dev/null}"
