@@ -3,6 +3,7 @@ import AppKit
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import QuickLook
 import SwiftUI
 import UniformTypeIdentifiers
@@ -117,7 +118,8 @@ private struct UploadChip: View {
                 case .uploading: Text("Sending… \(sizeText(upload.size))").font(.caption).foregroundStyle(.secondary)
                 case .done: Text(sizeText(upload.size)).font(.caption).foregroundStyle(.secondary)
                 case .failed(let failure):
-                    Text(Words.upload(failure)).font(.caption).foregroundStyle(Colors.dangerText.style).lineLimit(2)
+                    Text(EngineWords.upload(failure)).font(.caption).foregroundStyle(Colors.dangerText.style).lineLimit(
+                        2)
                 }
             }
             if case .failed(let failure) = upload.state, failure.canRetry {

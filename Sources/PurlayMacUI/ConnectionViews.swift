@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// What the connection is doing, said only when it is not simply working: a bar above the messages (§8).
@@ -43,9 +44,11 @@ struct NoticeBanner: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(Words.notice(notice.kind)).font(.callout)
+            if let words = EngineWords.notice(notice.kind) {
+                Text(words).font(.callout)
+            }
             Spacer()
-            Button("Dismiss", action: dismiss).buttonStyle(.link).help("Dismiss this notice")
+            Button(action: dismiss) { Text(EngineWords.dismiss) }.buttonStyle(.link).help("Dismiss this notice")
         }
         .padding(.horizontal, Spacing.space3)
         .padding(.vertical, Spacing.space2)

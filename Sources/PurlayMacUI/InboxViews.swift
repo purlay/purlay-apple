@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// What the person was told in this workspace, as a page in the window (not a sheet): newest first, Today and Earlier, a row
@@ -85,8 +86,12 @@ struct InboxPage: View {
             } description: {
                 Text("Check your connection and try again.")
             } actions: {
-                Button("Try Again") { Task { await model.setInboxFilter(model.inboxFilter) } }
-                    .glassButton(prominent: true)
+                Button {
+                    Task { await model.setInboxFilter(model.inboxFilter) }
+                } label: {
+                    Text(EngineWords.tryAgain)
+                }
+                .glassButton(prominent: true)
             }
         case .loaded:
             if model.inboxRows.isEmpty {
@@ -328,8 +333,12 @@ private struct UpdatesList: View {
             } description: {
                 Text("Check your connection and try again.")
             } actions: {
-                Button("Try Again") { Task { await model.reloadUpdates() } }
-                    .glassButton(prominent: true)
+                Button {
+                    Task { await model.reloadUpdates() }
+                } label: {
+                    Text(EngineWords.tryAgain)
+                }
+                .glassButton(prominent: true)
             }
         case .loaded:
             if model.updateRows.isEmpty {

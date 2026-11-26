@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// What a thread came to, under its root in the panel (D-204): whether it is a question and whose, the reply that answers it,
@@ -276,7 +277,11 @@ struct KnowledgeSheet: View {
                     if peopleFailed {
                         HStack {
                             Text("Members couldn’t be loaded.").foregroundStyle(.secondary)
-                            Button("Try Again") { Task { await loadPeople() } }
+                            Button {
+                                Task { await loadPeople() }
+                            } label: {
+                                Text(EngineWords.tryAgain)
+                            }
                         }
                         .font(.caption)
                     }

@@ -1,4 +1,5 @@
 import PurlayDesign
+import PurlayWords
 import SwiftUI
 
 /// Something is under way. The shared mark (`entryMark`) stands exactly where the launch screen put it, so the launch flows into the app without a
@@ -46,9 +47,9 @@ struct ConnectingView: View {
 
     private var words: LocalizedStringResource {
         switch busy {
-        case .connecting: Words.connecting
-        case .signingIn: Words.waitingForBrowser
-        case .loading: Words.loadingWorkspace
+        case .connecting: EngineWords.connecting
+        case .signingIn: EngineWords.waitingForBrowser
+        case .loading: EngineWords.loadingWorkspace
         }
     }
 }

@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 enum ChannelDetailTab: String, CaseIterable, Identifiable {
@@ -236,7 +237,7 @@ struct ChannelDetails: View {
                 } description: {
                     Text("Check your connection and try again.")
                 } actions: {
-                    Button("Try Again", action: refresh).glassButton()
+                    Button(action: refresh) { Text(EngineWords.tryAgain) }.glassButton()
                 }
             } else if tab == .members {
                 memberList

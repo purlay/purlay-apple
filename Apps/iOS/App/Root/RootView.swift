@@ -1,5 +1,6 @@
 import PurlayDesign
 import PurlayKit
+import PurlayWords
 import SwiftUI
 
 /// One screen per phase of the app's model, with what the model said to the person above it. Only system components: navigation
@@ -41,7 +42,7 @@ private struct ProblemView: View {
     let retry: () async -> Void
 
     var body: some View {
-        let words = Words.problem(problem)
+        let words = EngineWords.problem(problem)
         Scrolling {
             ContentUnavailableView {
                 Label(words.title, systemImage: "wifi.exclamationmark")
@@ -51,7 +52,7 @@ private struct ProblemView: View {
                 Button {
                     Task { await retry() }
                 } label: {
-                    Text(Words.tryAgain)
+                    Text(EngineWords.tryAgain)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
@@ -67,7 +68,7 @@ private struct NoticeList: View {
     var body: some View {
         VStack(spacing: 8) {
             ForEach(model.notices) { notice in
-                if let words = Words.notice(notice.kind) {
+                if let words = EngineWords.notice(notice.kind) {
                     HStack(alignment: .center, spacing: 12) {
                         Text(words).font(.callout).padding(.vertical, 12).frame(
                             maxWidth: .infinity, alignment: .leading)
@@ -78,7 +79,7 @@ private struct NoticeList: View {
                                 .frame(minWidth: 44, minHeight: 44)
                                 .contentShape(.rect)
                         }
-                        .accessibilityLabel(Text(Words.dismiss))
+                        .accessibilityLabel(Text(EngineWords.dismiss))
                     }
                     .padding(.leading)
                     .background(.thinMaterial, in: .rect(cornerRadius: 12))

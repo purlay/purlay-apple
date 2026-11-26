@@ -2,7 +2,8 @@
 # Everything the pipeline checks, in lanes, so that CI runs them side by side and a person runs them all.
 #
 #   scripts/verify               every lane, both apps' Release builds included
-#   scripts/verify rules         branch name, the architecture rules and their demonstration, workflows and shell, strings (no Xcode, no Swift)
+#   scripts/verify rules         branch name, the architecture rules (every catalogue's sentences among them) and their
+#                                demonstration, workflows and shell                                   (no Xcode, no Swift)
 #   scripts/verify generated     the pinned contract, the generated code, the generator                (needs Contract/bundle)
 #   scripts/verify packages      the layers, format, and every package test on macOS (TestPlans/macOS) (needs Contract/bundle)
 #   scripts/verify ios [CONFIGS]    the package and the iOS app (Debug, or the configurations named), built for the simulator:
@@ -106,7 +107,7 @@ check_build_number() { # Info.plist
 rules() {
   step check "branch name"
   scripts/check-branch
-  step check "architecture rules, and the demonstration that each one refuses its violation"
+  step check "architecture rules, every catalogue's sentences among them, and the demonstration that each one refuses its violation"
   # The layer rule compiles the manifest, which needs Swift; it runs in packages, on macOS, so that this lane needs neither.
   scripts/enforcement tree
   scripts/enforcement --demo tree
@@ -122,8 +123,6 @@ rules() {
   scripts/ci/check-pr-title-test >/dev/null
   step check "the release gate refuses what it must (scripts/ci/release-gate)"
   scripts/ci/release-gate-test >/dev/null
-  step check "every string of the Mac app has its Turkish translation"
-  scripts/localize --check
 }
 
 generated() {

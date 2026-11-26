@@ -52,12 +52,13 @@ import json, re, sys
 allowed = {
     "PurlayContract": set(), "PurlayTokens": set(),
     "PurlayKit": {"PurlayContract"},
+    "PurlayWords": {"PurlayKit", "PurlayContract"},
     "PurlayTestSupport": {"PurlayKit", "PurlayContract"},
     "PurlayDesign": {"PurlayTokens"},
     "PurlayModuleAPI": set(),
-    "PurlayMacUI": {"PurlayKit", "PurlayContract", "PurlayTokens", "PurlayDesign"},
+    "PurlayMacUI": {"PurlayKit", "PurlayContract", "PurlayTokens", "PurlayDesign", "PurlayWords"},
 }
-feature = {"PurlayKit", "PurlayContract", "PurlayTokens", "PurlayDesign", "PurlayModuleAPI"}
+feature = {"PurlayKit", "PurlayContract", "PurlayTokens", "PurlayDesign", "PurlayModuleAPI", "PurlayWords"}
 package = json.load(sys.stdin)
 failed = False
 for target in package["targets"]:
@@ -107,10 +108,11 @@ check_tree() { # root: every rule but the layers
       echo "FAIL: $name imports another feature" >&2; failed=1
     fi
   done
-  # The engine, the contract and the tokens are platform-neutral: no UI framework. Each app draws its own interface.
+  # The engine, the contract, the tokens and the engine's words are platform-neutral: no UI framework. Each app draws its own
+  # interface.
   if grep -rnE '^\s*(@_exported )?import (SwiftUI|AppKit|UIKit|WatchKit)\b' \
-      "$root"/Sources/{PurlayContract,PurlayTokens,PurlayKit,PurlayTestSupport}; then
-    echo "FAIL: the engine, the contract or the tokens import a UI framework" >&2; failed=1
+      "$root"/Sources/{PurlayContract,PurlayTokens,PurlayKit,PurlayWords,PurlayTestSupport}; then
+    echo "FAIL: the engine, the contract, the tokens or the engine's words import a UI framework" >&2; failed=1
   fi
   # OS-version branching lives in PurlayDesign alone.
   if grep -rnE --include='*.swift' '#available|#unavailable|@available' "$root/Sources" "$root/Tests" "$root/Apps" \
@@ -202,30 +204,6 @@ check_tree() { # root: every rule but the layers
       || ! head -n 1 "$launch" | grep -q '^<svg [^>]*width="120" height="120" viewBox="0 0 1024 1024"'; then
     echo "FAIL: the launch mark is not Design/purlay.svg at 120 pt (run scripts/icon)" >&2; failed=1
   fi
-  # Every string of the catalogue is translated into every language the app declares (CFBundleLocalizations).
-  if ! python3 - "$root/Apps/iOS/App/Resources/Localizable.xcstrings" "$root/Apps/iOS/Info.plist" <<'PY'
-import json, plistlib, re, sys
-catalogue = json.load(open(sys.argv[1]))
-# The Info.plist is preprocessed by the build, so its #ifdef lines are taken out before it is read here.
-plist = plistlib.loads(re.sub(rb"(?m)^#.*\n", b"", open(sys.argv[2], "rb").read()))
-languages = plist.get("CFBundleLocalizations", [])
-problems = []
-if catalogue.get("sourceLanguage") != "en":
-    problems.append("the catalogue's source language is not en")
-if "tr" not in languages:
-    problems.append("the app does not declare Turkish (CFBundleLocalizations)")
-for key, entry in catalogue["strings"].items():
-    for language in languages:
-        if language == "en":
-            continue
-        unit = entry.get("localizations", {}).get(language, {}).get("stringUnit", {})
-        if unit.get("state") != "translated" or not unit.get("value", "").strip():
-            problems.append("not translated into %s: %s" % (language, key))
-for problem in problems:
-    print("FAIL: " + problem, file=sys.stderr)
-sys.exit(1 if problems else 0)
-PY
-  then failed=1; fi
   # A button is built from a text label, never from a LocalizedStringResource: on the simulator `Button(Words.x)` showed English on a
   # Turkish device while `Text(Words.x)` beside it was Turkish.
   if grep -rnE --include='*.swift' 'Button\(Words\.' "$root/Apps/iOS/App"; then
@@ -263,7 +241,7 @@ PY
   then failed=1; fi
   while IFS='|' read -r category pattern; do
     if grep -rlE --include='*.swift' "$pattern" "$root/Apps/iOS/App" \
-        "$root"/Sources/{PurlayContract,PurlayTokens,PurlayKit,PurlayDesign,PurlayModuleAPI} | grep -q .; then
+        "$root"/Sources/{PurlayContract,PurlayTokens,PurlayKit,PurlayWords,PurlayDesign,PurlayModuleAPI} | grep -q .; then
       grep -q "NSPrivacyAccessedAPICategory$category" "$manifest" 2>/dev/null \
         || { echo "FAIL: code uses a $category API the privacy manifest does not declare" >&2; failed=1; }
     fi
@@ -274,6 +252,88 @@ SystemBootTime|systemUptime|mach_absolute_time
 DiskSpace|volumeAvailableCapacity|volumeTotalCapacity|systemFreeSize|statfs|getattrlist
 ActiveKeyboards|activeInputModes
 APIS
+
+  # --- The sentences: one checker for every catalogue. The engine's sentences (PurlayWords) are said by both apps, so their
+  # catalogue answers to every language either app declares; each app's own catalogue answers to the languages that app
+  # declares (CFBundleLocalizations). A sentence has one home: a key in two catalogues is two translations that can drift.
+  if ! python3 - "$root" <<'PY'
+import json, plistlib, re, sys
+root = sys.argv[1]
+apps = {"iOS": "Apps/iOS", "macOS": "Apps/macOS"}
+spec = re.compile(r"%(?:\d+\$)?(?:lld|ld|lu|llu|@|d|u|f)")
+# Nothing to translate: only symbols, digits and format specifiers, or a code-like address.
+inert = re.compile(r"^[^A-Za-z]*$|^[a-z0-9.\-/]+$")
+plural_forms = {"zero", "one", "two", "few", "many", "other"}
+problems = []
+
+def declared(app):
+    # The Info.plist is preprocessed by the build, so its #ifdef lines are taken out before it is read here.
+    plist = plistlib.loads(re.sub(rb"(?m)^#.*\n", b"", open(f"{root}/{apps[app]}/Info.plist", "rb").read()))
+    languages = plist.get("CFBundleLocalizations", [])
+    if "en" not in languages or "tr" not in languages:
+        problems.append(f"the {app} app does not declare English and Turkish (CFBundleLocalizations): {languages}")
+    return set(languages)
+
+languages = {app: declared(app) for app in apps}
+catalogues = {
+    "Apps/iOS/App/Resources/Localizable.xcstrings": languages["iOS"],
+    "Apps/macOS/App/Resources/Localizable.xcstrings": languages["macOS"],
+    "Sources/PurlayWords/Resources/Localizable.xcstrings": languages["iOS"] | languages["macOS"],
+}
+
+def norm(text):
+    return sorted(re.sub(r"\d+\$", "", match) for match in spec.findall(text))
+
+def units(path, key, language, localization):
+    """Every value a language gives for a key: the one, or one per plural form, which must include `other`."""
+    if "stringUnit" in localization:
+        return [localization["stringUnit"]]
+    plural = localization.get("variations", {}).get("plural")
+    if plural is None:
+        problems.append(f"{path}: {key!r} in {language} is neither a value nor plural forms")
+        return []
+    if "other" not in plural or not set(plural) <= plural_forms:
+        problems.append(f"{path}: {key!r} in {language} has plural forms {sorted(plural)}, without `other` or with an unknown one")
+    return [form.get("stringUnit", {}) for form in plural.values()]
+
+homes = {}
+for path, wanted in catalogues.items():
+    catalogue = json.load(open(f"{root}/{path}"))
+    if catalogue.get("sourceLanguage") != "en":
+        problems.append(f"{path}: the source language is not en")
+    for key, entry in catalogue["strings"].items():
+        homes.setdefault(key, []).append(path)
+        if entry.get("shouldTranslate") is False:
+            continue
+        if entry.get("extractionState") == "stale":
+            problems.append(f"{path}: {key!r} is stale (no code says it any more); remove it")
+            continue
+        localizations = entry.get("localizations", {})
+        for language in sorted(wanted - {"en"}):
+            if language not in localizations:
+                if not inert.match(spec.sub("", key)):
+                    problems.append(f"{path}: {key!r} is not translated into {language}")
+                continue
+            for unit in units(path, key, language, localizations[language]):
+                if unit.get("state") != "translated" or not unit.get("value", "").strip():
+                    problems.append(f"{path}: {key!r} has no final {language} value ({unit.get('state')})")
+                elif norm(unit["value"]) != norm(key):
+                    problems.append(f"{path}: {key!r} -> {unit['value']!r}: the format specifiers differ")
+        # The English forms are held to the same rule, so that a plural cannot drop an argument.
+        if "en" in localizations:
+            for unit in units(path, key, "en", localizations["en"]):
+                if norm(unit.get("value", key)) != norm(key):
+                    problems.append(f"{path}: an English form of {key!r} changes its arguments")
+for key, paths in homes.items():
+    if len(paths) > 1:
+        problems.append(f"{key!r} is in {len(paths)} catalogues ({', '.join(paths)}); a sentence has one home")
+for problem in problems[:60]:
+    print("FAIL: " + problem, file=sys.stderr)
+if len(problems) > 60:
+    print(f"FAIL: … and {len(problems) - 60} more", file=sys.stderr)
+sys.exit(1 if problems else 0)
+PY
+  then failed=1; fi
 
   # --- The Mac app.
   # The icon is the whole set the catalogue names, each at its own pixel size; scripts/icon writes it from Design/purlay.svg.
@@ -423,12 +483,16 @@ plant "Design depending on Kit" Package.swift \
   'package.targets.first { $0.name == "PurlayDesign" }?.dependencies.append("PurlayKit")'
 plant "a feature depending on a feature" Package.swift \
   'package.targets += [.target(name: "FeatureChat", dependencies: ["PurlayKit", "FeatureAccount"]), .target(name: "FeatureAccount")]'
+# shellcheck disable=SC2016 # Swift source, planted as it is written
+plant "the engine's words depending on Design" Package.swift \
+  'package.targets.first { $0.name == "PurlayWords" }?.dependencies.append("PurlayDesign")'
 plant "a module the layer table does not name" Package.swift 'package.targets += [.target(name: "PurlayHelpers")]'
 # The structure, the rest of it.
 group=tree
 plant "a feature importing a feature" Sources/FeatureChat/Chat.swift "import FeatureAccount"
 plant "Kit imports SwiftUI" Sources/PurlayKit/App/AppEnvironment.swift "import SwiftUI"
 plant "Tokens imports UIKit" Sources/PurlayTokens/PurlayTokens.swift "import UIKit"
+plant "the engine's words import SwiftUI" Sources/PurlayWords/EngineWords.swift "import SwiftUI"
 plant "#available in an app" Apps/iOS/App/PurlayApp.swift 'func gated() { if #available(iOS 26, *) {} }'
 plant "@available in the Mac screens" Sources/PurlayMacUI/Strings.swift '@available(macOS 27, *) func gated() {}'
 plant "#unavailable in the engine" Sources/PurlayKit/App/AppEnvironment.swift 'func gated() { if #unavailable(iOS 26) {} }'
@@ -464,12 +528,7 @@ plant_in "a launch mark that has drifted from the logo" Apps/iOS/App/Resources/A
   'echo "<!-- drift -->" >> purlay-mark.svg'
 plant_in "a launch mark at the wrong size" Apps/iOS/App/Resources/Assets.xcassets/LaunchMark.imageset \
   'sed -i.bak "1s/width=\"120\"/width=\"121\"/" purlay-mark.svg'
-plant_in "a string with no translation" Apps/iOS/App/Resources 'python3 -c "
-import json
-catalogue = json.load(open(\"Localizable.xcstrings\"))
-del catalogue[\"strings\"][\"Try Again\"][\"localizations\"][\"tr\"]
-json.dump(catalogue, open(\"Localizable.xcstrings\", \"w\"), ensure_ascii=False)"'
-plant "a button built from a LocalizedStringResource" Apps/iOS/App/Root/RootView.swift 'let leaked = Button(Words.tryAgain) {}'
+plant "a button built from a LocalizedStringResource" Apps/iOS/App/Root/RootView.swift 'let leaked = Button(Words.signInButton) {}'
 plant "an undeclared required-reason API in the app" Apps/iOS/App/PurlayApp.swift 'let booted = ProcessInfo.processInfo.systemUptime'
 plant "an undeclared required-reason API in the engine" Sources/PurlayKit/App/AppEnvironment.swift \
   'let free = URLResourceKey.volumeAvailableCapacityKey'
@@ -487,6 +546,27 @@ plant_in "a reason Apple does not list" Apps/iOS/App/Resources \
   'sed -i.bak "s/CA92.1/ZZ99.9/" PrivacyInfo.xcprivacy && rm PrivacyInfo.xcprivacy.bak'
 plant_in "a declared category with no reason" Apps/iOS/App/Resources \
   'python3 -c "import plistlib; p=\"PrivacyInfo.xcprivacy\"; m=plistlib.load(open(p,\"rb\")); m[\"NSPrivacyAccessedAPITypes\"][0][\"NSPrivacyAccessedAPITypeReasons\"]=[]; plistlib.dump(m, open(p,\"wb\"))"'
+# The sentences, in each of the three catalogues.
+recatalogue() { # catalogue (relative), Python statements over `strings`, the catalogue's entries
+  printf 'import json; p = "%s"; c = json.load(open(p)); strings = c["strings"]; %s; json.dump(c, open(p, "w"), ensure_ascii=False)' "$1" "$2"
+}
+WORDS=Sources/PurlayWords/Resources/Localizable.xcstrings
+IOS_STRINGS=Apps/iOS/App/Resources/Localizable.xcstrings
+MAC_STRINGS=Apps/macOS/App/Resources/Localizable.xcstrings
+plant_in "an engine sentence with no Turkish" . "python3 -c '$(recatalogue $WORDS 'del strings["Try Again"]["localizations"]["tr"]')'"
+plant_in "an iOS sentence with no Turkish" . "python3 -c '$(recatalogue $IOS_STRINGS 'del strings["Sign In"]["localizations"]["tr"]')'"
+plant_in "a Mac sentence with no Turkish" . "python3 -c '$(recatalogue $MAC_STRINGS 'del strings["Starred"]["localizations"]["tr"]')'"
+plant_in "a Turkish value not yet final" . \
+  "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Channels"]["localizations"]["tr"]["stringUnit"]["state"] = "needs_review"')'"
+plant_in "a translation that drops a value" . \
+  "python3 -c '$(recatalogue $WORDS 'strings["It needs version %@ or newer."]["localizations"]["tr"]["stringUnit"]["value"] = "Daha yeni bir sürüm gerekir."')'"
+plant_in "plural forms without other" . "python3 -c '$(recatalogue $WORDS 'forms = strings["%lld unsent messages could not be restored."]["localizations"]["tr"]["variations"]["plural"]; forms["few"] = forms.pop("other")')'"
+plant_in "a stale sentence" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Starred"]["extractionState"] = "stale"')'"
+plant_in "a sentence in two catalogues" . "python3 -c '$(recatalogue $IOS_STRINGS 'strings["Try Again"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Yeniden Dene"}}}}')'"
+plant_in "the Mac declaring no languages" Apps/macOS 'python3 -c "
+import re
+text = open(\"Info.plist\").read()
+open(\"Info.plist\", \"w\").write(re.sub(r\"\\s*<key>CFBundleLocalizations</key>\\s*<array>.*?</array>\", \"\", text, flags=re.S))"'
 # The Mac app.
 plant_in "a Mac icon size missing" Apps/macOS/App/Resources/Assets.xcassets/AppIcon.appiconset 'rm icon_16x16@2x.png'
 plant_in "a Mac icon at the wrong size" Apps/macOS/App/Resources/Assets.xcassets/AppIcon.appiconset \

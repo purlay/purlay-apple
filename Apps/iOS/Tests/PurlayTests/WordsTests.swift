@@ -1,6 +1,7 @@
 import Foundation
 import PurlayContract
 import PurlayKit
+import PurlayWords
 import Testing
 
 @testable import Purlay
@@ -30,9 +31,9 @@ struct WordsTests {
                 .sessionEndsSoon(Date(timeIntervalSince1970: 0)),
                 .storageProblem, .originMismatch, .loadFailed,
             ]
-        return Words.fixed + [Words.continuesInBrowser("purlay.app")]
-            + problems.flatMap { [Words.problem($0).title, Words.problem($0).detail] }
-            + signIns.compactMap(Words.signIn) + notices.compactMap(Words.notice)
+        return Words.fixed + EngineWords.fixed + [Words.continuesInBrowser("purlay.app")]
+            + problems.flatMap { [EngineWords.problem($0).title, EngineWords.problem($0).detail] }
+            + signIns.compactMap(EngineWords.signIn) + notices.compactMap(EngineWords.notice)
     }
 
     @Test("every sentence is translated: in Turkish it is not the English one")
@@ -48,28 +49,28 @@ struct WordsTests {
     @Test("a sentence that takes a value says it, in each language")
     func values() {
         let minimum = ClientMinimum(appVersion: "9.0.0", contractVersion: nil, downloadUrl: nil)
-        #expect(text(Words.problem(.appTooOld(minimum)).detail, in: "en") == "It needs version 9.0.0 or newer.")
-        #expect(text(Words.problem(.appTooOld(minimum)).detail, in: "tr").contains("9.0.0"))
+        #expect(text(EngineWords.problem(.appTooOld(minimum)).detail, in: "en") == "It needs version 9.0.0 or newer.")
+        #expect(text(EngineWords.problem(.appTooOld(minimum)).detail, in: "tr").contains("9.0.0"))
         let without = ClientMinimum(appVersion: nil, contractVersion: 2, downloadUrl: nil)
-        #expect(text(Words.problem(.appTooOld(without)).detail, in: "en") == "Update Purlay, then try again.")
+        #expect(text(EngineWords.problem(.appTooOld(without)).detail, in: "en") == "Update Purlay, then try again.")
         #expect(
             text(Words.continuesInBrowser("chat.örnek.test"), in: "en")
                 == "You'll continue in your browser on chat.örnek.test.")
         #expect(text(Words.continuesInBrowser("chat.örnek.test"), in: "tr").contains("chat.örnek.test"))
-        let ends = Words.notice(.sessionEndsSoon(Date(timeIntervalSince1970: 0)))
+        let ends = EngineWords.notice(.sessionEndsSoon(Date(timeIntervalSince1970: 0)))
         #expect(ends.map { text($0, in: "en") }?.contains("Your session ends on") == true)
         #expect(ends.map { text($0, in: "tr") }?.contains("sona eriyor") == true)
     }
 
     @Test("the person closing the sign-in page is a choice: nothing is said of it")
     func cancelled() {
-        #expect(Words.signIn(.cancelled) == nil)
-        #expect(Words.notice(.signInFailed(.cancelled)) == nil)
+        #expect(EngineWords.signIn(.cancelled) == nil)
+        #expect(EngineWords.notice(.signInFailed(.cancelled)) == nil)
     }
 
-    @Test("a refusal these screens have no sentence for is said plainly, never as the case's name")
-    func generic() throws {
-        let words = try #require(Words.notice(.loadFailed))
-        #expect(text(words, in: "en") == "Something went wrong. Try again.")
+    @Test("a refusal the entry screens have no screen for is said in its own sentence, never as the case's name")
+    func ownSentence() throws {
+        let words = try #require(EngineWords.notice(.loadFailed))
+        #expect(text(words, in: "en") == "Could not load messages. Check your connection.")
     }
 }

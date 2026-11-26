@@ -113,6 +113,9 @@
         }, {
           "product-name": "PurlayTokens",
           "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "PurlayWords",
+          "build-phase": { "build-phase": "frameworks" },
         },
       ],
     }, {
