@@ -48,11 +48,9 @@ case "$action" in
       tail -20 "$log" >&2 || true
       exit 1
     fi
-    # bootstatus stamps each status itself; the last line's Elapsed is the boot's own time.
-    echo "simulator $udid: booted; waited ${second} s for it here. How the boot went:"
-    grep -E 'Status=|^[[:space:]]+(Waiting|Booting|Finished)' "$log" | sed -E 's/, isTerminal=[A-Z]+//' | paste - - | uniq -f 3 | tail -n 10 || true
-    # What the machine is busy with once the device is up: a fresh simulator's first minutes are heavy on a small runner.
-    ps -Ao pcpu=,comm= -r 2>/dev/null | head -n 6 | sed -E 's#[^ ]*/##' || true
+    # bootstatus stamps each status itself; its last line's Elapsed is the boot's own time. Anything more here (a CPU sample, a
+    # filtered timeline) took 20 to 45 s on a runner busy with the new device, so it says only that.
+    echo "simulator $udid: booted; waited about ${second} s for it here. $(grep -E 'Status=' "$log" | tail -n 1)"
     ;;
   *) echo "usage: scripts/ci/boot-simulator start|wait UDID" >&2; exit 2 ;;
 esac

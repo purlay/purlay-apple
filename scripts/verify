@@ -229,12 +229,10 @@ simulator() {
   step boot "the simulator"
   scripts/ci/boot-simulator start "$udid"
   scripts/ci/boot-simulator wait "$udid"
-  # One target at a time, so that each one's time is in the phases: the first launch on a fresh device carries its settling.
-  local target
-  for target in PurlayTests PurlayDesignTests PurlayUITests; do
-    step "test $target" "on the simulator"
-    cached "${test[@]}" -parallel-testing-enabled NO -only-testing:"$target" test-without-building
-  done
+  # One invocation for the three targets: run apart (run 45892203168) they cost 269 s against 165 s together, and showed that the
+  # first launch on the fresh device is the cost (PurlayTests: 221 s for 33 tests that take a second).
+  step test "the iOS tests on the simulator"
+  cached "${test[@]}" -parallel-testing-enabled NO test-without-building
 }
 
 security() {
