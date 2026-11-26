@@ -48,4 +48,20 @@ extension AppModel {
         me = fresh
         if held && !fresh.mustEnrolTwoFactor && workspace == nil { await bootstrap() }
     }
+
+    // MARK: Where the account is signed in (`/api/me/sessions`)
+
+    /// The devices and browsers this account is signed in on, the one in use first, then the most recently used.
+    public func deviceSessions() async throws -> [DeviceSession] {
+        guard let api else { throw CancellationError() }
+        return try await api.listMySessions().data.sorted {
+            $0.current != $1.current ? $0.current : $0.lastUsedAt.date > $1.lastUsedAt.date
+        }
+    }
+
+    /// Signs one other device out. This device is signed out with `signOut`, which also forgets what it keeps.
+    public func endDeviceSession(_ id: Uuid) async throws {
+        guard let api else { throw CancellationError() }
+        try await api.endMySession(sessionId: id.value)
+    }
 }
