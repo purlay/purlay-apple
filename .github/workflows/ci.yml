@@ -1,0 +1,304 @@
+# The check every change passes: the lanes of scripts/verify, side by side, each skipped when the change cannot affect it, and one
+# final job, `verify`, which is the only required check. Design and timings: docs/development/ci.md.
+name: CI
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  # Monday morning: main builds every lane, so the week's compilation caches start warm.
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PURLAY_CACHE_DIR: ${{ github.workspace }}/.cache/compilation
+
+jobs:
+  # Which lanes this change needs (scripts/ci/changes), and whether the branch is named as CONTRIBUTING.md asks.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      rules: ${{ steps.lanes.outputs.rules }}
+      packages: ${{ steps.lanes.outputs.packages }}
+      ios: ${{ steps.lanes.outputs.ios }}
+      macos: ${{ steps.lanes.outputs.macos }}
+      generated: ${{ steps.lanes.outputs.generated }}
+      simulator: ${{ steps.lanes.outputs.simulator }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts
+      - name: The branch name
+        run: |
+          # Dependabot names its own branches; its pull requests are recognised by their author, which a branch name cannot fake.
+          if [ "$AUTHOR" = "dependabot[bot]" ]; then echo "Dependabot's branch: $BRANCH"; else scripts/check-branch; fi
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+      - id: lanes
+        name: The lanes this change needs
+        run: |
+          files=""
+          if [ "$EVENT" = pull_request ]; then
+            # A list that cannot be read (a diff too large for the API) is empty, and an empty list runs every lane.
+            files="$(gh pr diff "$PR" --name-only --repo "$GITHUB_REPOSITORY")" || files=""
+          fi
+          printf '%s\n' "$files" | scripts/ci/changes "$EVENT" | tee -a "$GITHUB_OUTPUT"
+        env:
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+
+  # The history scanned for secrets. Every run, a documents-only pull request included: a document can carry a secret.
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: The pinned gitleaks
+        run: scripts/ci/retry-infra scripts/install-gitleaks
+      - name: No secret in the history
+        run: scripts/verify security
+
+  # The architecture rules and their demonstration, and the Mac's strings. Linux: it needs Swift for the manifest, not Xcode.
+  rules:
+    needs: changes
+    if: needs.changes.outputs.rules == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The rules
+        run: scripts/verify rules
+        env:
+          # Dependabot's branch is not a topic branch; the changes job recognised it by its author.
+          BRANCH: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && 'chore/dependabot' || github.head_ref || github.ref_name }}
+
+  # Format, and every package test on macOS with the Mac screens drawn from state.
+  packages:
+    needs: changes
+    if: needs.changes.outputs.packages == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: bundle
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: Contract/bundle
+          key: contract-bundle-${{ hashFiles('Contract/contract.lock') }}
+      - name: The pinned contract bundle
+        if: steps.bundle.outputs.cache-hit != 'true'
+        run: scripts/ci/retry-infra scripts/prepare-contract
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Keep the contract bundle
+        if: github.ref == 'refs/heads/main' && steps.bundle.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: Contract/bundle
+          key: contract-bundle-${{ hashFiles('Contract/contract.lock') }}
+      - id: keys
+        run: scripts/ci/cache-keys packages
+      - id: cas
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PURLAY_CACHE_DIR }}
+          key: ${{ steps.keys.outputs.key }}
+          restore-keys: |
+            ${{ steps.keys.outputs.this_week }}
+            ${{ github.ref != 'refs/heads/main' && steps.keys.outputs.last_week || '' }}
+      - name: Format and the package tests
+        run: scripts/verify packages
+      - name: Keep the compilation cache
+        if: success() && github.ref == 'refs/heads/main' && steps.cas.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PURLAY_CACHE_DIR }}
+          key: ${{ steps.keys.outputs.key }}
+
+  # The package and the iOS app, built for the simulator.
+  ios:
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The build number is the commit count, so the whole history.
+          fetch-depth: 0
+          persist-credentials: false
+      - id: keys
+        run: scripts/ci/cache-keys ios
+      - id: cas
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PURLAY_CACHE_DIR }}
+          key: ${{ steps.keys.outputs.key }}
+          restore-keys: |
+            ${{ steps.keys.outputs.this_week }}
+            ${{ github.ref != 'refs/heads/main' && steps.keys.outputs.last_week || '' }}
+      - name: Build for iOS
+        run: scripts/verify ios
+      - name: Keep the compilation cache
+        if: success() && github.ref == 'refs/heads/main' && steps.cas.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PURLAY_CACHE_DIR }}
+          key: ${{ steps.keys.outputs.key }}
+
+  # The Mac app: Debug for a pull request; Debug and Release on main, which is what keeps a release's build warm.
+  macos:
+    needs: changes
+    if: needs.changes.outputs.macos == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+      CONFIGURATIONS: ${{ github.ref == 'refs/heads/main' && 'Debug Release' || 'Debug' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: keys
+        run: scripts/ci/cache-keys macos
+      - id: cas
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PURLAY_CACHE_DIR }}
+          key: ${{ steps.keys.outputs.key }}
+          restore-keys: |
+            ${{ steps.keys.outputs.this_week }}
+            ${{ github.ref != 'refs/heads/main' && steps.keys.outputs.last_week || '' }}
+      - name: Build the Mac app, and check its transport security and entitlements
+        run: scripts/ci/retry-infra scripts/verify macos "$CONFIGURATIONS"
+      - name: Keep the compilation cache
+        if: success() && github.ref == 'refs/heads/main' && steps.cas.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PURLAY_CACHE_DIR }}
+          key: ${{ steps.keys.outputs.key }}
+
+  # The pinned contract, the generated code and the generator: only when they, or what reads them, change.
+  generated:
+    needs: changes
+    if: needs.changes.outputs.generated == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: bundle
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: Contract/bundle
+          key: contract-bundle-${{ hashFiles('Contract/contract.lock') }}
+      - name: The pinned contract bundle
+        if: steps.bundle.outputs.cache-hit != 'true'
+        run: scripts/ci/retry-infra scripts/prepare-contract
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: The contract, the generated code and the generator
+        run: scripts/verify generated
+
+  # The iOS tests on a simulator: on main, on the schedule, and for a pull request that changes the iOS app or its test plans.
+  simulator:
+    needs: changes
+    if: needs.changes.outputs.simulator == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: keys
+        run: scripts/ci/cache-keys simulator
+      - id: cas
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PURLAY_CACHE_DIR }}
+          key: ${{ steps.keys.outputs.key }}
+          restore-keys: |
+            ${{ steps.keys.outputs.this_week }}
+            ${{ github.ref != 'refs/heads/main' && steps.keys.outputs.last_week || '' }}
+      - name: The iOS tests on a simulator
+        # Retried once only when the simulator, not a test, failed (scripts/ci/retry-infra).
+        run: scripts/ci/retry-infra scripts/verify simulator
+      - name: Keep the compilation cache
+        if: success() && github.ref == 'refs/heads/main' && steps.cas.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PURLAY_CACHE_DIR }}
+          key: ${{ steps.keys.outputs.key }}
+
+  # The one required check: every lane passed, or was skipped because `changes` said it was not needed.
+  verify:
+    if: always()
+    needs: [changes, security, rules, packages, ios, macos, generated, simulator]
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ci
+      - name: The time each lane took
+        run: scripts/ci/summary 180 "Pull request check"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Every lane passed, or was not needed
+        run: scripts/ci/verify-needs
+        env:
+          NEEDS: ${{ toJSON(needs) }}
