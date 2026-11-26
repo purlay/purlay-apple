@@ -17,6 +17,9 @@ struct NoticeBanner: View {
 
     static let verticalPadding: CGFloat = 12
     static let minimumTarget: CGFloat = 44
+    /// The dismiss glyph's ink. The tint is the accent, a fill colour: 1.9:1 on the dark glass, under the 3:1 a control's glyph
+    /// needs. The token for icons and text keeps it above that on the glass in light and dark.
+    static let dismissInk = Brand.accentText
     /// A single line's banner is a capsule; a taller one keeps these corners, so its text is never cut by the curve.
     private static let cornerRadius: CGFloat = 26
 
@@ -36,6 +39,7 @@ struct NoticeBanner: View {
             .padding(.vertical, Self.verticalPadding)
             Button(action: dismiss) {
                 Image(systemName: "xmark")
+                    .foregroundStyle(Self.dismissInk)
                     .frame(minWidth: Self.minimumTarget, minHeight: Self.minimumTarget)
                     .contentShape(.rect)
             }
