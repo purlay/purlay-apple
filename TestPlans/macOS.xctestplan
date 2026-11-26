@@ -58,6 +58,13 @@
         "identifier" : "PurlayMacUITests",
         "name" : "PurlayMacUITests"
       }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:..",
+        "identifier" : "ContractTests",
+        "name" : "ContractTests"
+      }
     }
   ],
   "version" : 1

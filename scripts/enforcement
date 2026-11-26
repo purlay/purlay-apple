@@ -21,7 +21,7 @@ esac
 wants() { case " $RULE_GROUPS " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 
 # What a copy for the demonstration holds: everything a rule reads.
-TREE=(Package.swift Sources Tests Apps Config Design TestPlans Tools ContractTests)
+TREE=(Package.swift Sources Tests Apps Config Design TestPlans Tools)
 
 png_field() { # file offset length: that many bytes of the PNG header as a number (od and bash only: this runs on a Linux runner too)
   local hex
@@ -132,6 +132,12 @@ check_tree() { # root: every rule but the layers
   # The project holds no build setting: every one is in Config/, where a review sees it.
   if grep -nE '"build-settings"' "$root/Apps/Purlay.xcodeproj/project.xcproj"; then
     echo "FAIL: Apps/Purlay.xcodeproj holds build settings; put them in Config/" >&2; failed=1
+  fi
+  # One package for the apps' modules and every test of them: a second one is built by no lane unless one is written for it,
+  # and resolves the root only by its folder's name. The code generator is a tool of its own, run by `scripts/verify generated`.
+  if find "$root" -name Package.swift -not -path '*/.build/*' -not -path "$root/Package.swift" \
+      -not -path "$root/Tools/PurlayGen/Package.swift" | grep .; then
+    echo "FAIL: a second Swift package; make its tests a test target of Package.swift" >&2; failed=1
   fi
   # Every test target runs: each is in the test plan of a lane (scripts/verify runs macOS and iOS).
   for target in $(tr '\n' ' ' < "$root/Package.swift" | grep -oE 'tests\( *"[A-Za-z0-9]+"' | grep -oE '"[A-Za-z0-9]+"' | tr -d '"') \
@@ -385,6 +391,8 @@ plant "a different iOS floor in Config" Config/iOSTests.xcconfig "IPHONEOS_DEPLO
 plant_in "a floor stated in Package.swift alone" Config 'sed -i.bak "/^MACOSX_DEPLOYMENT_TARGET/d" macOS.xcconfig && rm macOS.xcconfig.bak'
 plant_in "a build setting in the project" Apps/Purlay.xcodeproj \
   'python3 -c "import sys; p=\"project.xcproj\"; s=open(p).read(); open(p,\"w\").write(s.replace(\"\\\"last-upgrade\\\"\", \"\\\"build-settings\\\": { \\\"SWIFT_VERSION\\\": \\\"5\\\" },\\n  \\\"last-upgrade\\\"\", 1))"'
+plant_in "a second test package" . \
+  'mkdir -p ContractTests && printf "// swift-tools-version: 6.2\n" > ContractTests/Package.swift'
 plant "a test target in no test plan" Package.swift '// tests("PurlayOrphanTests", [])'
 # Dependencies and code that can trap.
 plant "a package dependency" Package.swift '// .package(url: "https://example.test/Alamofire", from: "1.0.0")'

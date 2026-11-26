@@ -9,7 +9,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 dry=false; [ "${1:-}" = --dry ] && dry=true
 
 targets=("${PURLAY_CACHE_DIR:-$HOME/Library/Caches/dev.purlay/compilation-cache}" "${TMPDIR:-/tmp}/purlay-enforcement")
-for folder in .build Tools/PurlayGen/.build ContractTests/.build; do targets+=("$PWD/$folder"); done
+for folder in .build Tools/PurlayGen/.build; do targets+=("$PWD/$folder"); done
 # Xcode's DerivedData for this checkout: the folder whose info names this project. Another checkout's is left alone.
 for derived in "$HOME"/Library/Developer/Xcode/DerivedData/Purlay-*; do
   [ -f "$derived/info.plist" ] || continue

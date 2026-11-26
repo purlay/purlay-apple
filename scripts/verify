@@ -135,7 +135,7 @@ generated() {
 
 format() {
   step format "every Swift file"
-  find Sources Tests Apps ContractTests Tools -name '*.swift' -not -path '*/.build/*' -not -path '*/Generated/*' -print0 \
+  find Sources Tests Apps Tools -name '*.swift' -not -path '*/.build/*' -not -path '*/Generated/*' -print0 \
     | xargs -0 xcrun swift-format lint --strict --parallel
 }
 

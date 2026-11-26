@@ -39,9 +39,10 @@ stop_server() {
 trap 'stop_server; rm -rf "$WORK"' EXIT
 
 demo_args=(--no-build --db "purlay_e2e_macos_$PORT" --port "$PORT" --manifest "$MANIFEST")
+filter='^ContractTests\.'
 if [ "${PURLAY_TEST_CORE_ONLY:-}" = "1" ]; then
   demo_args+=(--modules none)
-  set -- --filter coreOnlyWorkspace "$@"
+  filter='^ContractTests\..*coreOnlyWorkspace'
 fi
 (cd "$CHECKOUT" && exec bun --no-env-file --env-file=.env.test run scripts/demo.ts "${demo_args[@]}") >"$LOG" 2>&1 &
 SERVER=$!
@@ -53,5 +54,5 @@ for _ in $(seq 1 120); do
 done
 curl -fsS "http://localhost:$PORT/api/client" >/dev/null || { echo "FAIL: the server did not come up:" >&2; tail -20 "$LOG" >&2; exit 1; }
 
-cd ContractTests
-PURLAY_TEST_SERVER="http://localhost:$PORT" PURLAY_TEST_MANIFEST="$MANIFEST" swift test "$@"
+# The contract tests are a test target of the root package; the filter keeps the other targets out of this run.
+PURLAY_TEST_SERVER="http://localhost:$PORT" PURLAY_TEST_MANIFEST="$MANIFEST" swift test --filter "$filter" "$@"
