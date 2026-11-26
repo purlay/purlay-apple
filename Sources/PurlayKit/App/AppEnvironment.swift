@@ -86,9 +86,11 @@ public struct AppEnvironment {
     public var authenticator: any WebAuthenticator
     public var appVersion: SemanticVersion
     /// Which app this is: the platform the server is told, and what the Keychain and the log are named after.
-    public var identity: AppIdentity
-    /// The log, under the app's own subsystem.
-    public var log: Log
+    public var identity: AppIdentity {
+        didSet { log = Log(subsystem: identity.logSubsystem) }
+    }
+    /// The log, under the app's own subsystem: made from `identity`, and made again when it changes, so it names no other app.
+    public private(set) var log: Log
     public var deviceName: String
     public var allowsLocalHTTP: Bool
     /// The one server this app signs in to: Purlay's own. Only a development build points it elsewhere.

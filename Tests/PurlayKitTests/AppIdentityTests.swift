@@ -34,4 +34,13 @@ struct AppIdentityTests {
         #expect(environment.identity == identity)
         #expect(environment.log.subsystem == "dev.example.app")
     }
+
+    @Test("the log is always the identity's: an identity set after the environment is made moves the log with it")
+    @MainActor
+    func logFollowsTheIdentity() {
+        var environment = ModelHarness().model.environment
+        environment.identity = AppIdentity(bundleIdentifier: "dev.example.other", platform: .iOS)
+        // Two public properties, one derived from the other, can disagree; the log must not name another app.
+        #expect(environment.log.subsystem == environment.identity.logSubsystem)
+    }
 }
