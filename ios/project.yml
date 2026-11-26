@@ -1,0 +1,82 @@
+name: Purlay
+options:
+  bundleIdPrefix: dev.purlay
+  developmentLanguage: en
+  knownRegions: [en, tr]
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+configs:
+  Debug: debug
+  Release: release
+configFiles:
+  Debug: Config/Debug.xcconfig
+  Release: Config/Release.xcconfig
+packages:
+  PurlaySwift:
+    url: https://github.com/purlay/purlay-swift
+    from: 0.2.0
+  PurlayModuleAPI: { path: Packages/PurlayModuleAPI }
+  PurlayDesign: { path: Packages/PurlayDesign }
+targets:
+  Purlay:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+    dependencies:
+      - package: PurlaySwift
+        product: PurlayContract
+      - package: PurlaySwift
+        product: PurlayTokens
+      - package: PurlaySwift
+        product: PurlayKit
+      - package: PurlayModuleAPI
+      - package: PurlayDesign
+  PurlayTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests/PurlayTests]
+    settings:
+      base:
+        PRODUCT_NAME: PurlayTests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.purlay.ios.tests
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: ""
+        INFOPLIST_PREPROCESS: NO
+    dependencies:
+      - target: Purlay
+      - package: PurlaySwift
+        product: PurlayKit
+      - package: PurlaySwift
+        product: PurlayContract
+  PurlayUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [Tests/PurlayUITests]
+    settings:
+      base:
+        PRODUCT_NAME: PurlayUITests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.purlay.ios.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: ""
+        INFOPLIST_PREPROCESS: NO
+        TEST_TARGET_NAME: Purlay
+    dependencies:
+      - target: Purlay
+schemes:
+  # What a pull request runs: the app's unit tests and the packages' tests, in one build for the simulator.
+  Purlay:
+    build:
+      targets: { Purlay: all }
+    test:
+      targets:
+        - PurlayTests
+        - package: PurlayDesign/PurlayDesignTests
+        - package: PurlayModuleAPI/PurlayModuleAPITests
+  # Signs in through the system browser against a real server; skipped without one (docs/development/getting-started.md).
+  PurlayUITests:
+    build:
+      targets: { Purlay: all }
+    test:
+      targets: [PurlayUITests]
