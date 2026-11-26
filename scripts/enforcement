@@ -235,6 +235,32 @@ PY
   # a build otherwise). The app's code is its own folder and the modules it links.
   local manifest="$root/Apps/iOS/App/Resources/PrivacyInfo.xcprivacy"
   [ -f "$manifest" ] || { echo "FAIL: there is no privacy manifest" >&2; failed=1; }
+  # Each declared category gives at least one reason, and only reasons Apple lists for that category: an unknown code is refused
+  # at submission like a missing one.
+  if [ -f "$manifest" ] && ! python3 - "$manifest" <<'PY'
+import plistlib, sys
+reasons = {
+    "NSPrivacyAccessedAPICategoryUserDefaults": {"CA92.1", "1C8F.1", "C56D.1", "AC6B.1"},
+    "NSPrivacyAccessedAPICategoryFileTimestamp": {"DDA9.1", "C617.1", "3B52.1", "0A2A.1"},
+    "NSPrivacyAccessedAPICategorySystemBootTime": {"35F9.1", "8FFB.1", "3D61.1"},
+    "NSPrivacyAccessedAPICategoryDiskSpace": {"85F4.1", "E174.1", "7D9E.1", "B728.1"},
+    "NSPrivacyAccessedAPICategoryActiveKeyboards": {"3EC4.1", "54BD.1"},
+}
+problems = []
+for entry in plistlib.load(open(sys.argv[1], "rb")).get("NSPrivacyAccessedAPITypes", []):
+    category = entry.get("NSPrivacyAccessedAPIType")
+    given = entry.get("NSPrivacyAccessedAPITypeReasons", [])
+    if category not in reasons:
+        problems.append(f"the privacy manifest declares an unknown category {category!r}")
+    elif not given:
+        problems.append(f"the privacy manifest gives no reason for {category}")
+    else:
+        problems += [f"{code!r} is not a reason Apple lists for {category}" for code in given if code not in reasons[category]]
+for problem in problems:
+    print("FAIL: " + problem, file=sys.stderr)
+sys.exit(1 if problems else 0)
+PY
+  then failed=1; fi
   while IFS='|' read -r category pattern; do
     if grep -rlE --include='*.swift' "$pattern" "$root/Apps/iOS/App" \
         "$root"/Sources/{PurlayContract,PurlayTokens,PurlayKit,PurlayDesign,PurlayModuleAPI} | grep -q .; then
@@ -242,8 +268,8 @@ PY
         || { echo "FAIL: code uses a $category API the privacy manifest does not declare" >&2; failed=1; }
     fi
   done <<'APIS'
-UserDefaults|UserDefaults
-FileTimestamp|creationDate|modificationDate|fileModificationDate|fileCreationDate|attributesOfItem
+UserDefaults|UserDefaults|@AppStorage
+FileTimestamp|creationDate|modificationDate|fileModificationDate|fileCreationDate|attributesOfItem|\bf?stat\(
 SystemBootTime|systemUptime|mach_absolute_time
 DiskSpace|volumeAvailableCapacity|volumeTotalCapacity|systemFreeSize|statfs|getattrlist
 ActiveKeyboards|activeInputModes
@@ -426,6 +452,20 @@ plant "a button built from a LocalizedStringResource" Apps/iOS/App/Root/RootView
 plant "an undeclared required-reason API in the app" Apps/iOS/App/PurlayApp.swift 'let booted = ProcessInfo.processInfo.systemUptime'
 plant "an undeclared required-reason API in the engine" Sources/PurlayKit/App/AppEnvironment.swift \
   'let free = URLResourceKey.volumeAvailableCapacityKey'
+plant "a file's timestamp read with stat in the engine" Sources/PurlayKit/App/AppEnvironment.swift \
+  'func leakedAge(_ path: String) { var info = stat(); _ = stat(path, &info) }'
+plant "a file's timestamp read with fstat in the app" Apps/iOS/App/PurlayApp.swift \
+  'func leakedAge(_ descriptor: Int32) { var info = stat(); _ = fstat(descriptor, &info) }'
+# The defaults reached only through @AppStorage: every other use of UserDefaults is renamed away in the copy, so the property
+# wrapper alone is what must be found.
+plant_in "@AppStorage with defaults undeclared" . \
+  'grep -rlE "UserDefaults" --include="*.swift" Apps/iOS/App Sources | xargs sed -i.bak "s/UserDefaults/UserPrefs/g" \
+    && python3 -c "import plistlib; p=\"Apps/iOS/App/Resources/PrivacyInfo.xcprivacy\"; m=plistlib.load(open(p,\"rb\")); m[\"NSPrivacyAccessedAPITypes\"]=[]; plistlib.dump(m, open(p,\"wb\"))" \
+    && printf "struct Leaked { @AppStorage(\"k\") var k = 0 }\n" > Apps/iOS/App/Leaked.swift'
+plant_in "a reason Apple does not list" Apps/iOS/App/Resources \
+  'sed -i.bak "s/CA92.1/ZZ99.9/" PrivacyInfo.xcprivacy && rm PrivacyInfo.xcprivacy.bak'
+plant_in "a declared category with no reason" Apps/iOS/App/Resources \
+  'python3 -c "import plistlib; p=\"PrivacyInfo.xcprivacy\"; m=plistlib.load(open(p,\"rb\")); m[\"NSPrivacyAccessedAPITypes\"][0][\"NSPrivacyAccessedAPITypeReasons\"]=[]; plistlib.dump(m, open(p,\"wb\"))"'
 # The Mac app.
 plant_in "a Mac icon size missing" Apps/macOS/App/Resources/Assets.xcassets/AppIcon.appiconset 'rm icon_16x16@2x.png'
 plant_in "a Mac icon at the wrong size" Apps/macOS/App/Resources/Assets.xcassets/AppIcon.appiconset \
