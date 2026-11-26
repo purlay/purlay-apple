@@ -12,7 +12,7 @@ lane until it is green, and never add a retry for a test: `scripts/ci/retry-infr
      CODE_SIGNING_ALLOWED=NO -only-testing:PurlayKitTests/ConnectionTests -test-iterations 50 -run-tests-until-failure test
    ```
 
-   (For an iOS app test: `-scheme Purlay-iOS -testPlan PR -destination 'id=<simulator>'`.)
+   (For an iOS app test: `-scheme Purlay-iOS -testPlan iOS -destination 'id=<simulator>'`.)
 3. **The usual causes:** a sleep of a guessed time before an assertion (wait for the condition with `eventually`); shared state
    between tests (each test builds its own model and fakes); a real clock or network (inject them); ordering of async work that
    the test assumes.

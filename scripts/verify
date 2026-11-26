@@ -7,7 +7,7 @@
 #   scripts/verify packages      the layers, format, and every package test on macOS (TestPlans/macOS) (needs Contract/bundle)
 #   scripts/verify ios           the package and the iOS app, built for the simulator
 #   scripts/verify macos [CONFIGS]  the Mac app (Debug, or the configurations named): App Transport Security, entitlements
-#   scripts/verify simulator     the iOS tests on a simulator (TestPlans/PR, TestPlans/Simulator)
+#   scripts/verify simulator     the iOS tests on a simulator (TestPlans/iOS)
 #   scripts/verify security      the whole history scanned for secrets (gitleaks, at the version scripts/install-gitleaks pins)
 #
 # A pull request runs rules, packages, ios and macos (`make verify`), generated when the contract or the generator changes, and
@@ -21,17 +21,49 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-step() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
+# Each lane is a sequence of phases (resolve, build, boot, test, check…). `step PHASE DESCRIPTION` starts one: the log shows the
+# time of day and, when the phase ends, how long it took; at the end the phases are written as a table to $GITHUB_STEP_SUMMARY
+# (in CI), against the target the run is held to (PURLAY_TARGET_SECONDS: 180 for a pull request, 600 for a release).
+PHASE="" PHASE_STARTED=0 PHASES=()
+end_phase() {
+  [ -n "$PHASE" ] || return 0
+  local took=$((SECONDS - PHASE_STARTED))
+  PHASES+=("$PHASE|$took")
+  printf '    [%s] %s took %d s\n' "$(date -u +%H:%M:%S)" "$PHASE" "$took"
+  PHASE=""
+}
+step() { # phase description
+  end_phase
+  PHASE="$1" PHASE_STARTED=$SECONDS
+  printf '\n\033[1m==> [%s] %s: %s\033[0m\n' "$(date -u +%H:%M:%S)" "$1" "$2"
+}
+report_phases() {
+  local status=$? row
+  end_phase
+  [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ "${#PHASES[@]}" -gt 0 ] || return "$status"
+  {
+    echo "#### scripts/verify ${LANE}: ${SECONDS} s ($([ "$status" -eq 0 ] && echo passed || echo FAILED)), within a run held to ${PURLAY_TARGET_SECONDS:-180} s"
+    echo
+    echo "| Phase | Seconds |"
+    echo "|---|---:|"
+    for row in "${PHASES[@]}"; do echo "| ${row%|*} | ${row##*|} |"; done
+    echo
+  } >>"$GITHUB_STEP_SUMMARY"
+  return "$status"
+}
+LANE="${*:-all}"
+trap report_phases EXIT
 
 PROJECT=Apps/Purlay.xcodeproj
 CAS="${PURLAY_CACHE_DIR:-$HOME/Library/Caches/dev.purlay/compilation-cache}"
 # xcodebuild's -quiet hides what a failed test asserted, so the output is kept and, on a failure, the lines that say what failed
 # are printed with the end of it.
-cached() { # xcodebuild arguments, with the compilation cache on
+quiet() { # xcodebuild arguments
   local log status=0
   log="$(mktemp)"
-  xcodebuild ${PURLAY_DERIVED_DATA:+-derivedDataPath "$PURLAY_DERIVED_DATA"} "$@" COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$CAS" COMPILER_INDEX_STORE_ENABLE=NO \
-    >"$log" 2>&1 || status=$?
+  xcodebuild ${PURLAY_DERIVED_DATA:+-derivedDataPath "$PURLAY_DERIVED_DATA"} "$@" >"$log" 2>&1 || status=$?
+  # What ran, in one or two lines, so that a passing log still says how many tests there were.
+  [ "$status" -ne 0 ] || grep -E "^(✔|✘)? ?Test run with|Executed [1-9][0-9]* tests?, with" "$log" | sort -u || true
   if [ "$status" -ne 0 ]; then
     grep -E "error:|✘|recorded an issue|Expectation failed|Failing tests|\*\* (TEST|BUILD) FAILED" "$log" | sort -u | head -40 >&2 || true
     echo "--- the end of the log:" >&2
@@ -39,6 +71,13 @@ cached() { # xcodebuild arguments, with the compilation cache on
   fi
   rm -f "$log"
   return "$status"
+}
+cached() { # xcodebuild arguments, with the compilation cache on
+  quiet "$@" COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$CAS" COMPILER_INDEX_STORE_ENABLE=NO
+}
+resolve() { # scheme: the project's packages (Sparkle), timed apart from the build
+  step resolve "the packages of $1"
+  quiet -project "$PROJECT" -scheme "$1" -resolvePackageDependencies
 }
 
 built_app() { # scheme configuration [destination]: the path of the app that configuration builds
@@ -57,49 +96,54 @@ check_build_number() { # Info.plist
 }
 
 rules() {
-  step "branch name"
+  step check "branch name"
   scripts/check-branch
-  step "architecture rules, and the demonstration that each one refuses its violation"
+  step check "architecture rules, and the demonstration that each one refuses its violation"
   # The layer rule compiles the manifest, which needs Swift; it runs in packages, on macOS, so that this lane needs neither.
   scripts/enforcement tree
   scripts/enforcement --demo tree
-  step "every string of the Mac app has its Turkish translation"
+  step check "the lanes each change runs (scripts/ci/changes)"
+  scripts/ci/changes-test >/dev/null
+  step check "every string of the Mac app has its Turkish translation"
   scripts/localize --check
 }
 
 generated() {
-  step "the contract bundle is the one the lock pins, and the generated code is what it generates"
+  step check "the contract bundle is the one the lock pins, and the generated code is what it generates"
   scripts/contract verify
   scripts/generate --check
-  step "the generator: build and test"
+  step test "the generator: build and test"
   (cd Tools/PurlayGen && swift test 2>&1 | grep -q "Test run with .* passed") || { echo "FAIL: Tools/PurlayGen" >&2; exit 1; }
 }
 
 format() {
-  step "format"
+  step format "every Swift file"
   find Sources Tests Apps ContractTests Tools -name '*.swift' -not -path '*/.build/*' -not -path '*/Generated/*' -print0 \
     | xargs -0 xcrun swift-format lint --strict --parallel
 }
 
 packages() {
-  step "the layers, read from the manifest by SwiftPM, and the demonstration that the rule refuses each violation"
+  step check "the layers, read from the manifest by SwiftPM, and the demonstration that the rule refuses each violation"
   scripts/enforcement layers
   scripts/enforcement --demo layers
   format
-  step "every package test on macOS, and the Mac screens drawn from state, light and dark (pictures in a temporary folder)"
-  local snapshots
+  resolve Purlay-macOS
+  local snapshots test=(-project "$PROJECT" -scheme Purlay-macOS -testPlan macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO)
+  step build "every package test target, for macOS"
+  cached "${test[@]}" build-for-testing
+  step test "every package test on macOS, and the Mac screens drawn from state, light and dark (pictures in a temporary folder)"
   snapshots="$(mktemp -d)"
-  TEST_RUNNER_PURLAY_SNAPSHOT_DIR="$snapshots" \
-    cached -project "$PROJECT" -scheme Purlay-macOS -testPlan macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test
+  TEST_RUNNER_PURLAY_SNAPSHOT_DIR="$snapshots" cached "${test[@]}" test-without-building
   [ -n "$(ls "$snapshots" 2>/dev/null)" ] || { echo "FAIL: no screen was drawn" >&2; exit 1; }
   rm -rf "$snapshots"
 }
 
 ios() {
   scripts/build-number
-  step "every module of the package, built for iOS 18 and later"
+  step build "every module of the package, built for iOS 18 and later"
   cached -scheme purlay-apple-Package -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
-  step "the iOS app, built for the simulator"
+  resolve Purlay-iOS
+  step build "the iOS app, built for the simulator"
   cached -project "$PROJECT" -scheme Purlay-iOS -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
   check_build_number "$(built_app Purlay-iOS Debug 'generic/platform=iOS Simulator')/Purlay.app/Info.plist"
 }
@@ -107,13 +151,14 @@ ios() {
 macos() { # configurations to build and check
   local configurations="$1" configuration app has signed
   scripts/build-number
-  step "the Mac app: build $configurations"
+  resolve Purlay-macOS
+  step build "the Mac app: $configurations"
   for configuration in $configurations; do
     cached -project "$PROJECT" -scheme Purlay-macOS -configuration "$configuration" -destination 'platform=macOS' build
     check_build_number "$(built_app Purlay-macOS "$configuration")/Purlay.app/Contents/Info.plist"
   done
 
-  step "App Transport Security stays strict in Release and is relaxed for localhost in Debug only"
+  step check "App Transport Security stays strict in Release and is relaxed for localhost in Debug only"
   for configuration in $configurations; do
     app="$(built_app Purlay-macOS "$configuration")/Purlay.app"
     has=false; plutil -extract NSAppTransportSecurity xml1 -o - "$app/Contents/Info.plist" >/dev/null 2>&1 && has=true
@@ -123,7 +168,7 @@ macos() { # configurations to build and check
     esac
   done
 
-  step "the sandbox and the entitlements are the allowlist and nothing else"
+  step check "the sandbox and the entitlements are the allowlist and nothing else"
   canonical() { python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin), sort_keys=True, separators=(",", ":")))'; }
   allowlist='{"com.apple.security.app-sandbox":true,"com.apple.security.files.user-selected.read-write":true,"com.apple.security.network.client":true,"com.apple.security.temporary-exception.mach-lookup.global-name":["dev.purlay.mac-spks","dev.purlay.mac-spki"]}'
   entitlements="$(plutil -convert json -o - Apps/macOS/App/Resources/Purlay.entitlements | python3 -c 'import sys; print(sys.stdin.read().replace("$(PRODUCT_BUNDLE_IDENTIFIER)", "dev.purlay.mac"))' | canonical)"
@@ -150,26 +195,32 @@ print(json.dumps(held, sort_keys=True, separators=(",", ":")))' "$configuration"
   done
 }
 
-# TestPlans/PR runs every package test that can run on iOS. Two cannot, and run on macOS alone (TestPlans/macOS), as they did
-# before the repositories merged: PurlayMacUITests (AppKit), and PurlayKitTests, for two reasons. KeychainSessionStoreTests use
-# the real keychain, and a package's tests run in the simulator's own xctest process, not in an app, so no signing setting of
-# ours gives them a keychain: they fail with -34018 (errSecMissingEntitlement) signed ad hoc or unsigned alike. And
-# MarkdownCorpusTests.limits decodes a nesting deep enough to overflow the stack of that process in JSONValue.init(from:).
+# Only what needs iOS runs here (TestPlans/iOS): the app's own tests, its UI tests, and PurlayDesignTests, whose package has
+# code of its own for UIKit. Every other package test is logic, tested once on macOS by `packages` (docs/development/testing.md).
+#
+# The simulator boots while the build runs: CI starts it at the start of the job (scripts/ci/boot-simulator), and this starts it
+# here too, which does nothing when it is already booting. The build is then made once for testing, and the tests run on the
+# booted device without building again. One device, no clones: a clone costs a boot on a three-core runner, and Swift Testing
+# already runs a target's tests in parallel inside its process.
 simulator() {
+  local destination udid test
   scripts/build-number
-  step "the iOS tests on a simulator"
-  local destination
-  destination="${PURLAY_DESTINATION:-id=$(xcrun simctl list devices available | grep -m1 'iPhone' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')}"
-  # Booted first, so that it starts while the build runs.
-  xcrun simctl boot "${destination#id=}" 2>/dev/null || true
-  for plan in PR Simulator; do
-    cached -project "$PROJECT" -scheme Purlay-iOS -testPlan "$plan" -destination "$destination" CODE_SIGNING_ALLOWED=NO test
-    echo "ok  TestPlans/$plan"
-  done
+  destination="${PURLAY_DESTINATION:-$(scripts/ci/simulator-destination | sed -nE 's/^PURLAY_DESTINATION=([^ ]+).*/\1/p')}"
+  udid="${destination#id=}"
+  scripts/ci/boot-simulator start "$udid"
+  resolve Purlay-iOS
+  # One plan, built once: a second plan's build-for-testing would copy the app again, without the first plan's test bundle.
+  test=(-project "$PROJECT" -scheme Purlay-iOS -testPlan iOS -destination "$destination" CODE_SIGNING_ALLOWED=NO)
+  step build "the iOS app and its tests, for the simulator"
+  cached "${test[@]}" build-for-testing
+  step boot "the simulator, booted while the build ran"
+  scripts/ci/boot-simulator wait "$udid"
+  step test "the iOS tests on the simulator"
+  cached "${test[@]}" -parallel-testing-enabled NO test-without-building
 }
 
 security() {
-  step "no secret in the history"
+  step check "no secret in the history"
   if ! command -v gitleaks >/dev/null 2>&1 || [ "$(gitleaks version 2>/dev/null | head -n 1)" != "$(sed -n 's/^VERSION=//p' scripts/install-gitleaks)" ]; then
     scripts/install-gitleaks
     # A fresh install is on the PATH of later steps in CI; a person's shell needs it said.
@@ -191,4 +242,5 @@ case "${1:-all}" in
   *) echo "usage: scripts/verify [rules|generated|packages|ios|macos [CONFIGURATIONS]|simulator|security]" >&2; exit 2 ;;
 esac
 
+end_phase
 printf '\n\033[1mverify %s: everything passed\033[0m\n' "${1:-all}"

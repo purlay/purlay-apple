@@ -9,11 +9,12 @@ replacing the code under test. The conventions are in [conventions.md](../archit
 | What | Where | Test plan | Lane |
 |---|---|---|---|
 | The engine: state, transport, sign-in, realtime, outbox, markdown | `Tests/PurlayKitTests` | `TestPlans/macOS.xctestplan` | `packages` |
-| The contract, the tokens, the test support | `Tests/PurlayContractTests`, `Tests/PurlayTokensTests`, `Tests/PurlayTestSupportTests` | `macOS`, `PR` | `packages`, `simulator` |
-| The design system and the module registry | `Tests/PurlayDesignTests`, `Tests/PurlayModuleAPITests` | `macOS`, `PR` | `packages`, `simulator` |
+| The contract, the tokens, the test support | `Tests/PurlayContractTests`, `Tests/PurlayTokensTests`, `Tests/PurlayTestSupportTests` | `macOS` | `packages` |
+| The module registry | `Tests/PurlayModuleAPITests` | `macOS` | `packages` |
+| The design system, whose colours take a UIKit path on iOS and an AppKit path on macOS | `Tests/PurlayDesignTests` | `macOS`, `iOS` | `packages`, `simulator` |
 | The Mac's screens and controls, and the Mac screens drawn from state, light and dark | `Tests/PurlayMacUITests` (`SnapshotTests` among them) | `macOS` | `packages` |
-| The iOS app's wiring and screen decisions (`RootScreenTests`, `WordsTests`, `EnvironmentTests`, `PrivacyManifestTests`) | `Apps/iOS/Tests/PurlayTests` | `PR` | `simulator` |
-| The iOS sign-in against a real server (skips without one) | `Apps/iOS/Tests/PurlayUITests` | `Simulator` | `simulator` |
+| The iOS app's wiring and screen decisions (`RootScreenTests`, `WordsTests`, `EnvironmentTests`, `PrivacyManifestTests`) | `Apps/iOS/Tests/PurlayTests` | `iOS` | `simulator` |
+| The iOS sign-in against a real server (skips without one) | `Apps/iOS/Tests/PurlayUITests` | `iOS` | `simulator` |
 | The generator | `Tools/PurlayGen/Tests` | its own package | `generated` |
 | The real client against a real server of the pinned version | `ContractTests/` | its own package | by hand: `scripts/contract-test` (TD-017) |
 | The rules, each with its violation planted | `scripts/enforcement`, `--demo` | — | `rules` |
@@ -22,6 +23,10 @@ replacing the code under test. The conventions are in [conventions.md](../archit
 | Secrets | `scripts/verify security` | — | `security` |
 
 `scripts/enforcement` refuses a test target that no lane's test plan names, so a new test target is never silently skipped.
+
+Logic is tested once, in its package, on macOS. The simulator runs only what needs iOS: the app's own tests and the UI tests
+(`TestPlans/iOS`) and `PurlayDesignTests`, because `PurlayDesign` is the one package with code of its own for UIKit
+(`Brand.swift`). A package test added to `TestPlans/iOS` needs such a reason, said in the plan's row above.
 
 The Mac snapshots run where `PURLAY_SNAPSHOT_DIR` names a folder; `scripts/verify packages` sets it (as
 `TEST_RUNNER_PURLAY_SNAPSHOT_DIR`) to a temporary folder and fails if no screen was drawn. To keep the pictures:

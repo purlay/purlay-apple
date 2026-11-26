@@ -61,8 +61,8 @@ Other rules are held by other scripts: the Mac's strings by `scripts/localize --
 1. Add the target (and its test target) to `Package.swift` with the `module(…)` and `tests(…)` helpers, so it takes the strict
    settings.
 2. Place it in the layer table in `scripts/enforcement`, with a `--demo` case if the rule changes.
-3. Add its test target to the test plan of the lane that runs it (`TestPlans/macOS.xctestplan`, and `TestPlans/PR.xctestplan` if
-   it builds for iOS).
+3. Add its test target to the test plan of the lane that runs it (`TestPlans/macOS.xctestplan`; `TestPlans/iOS.xctestplan` too
+   only if it has code of its own for iOS, as `PurlayDesign` has: [testing](../development/testing.md)).
 4. Write the decision if it is one ([decisions](../decisions/README.md)), and update this page.
 
 A feature for a server module is `Sources/Feature<Module>` (named for the module's id), conforms to `FeatureModule`, and is one

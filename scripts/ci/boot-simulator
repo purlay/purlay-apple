@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Boots a simulator in the background, so that it boots while something else runs, and later waits until it has finished.
+#
+#   scripts/ci/boot-simulator start UDID    starts the boot and returns at once; does nothing if the device is not shut down
+#   scripts/ci/boot-simulator wait UDID     waits until the device has booted (data migration included), at most
+#                                           PURLAY_BOOT_TIMEOUT seconds (600), and says how long the boot took in all
+#
+# A device that does not boot fails with a line scripts/ci/retry-infra recognises as the machine's failure, not the code's.
+set -euo pipefail
+action="${1:?usage: scripts/ci/boot-simulator start|wait UDID}"
+udid="${2:?usage: scripts/ci/boot-simulator start|wait UDID}"
+started_file="${TMPDIR:-/tmp}/purlay-boot-$udid.started"
+log="${TMPDIR:-/tmp}/purlay-boot-$udid.log"
+
+state() {
+  xcrun simctl list devices -j | python3 -c '
+import json, sys
+print(next((d["state"] for ds in json.load(sys.stdin)["devices"].values() for d in ds if d["udid"] == sys.argv[1]), "missing"))' "$udid"
+}
+
+case "$action" in
+  start)
+    current="$(state)"
+    if [ "$current" = missing ]; then echo "FAIL: no simulator $udid" >&2; exit 1; fi
+    if [ "$current" != Shutdown ]; then echo "simulator $udid: $current already"; exit 0; fi
+    date +%s >"$started_file"
+    # bootstatus -b boots the device and returns once it has finished booting; in the background, nothing waits for it here.
+    nohup xcrun simctl bootstatus "$udid" -b >"$log" 2>&1 &
+    echo "simulator $udid: booting in the background since $(date -u +%H:%M:%S)"
+    ;;
+  wait)
+    limit="${PURLAY_BOOT_TIMEOUT:-600}"
+    xcrun simctl bootstatus "$udid" -b >>"$log" 2>&1 &
+    waiter=$!
+    for ((second = 0; second < limit; second++)); do
+      kill -0 "$waiter" 2>/dev/null || break
+      sleep 1
+    done
+    if kill -0 "$waiter" 2>/dev/null; then
+      kill "$waiter" 2>/dev/null || true
+      echo "Timed out waiting for the simulator $udid after $limit s" >&2
+      tail -20 "$log" >&2 || true
+      exit 1
+    fi
+    if ! wait "$waiter"; then
+      echo "Failed to boot the simulator $udid" >&2
+      tail -20 "$log" >&2 || true
+      exit 1
+    fi
+    since=""
+    [ -f "$started_file" ] && since=", $(($(date +%s) - $(cat "$started_file"))) s after the boot started"
+    echo "simulator $udid: booted (waited ${second} s here${since})"
+    ;;
+  *) echo "usage: scripts/ci/boot-simulator start|wait UDID" >&2; exit 2 ;;
+esac

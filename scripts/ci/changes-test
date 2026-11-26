@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# The lanes scripts/ci/changes chooses, for the changes that matter most: each case is a list of paths and the lanes it must run.
+# The rules lane runs it.
+#
+#   scripts/ci/changes-test
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+
+failed=0
+expect() { # event "paths, comma-separated" "the lanes that run, space-separated"
+  local actual
+  actual="$(tr ',' '\n' <<<"$2" | scripts/ci/changes "$1" | sed -n 's/=true$//p' | tr '\n' ' ' | sed 's/ $//')"
+  if [ "$actual" = "$3" ]; then echo "ok    $1 [$2] -> $3"; else echo "FAIL  $1 [$2] -> $actual, not $3" >&2; failed=1; fi
+}
+
+every="rules packages ios macos generated simulator"
+expect push "" "$every"
+expect schedule "docs/x.md" "$every"
+expect pull_request "" "$every"
+expect pull_request "docs/development/ci.md,README.md" ""
+expect pull_request "Apps/iOS/App/PurlayApp.swift" "rules packages ios simulator"
+expect pull_request "Sources/PurlayDesign/Brand.swift" "rules packages ios macos simulator"
+expect pull_request "Tests/PurlayDesignTests/BrandTests.swift" "rules packages simulator"
+expect pull_request "TestPlans/iOS.xctestplan" "rules simulator"
+expect pull_request "scripts/ci/boot-simulator" "rules simulator"
+# Other packages, their tests, documents and CI alone never start a simulator.
+expect pull_request "Sources/PurlayKit/Engine.swift" "rules packages ios macos"
+expect pull_request "Tests/PurlayKitTests/EngineTests.swift,docs/x.md" "rules packages"
+expect pull_request "TestPlans/macOS.xctestplan" "rules packages"
+expect pull_request ".github/workflows/ci.yml,scripts/verify,scripts/ci/summary,Makefile" "rules packages ios macos generated"
+expect pull_request "Apps/macOS/App/PurlayApp.swift" "rules packages macos"
+# A path no rule knows runs every lane.
+expect pull_request "Somewhere/new.swift" "$every"
+exit "$failed"

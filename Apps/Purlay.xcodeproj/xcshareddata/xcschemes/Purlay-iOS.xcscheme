@@ -33,10 +33,7 @@
       <TestPlans>
          <TestPlanReference
             default = "YES"
-            reference = "container:../TestPlans/PR.xctestplan">
-         </TestPlanReference>
-         <TestPlanReference
-            reference = "container:../TestPlans/Simulator.xctestplan">
+            reference = "container:../TestPlans/iOS.xctestplan">
          </TestPlanReference>
       </TestPlans>
       <MacroExpansion>

@@ -22,7 +22,7 @@
       - any-glob-to-any-file: ["docs/**", "**/*.md"]
 "platform: ios":
   - changed-files:
-      - any-glob-to-any-file: ["Apps/iOS/**", "Config/iOS*.xcconfig", "TestPlans/PR.xctestplan", "TestPlans/Simulator.xctestplan"]
+      - any-glob-to-any-file: ["Apps/iOS/**", "Config/iOS*.xcconfig", "TestPlans/iOS.xctestplan"]
 "platform: macos":
   - changed-files:
       - any-glob-to-any-file: ["Apps/macOS/**", "Config/macOS.xcconfig", "Sources/PurlayMacUI/**", "scripts/sign-release", "scripts/release-notes", "scripts/localize", "scripts/dev-signing"]

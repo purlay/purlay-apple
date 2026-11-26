@@ -73,7 +73,8 @@ bun run demo -- --no-build --port 4590 --tls-cert cert.pem --tls-key key.pem
 xcrun simctl keychain booted add-root-cert cert.pem        # a certificate the simulator trusts
 TEST_RUNNER_PURLAY_UITEST_SERVER=https://localhost:4590 \
 TEST_RUNNER_PURLAY_UITEST_SESSION="<the __Host-purlay_session value from https://localhost:4590/__demo/login?as=alice>" \
-  xcodebuild -project Apps/Purlay.xcodeproj -scheme Purlay-iOS -testPlan Simulator -destination 'id=<simulator>' test
+  xcodebuild -project Apps/Purlay.xcodeproj -scheme Purlay-iOS -testPlan iOS -only-testing:PurlayUITests \
+    -destination 'id=<simulator>' test
 ```
 
 Approving inside the system browser's page is not driven (TD-007); the server's half of that step runs in the live contract tests.

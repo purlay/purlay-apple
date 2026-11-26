@@ -133,10 +133,10 @@ check_tree() { # root: every rule but the layers
   if grep -nE '"build-settings"' "$root/Apps/Purlay.xcodeproj/project.xcproj"; then
     echo "FAIL: Apps/Purlay.xcodeproj holds build settings; put them in Config/" >&2; failed=1
   fi
-  # Every test target runs: each is in the test plan of a lane (scripts/verify runs macOS, PR and Simulator).
+  # Every test target runs: each is in the test plan of a lane (scripts/verify runs macOS and iOS).
   for target in $(tr '\n' ' ' < "$root/Package.swift" | grep -oE 'tests\( *"[A-Za-z0-9]+"' | grep -oE '"[A-Za-z0-9]+"' | tr -d '"') \
       PurlayTests PurlayUITests; do
-    if ! grep -qE "\"name\" : \"$target\"" "$root"/TestPlans/{macOS,PR,Simulator}.xctestplan; then
+    if ! grep -qE "\"name\" : \"$target\"" "$root"/TestPlans/{macOS,iOS}.xctestplan; then
       echo "FAIL: the test target $target is in no test plan a lane runs" >&2; failed=1
     fi
   done
