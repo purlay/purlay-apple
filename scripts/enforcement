@@ -335,6 +335,27 @@ PY
   if [ "$(sed -nE 's/^PRODUCT_BUNDLE_IDENTIFIER *= *//p' "$root/Config/macOS.xcconfig")" != "dev.purlay.mac" ]; then
     echo "FAIL: Config/macOS.xcconfig no longer names the shipped bundle identifier dev.purlay.mac" >&2; failed=1
   fi
+  # A colour written in hex is read in one place: RGBA(hex:) in the tokens, which Color(hex:) in PurlayDesign draws through.
+  if grep -rnE --include='*.swift' 'init\(hex[: ]' "$root/Sources" "$root"/Apps/*/App | grep -v '/Generated/' \
+      | grep -vE "^$root/Sources/PurlayTokens/PurlayTokens.swift:|^$root/Sources/PurlayDesign/HexColor.swift:"; then
+    echo "FAIL: a second hex colour decoder; use Color(hex:) or RGBA(hex:)" >&2; failed=1
+  fi
+  # Who the retained data belongs to is kept one way, by PurlayKit's DefaultsOwner, for both apps.
+  if grep -rnE --include='*.swift' '(struct|class) DefaultsOwner\b' "$root/Sources" "$root"/Apps/*/App \
+      | grep -v "^$root/Sources/PurlayKit/App/DefaultsOwner.swift:"; then
+    echo "FAIL: a second DefaultsOwner; use PurlayKit's" >&2; failed=1
+  fi
+  # A scheme names the app it builds as the build names it (PRODUCT_NAME, Config/Shared.xcconfig).
+  local product
+  product="$(sed -nE 's/^PRODUCT_NAME *= *//p' "$root/Config/Shared.xcconfig")"
+  if grep -nE 'BuildableName = "[^"]*\.app"' "$root"/Apps/Purlay.xcodeproj/xcshareddata/xcschemes/*.xcscheme \
+      | grep -v "BuildableName = \"$product.app\""; then
+    echo "FAIL: a scheme names an app other than $product.app" >&2; failed=1
+  fi
+  # A package test suite is not named like an app's test target, so a test's name says where it runs.
+  if grep -rnE --include='*.swift' '^(struct|final class|class) (PurlayTests|PurlayUITests)\b' "$root/Tests"; then
+    echo "FAIL: a package test suite named like an iOS test target" >&2; failed=1
+  fi
   # The app's URL scheme is the server's: the scheme of `nativeRedirect` in the generated constants. The scheme both apps
   # register (PURLAY_URL_SCHEME, which Info.plist cannot ask Swift for) says the same, and code asks NativeRedirect for it.
   local redirect_scheme
@@ -495,6 +516,12 @@ plant "the engine presuming a platform" Sources/PurlayKit/App/AppEnvironment.swi
   'func leakedPlatform(_ platform: ClientPlatform = .macOS) {}'
 plant_in "the Mac's bundle identifier changed" Config \
   'sed -i.bak "s/^PRODUCT_BUNDLE_IDENTIFIER = dev.purlay.mac$/PRODUCT_BUNDLE_IDENTIFIER = dev.purlay.macos/" macOS.xcconfig && rm macOS.xcconfig.bak'
+plant "a third hex colour decoder in an app" Apps/iOS/App/Entry/EntryBackdrop.swift \
+  'extension Color { fileprivate init(hex leaked: UInt32) { self.init(white: 0) } }'
+plant "a second DefaultsOwner in the Mac app" Apps/macOS/App/Environment.swift 'struct DefaultsOwner {}'
+plant_in "a scheme naming an app the build does not make" Apps/Purlay.xcodeproj/xcshareddata/xcschemes \
+  'sed -i.bak "s/BuildableName = \"Purlay.app\"/BuildableName = \"Purlay iOS.app\"/" Purlay-iOS.xcscheme && rm Purlay-iOS.xcscheme.bak'
+plant "a Mac suite named like the iOS UI tests" Tests/PurlayMacUITests/MacWordsTests.swift 'struct PurlayUITests {}'
 plant "a URL scheme other than the contract's" Config/Shared.xcconfig 'PURLAY_URL_SCHEME = purlay-dev'
 plant "the URL scheme compared by hand in the engine" Sources/PurlayKit/App/AppEnvironment.swift \
   'func leakedScheme(_ url: URL) -> Bool { url.scheme == "purlay" }'
