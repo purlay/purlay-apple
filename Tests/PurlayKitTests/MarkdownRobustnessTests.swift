@@ -76,6 +76,33 @@ struct MarkdownRobustnessTests {
         }
     }
 
+    /// A list nested `levels` deep by indentation alone: one marker a line, so the per-line nesting bound never sees it.
+    private static func outline(levels: Int) -> String {
+        (0..<levels).map { String(repeating: "  ", count: $0) + "- a" }.joined(separator: "\n")
+    }
+
+    @Test("an outline nested a thousand deep, as a server could send, reads as typed and the process lives")
+    func deepOutline() {
+        // Read in full, each line cost time with each level and the tree cost stack with each level: past the depth bound
+        // long before that, the reading stops there.
+        let clock = ContinuousClock()
+        var reading: MarkdownReading?
+        let took = clock.measure { reading = MarkdownReader.read(Self.outline(levels: 1_000)) }
+        #expect(reading == .typed(.depth))
+        #expect(took < .seconds(2), "\(took)")
+    }
+
+    @Test("an outline as deep as the tree may be still reads to a tree, and one level deeper reads as typed")
+    func outlineAtTheBound() {
+        // Each level is a list and its item: two levels of the tree, below the root's one.
+        let deepest = (MarkdownReader.depthMax - 1) / 2
+        guard case .tree = MarkdownReader.read(Self.outline(levels: deepest)) else {
+            Issue.record("an outline \(deepest) deep was not read")
+            return
+        }
+        #expect(MarkdownReader.read(Self.outline(levels: deepest + 1)) == .typed(.depth))
+    }
+
     @Test("a body of every placeholder the reader borrows still reads as itself")
     func placeholders() {
         let borrowed =

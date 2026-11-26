@@ -58,13 +58,20 @@ struct BlockReader {
     private(set) var codeLines = Set<Int>()
     private var lineNumber = 0
     private var fenceFirstLine = 0
+    /// The containers opened past what the tree may hold. A container `MarkdownReader.depthMax` deep already makes the
+    /// body too deep to format, so the reader stops there: reading on costs time with each level and stack with each
+    /// level, and a body can be nested thousands deep.
+    private(set) var tooDeep = false
 
     init() { stack = [root] }
 
-    static func read(_ lines: [(text: String, ending: String)]) -> (blocks: [RawBlock], codeLines: Set<Int>) {
+    /// The blocks, and which lines are fenced code; no blocks, and `tooDeep`, for a body nested past the tree's bound.
+    static func read(_ lines: [(text: String, ending: String)]) -> (
+        blocks: [RawBlock], codeLines: Set<Int>, tooDeep: Bool
+    ) {
         var reader = BlockReader()
-        for line in lines { reader.feed(line.text, ending: line.ending) }
-        return (reader.finish(), reader.codeLines)
+        for line in lines where !reader.tooDeep { reader.feed(line.text, ending: line.ending) }
+        return (reader.tooDeep ? [] : reader.finish(), reader.codeLines, reader.tooDeep)
     }
 
     // MARK: Lines
@@ -198,6 +205,8 @@ struct BlockReader {
     private mutating func open(_ node: Node) {
         attach(node)
         stack.append(node)
+        // The children of a container at index i of the stack are read at depth i + 1, past the bound from i = depthMax.
+        if stack.count > MarkdownReader.depthMax { tooDeep = true }
     }
 
     private mutating func close(from index: Int) {
