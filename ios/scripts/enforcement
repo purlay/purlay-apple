@@ -42,6 +42,15 @@ check() { # root
       *) echo "FAIL: $icon has an alpha channel" >&2; failed=1 ;;
     esac
   fi
+  # The launch screen's mark is the logo, drawn at the size PurlayMark has on the first frame: Design/purlay.svg with the root
+  # width and height set to 120. Apart from that first line it is the logo byte for byte, so a change to the logo cannot leave it behind.
+  local launch="$root/App/Resources/Assets.xcassets/LaunchMark.imageset/purlay-mark.svg"
+  if [ ! -f "$launch" ]; then
+    echo "FAIL: there is no launch mark ($launch)" >&2; failed=1
+  elif ! cmp -s <(tail -n +2 "$launch") <(tail -n +2 "$root/Design/purlay.svg") \
+      || ! head -n 1 "$launch" | grep -q '^<svg [^>]*width="120" height="120" viewBox="0 0 1024 1024"'; then
+    echo "FAIL: the launch mark is not Design/purlay.svg at 120 pt (run scripts/icon)" >&2; failed=1
+  fi
   # One iOS floor (ADR 0001): the build settings, the project and every package say the same number.
   if [ "$(floors "$root" | sort -u | wc -l | tr -d ' ')" != "1" ]; then
     echo "FAIL: the iOS floor is not one number:" >&2; floors "$root" | sort | uniq -c >&2; failed=1
@@ -141,7 +150,7 @@ fail=0
 plant() { # name, file (relative), line
   local copy
   copy="$(mktemp -d)"
-  rsync -a --exclude .build --exclude .swiftpm --exclude '*.xcodeproj' App Packages Config project.yml "$copy"/
+  rsync -a --exclude .build --exclude .swiftpm --exclude '*.xcodeproj' App Packages Config Design project.yml "$copy"/
   mkdir -p "$copy/Packages/FeatureA/Sources/FeatureA" "$copy/Packages/FeatureB/Sources/FeatureB"
   printf '// swift-tools-version: 6.2\n' > "$copy/Packages/FeatureA/Package.swift"
   : > "$copy/Packages/FeatureA/Sources/FeatureA/A.swift"
@@ -153,20 +162,31 @@ plant() { # name, file (relative), line
 plant_icon() { # name, shell command run in the copy's icon set
   local copy
   copy="$(mktemp -d)"
-  rsync -a --exclude .build --exclude .swiftpm --exclude '*.xcodeproj' App Packages Config project.yml "$copy"/
+  rsync -a --exclude .build --exclude .swiftpm --exclude '*.xcodeproj' App Packages Config Design project.yml "$copy"/
   (cd "$copy/App/Resources/Assets.xcassets/AppIcon.appiconset" && eval "$2")
+  if check "$copy" >/dev/null 2>&1; then echo "  NOT REFUSED  $1" >&2; fail=1; else echo "  refused      $1"; fi
+  rm -rf "$copy"
+}
+plant_launch() { # name, shell command run in the copy's launch mark folder
+  local copy
+  copy="$(mktemp -d)"
+  rsync -a --exclude .build --exclude .swiftpm --exclude '*.xcodeproj' App Packages Config Design project.yml "$copy"/
+  (cd "$copy/App/Resources/Assets.xcassets/LaunchMark.imageset" && eval "$2")
   if check "$copy" >/dev/null 2>&1; then echo "  NOT REFUSED  $1" >&2; fail=1; else echo "  refused      $1"; fi
   rm -rf "$copy"
 }
 check . >/dev/null
 # The copies the violations are planted in must hold every rule before anything is planted, or a refusal would prove nothing.
 clean="$(mktemp -d)"
-rsync -a --exclude .build --exclude .swiftpm --exclude '*.xcodeproj' App Packages Config project.yml "$clean"/
+rsync -a --exclude .build --exclude .swiftpm --exclude '*.xcodeproj' App Packages Config Design project.yml "$clean"/
 check "$clean" >/dev/null 2>&1 || { echo "  the unmodified copy already fails a rule: the demonstration proves nothing" >&2; fail=1; }
 rm -rf "$clean"
 plant_icon "an icon file missing" 'rm icon-1024.png'
 plant_icon "an icon at the wrong size" 'printf "\x00\x00\x01\x00" | dd of=icon-1024.png bs=1 seek=16 conv=notrunc 2>/dev/null'
 plant_icon "an icon with an alpha channel" 'printf "\x06" | dd of=icon-1024.png bs=1 seek=25 conv=notrunc 2>/dev/null'
+plant_launch "a launch mark missing" 'rm purlay-mark.svg'
+plant_launch "a launch mark that has drifted from the logo" 'echo "<!-- drift -->" >> purlay-mark.svg'
+plant_launch "a launch mark at the wrong size" 'sed -i.bak "1s/width=\"120\"/width=\"121\"/" purlay-mark.svg'
 plant "a second iOS floor" Packages/PurlayDesign/Package.swift "// .iOS(.v17)"
 plant "a second purlay-swift pin" Packages/PurlayDesign/Package.swift '// purlay-swift", from: "9.9.9"'
 plant "#available outside PurlayDesign" App/PurlayApp.swift 'func gated() { if #available(iOS 26, *) {} }'
@@ -182,7 +202,7 @@ plant "a transport-security exception in Release" Config/Release.xcconfig "PURLA
 plant "arbitrary loads" App/Resources/Info.plist "<key>NSAllowsArbitraryLoads</key>"
 # A string with no translation: the entry's Turkish is taken out of a copy.
 copy="$(mktemp -d)"
-rsync -a --exclude .build --exclude .swiftpm --exclude '*.xcodeproj' App Packages Config project.yml "$copy"/
+rsync -a --exclude .build --exclude .swiftpm --exclude '*.xcodeproj' App Packages Config Design project.yml "$copy"/
 python3 - "$copy/App/Resources/Localizable.xcstrings" <<'PY'
 import json, sys
 catalogue = json.load(open(sys.argv[1]))

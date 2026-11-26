@@ -3,7 +3,10 @@
 // The App Store refuses an icon that has one, and the system rounds the corners itself, so the picture is a full-bleed
 // square and carries no shape of its own. The logo is transparent around its mark; the white behind it is this script's.
 //
-//   scripts/icon    write App/Resources/Assets.xcassets/AppIcon.appiconset from the logo
+// It also writes the launch screen's mark (LaunchMark.imageset): the logo with its root width and height set to 120, the size
+// PurlayMark has on the first frame, and the viewBox untouched so the padding is the same. scripts/enforcement checks it.
+//
+//   scripts/icon    write AppIcon.appiconset and LaunchMark.imageset (App/Resources/Assets.xcassets) from the logo
 import AppKit
 
 let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
@@ -45,3 +48,26 @@ let contents: [String: Any] = ["images": [entry], "info": ["author": "xcode", "v
 try JSONSerialization.data(withJSONObject: contents, options: [.prettyPrinted, .sortedKeys])
     .write(to: set.appendingPathComponent("Contents.json"))
 print("wrote \(name) to \(set.path)")
+
+let markSet = root.appendingPathComponent("App/Resources/Assets.xcassets/LaunchMark.imageset")
+let markName = "purlay-mark.svg"
+let markSide = 120
+guard var svg = try? String(contentsOf: source, encoding: .utf8), let firstLineEnd = svg.firstIndex(of: "\n") else {
+    fail("\(source.path) cannot be read as text")
+}
+var rootTag = String(svg[..<firstLineEnd])
+for attribute in ["width", "height"] {
+    guard let range = rootTag.range(of: "\(attribute)=\"1024\"") else { fail("the logo's root tag has no \(attribute)=\"1024\"") }
+    rootTag.replaceSubrange(range, with: "\(attribute)=\"\(markSide)\"")
+}
+svg.replaceSubrange(..<firstLineEnd, with: rootTag)
+try FileManager.default.createDirectory(at: markSet, withIntermediateDirectories: true)
+try svg.write(to: markSet.appendingPathComponent(markName), atomically: true, encoding: .utf8)
+let markContents: [String: Any] = [
+    "images": [["filename": markName, "idiom": "universal"]],
+    "info": ["author": "xcode", "version": 1],
+    "properties": ["preserves-vector-representation": true],
+]
+try JSONSerialization.data(withJSONObject: markContents, options: [.prettyPrinted, .sortedKeys])
+    .write(to: markSet.appendingPathComponent("Contents.json"))
+print("wrote \(markName) to \(markSet.path)")
