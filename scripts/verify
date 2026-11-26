@@ -15,8 +15,9 @@
 # for a release, and for a pull request that changes the iOS app. The UI tests sign in against a real server and skip without one.
 #
 # Every build is numbered with the commit count (scripts/build-number), and compilation is cached by content (Xcode's compilation
-# cache) in PURLAY_CACHE_DIR, so a build in a fresh checkout reuses what an earlier one compiled. CI builds with Xcode 27; set
-# DEVELOPER_DIR to select it locally.
+# cache) in PURLAY_CACHE_DIR, so a build in a fresh checkout reuses what an earlier one compiled. PURLAY_DERIVED_DATA, when set,
+# is where xcodebuild puts what it builds (Xcode's own folder otherwise). CI builds with Xcode 27; set DEVELOPER_DIR to select it
+# locally.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
@@ -29,7 +30,7 @@ CAS="${PURLAY_CACHE_DIR:-$HOME/Library/Caches/dev.purlay/compilation-cache}"
 cached() { # xcodebuild arguments, with the compilation cache on
   local log status=0
   log="$(mktemp)"
-  xcodebuild "$@" COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$CAS" COMPILER_INDEX_STORE_ENABLE=NO \
+  xcodebuild ${PURLAY_DERIVED_DATA:+-derivedDataPath "$PURLAY_DERIVED_DATA"} "$@" COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$CAS" COMPILER_INDEX_STORE_ENABLE=NO \
     >"$log" 2>&1 || status=$?
   if [ "$status" -ne 0 ]; then
     grep -E "error:|✘|recorded an issue|Expectation failed|Failing tests|\*\* (TEST|BUILD) FAILED" "$log" | sort -u | head -40 >&2 || true
@@ -41,7 +42,8 @@ cached() { # xcodebuild arguments, with the compilation cache on
 }
 
 built_app() { # scheme configuration [destination]: the path of the app that configuration builds
-  xcodebuild -project "$PROJECT" -scheme "$1" -configuration "$2" ${3:+-destination "$3"} -showBuildSettings 2>/dev/null \
+  xcodebuild ${PURLAY_DERIVED_DATA:+-derivedDataPath "$PURLAY_DERIVED_DATA"} -project "$PROJECT" -scheme "$1" -configuration "$2" \
+    ${3:+-destination "$3"} -showBuildSettings 2>/dev/null \
     | awk -F' = ' '/ BUILT_PRODUCTS_DIR /{print $2; exit}'
 }
 
