@@ -12,6 +12,8 @@ struct WindowActions {
     let browse: () -> Void
     let showDetails: (ChannelDetailTab) -> Void
     let leave: (Channel) -> Void
+    /// Asks before signing this Mac out: what it keeps for the account is forgotten, and the browser is needed to come back.
+    let signOut: () -> Void
 }
 
 extension FocusedValues {
@@ -130,8 +132,8 @@ public struct PurlayCommands: Commands {
             .keyboardShortcut(",")
         }
         CommandGroup(after: .appSettings) {
-            Button("Sign Out") { Task { await model.signOut(.thisDevice) } }
-                .disabled(!ready)
+            Button("Sign Out…") { actions?.signOut() }
+                .disabled(!ready || actions == nil)
         }
         CommandGroup(replacing: .help) {
             if model.chatAvailable {

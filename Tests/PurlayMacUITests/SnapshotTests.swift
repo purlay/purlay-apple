@@ -332,6 +332,51 @@ extension SnapshotTests {
     }
 }
 
+extension SnapshotTests {
+    private func person(_ n: Int, _ name: String) -> User {
+        JSONDecoder.snapshot(
+            User.self,
+            """
+            {"id":"00000000-0000-4000-8000-00000000ab0\(n)","username":"\(name.lowercased())","displayName":"\(name)",\
+            "avatarUrl":null}
+            """)
+    }
+
+    @Test("forwarding a message: the conversations to send it to, and a note")
+    func forward() throws {
+        let m = workspaceWindow()
+        let original = message(1, "Yayın notları", at: 5)
+        _ = try draw(sheet(ForwardSheet(model: m, message: original)), width: 440, height: 520, named: "forward")
+    }
+
+    @Test("adding people to a channel: who can be added, and nobody left to add")
+    func addPeople() throws {
+        let m = workspaceWindow()
+        let general = try #require(m.chat.channels[Uuid("00000000-0000-4000-8000-0000000000c1")!])
+        m.workspacePeople = [person(1, "Ada"), person(2, "Cem"), person(3, "Zeynep")]
+        _ = try draw(
+            sheet(AddPeopleSheet(model: m, channel: general, members: [m.workspacePeople[0].id]) {}), width: 420,
+            height: 480, named: "add-people")
+        _ = try draw(
+            sheet(AddPeopleSheet(model: m, channel: general, members: Set(m.workspacePeople.map(\.id))) {}),
+            width: 420, height: 480, named: "add-people-everybody")
+    }
+
+    @Test("a channel opened around a found message offers the way back to the present")
+    func shortOfPresent() throws {
+        let m = workspaceWindow()
+        let general = Uuid("00000000-0000-4000-8000-0000000000c1")!
+        var chat = m.chat
+        var window = ChannelWindow()
+        window.load(
+            around: [message(1, "Bulunan mesaj", at: 5), message(2, "Sonrası", by: "zeynep", at: 7)],
+            reachesOldest: true, reachesNewest: false)
+        chat.windows[general] = window
+        m.adoptForDrawing(chat: chat, workspace: m.workspace)
+        _ = try draw(MainView(model: m), width: 1100, height: 720, named: "main-short-of-present")
+    }
+}
+
 extension JSONDecoder {
     static func snapshot<T: Decodable>(_ type: T.Type, _ json: String) -> T {
         do { return try JSONDecoder().decode(T.self, from: Data(json.utf8)) } catch { preconditionFailure("\(error)") }

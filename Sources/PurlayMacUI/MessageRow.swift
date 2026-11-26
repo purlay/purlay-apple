@@ -296,6 +296,9 @@ struct MessageRow: View {
             }
             Button("Add Reaction") { picking = true }
             Button("Forward") { forwarding = true }
+            if message.editedAt != nil {
+                Button("Show Edit History") { showingHistory = true }
+            }
             if mine {
                 Button("Edit") { model.beginEdit(message.id) }
             }

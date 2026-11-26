@@ -544,6 +544,7 @@ private struct AccountFooter: View {
     @Environment(\.desktopSessions) private var sessions
     let model: AppModel
     @State private var confirmingEverywhere = false
+    @State private var confirmingSignOut = false
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
@@ -566,7 +567,7 @@ private struct AccountFooter: View {
                 Button("Keyboard Shortcuts", systemImage: "keyboard") { model.shortcutsOpen = true }
             }
             Section {
-                Button("Sign Out") { Task { await model.signOut(.thisDevice) } }
+                Button("Sign Out…") { confirmingSignOut = true }
                 Button {
                     confirmingEverywhere = true
                 } label: {
@@ -598,6 +599,7 @@ private struct AccountFooter: View {
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .padding(Spacing.space3)
+        .modifier(SignOutConfirmation(model: model, isPresented: $confirmingSignOut))
         .confirmationDialog("Sign out on every device?", isPresented: $confirmingEverywhere) {
             Button(role: .destructive) {
                 Task { await model.signOut(.everywhere) }

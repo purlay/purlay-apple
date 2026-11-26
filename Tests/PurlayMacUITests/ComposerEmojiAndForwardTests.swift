@@ -33,6 +33,8 @@ struct EmojiShortcodeTests {
     func matches() throws {
         let rocket = try #require(caretAtEnd(":rocket"))
         #expect(EmojiShortcode.matches(rocket).first?.symbol == "🚀")
+        let rock = try #require(caretAtEnd(":rock"))
+        #expect(EmojiShortcode.matches(rock).first?.symbol == "🚀", "a name that begins so comes before a keyword")
         let thumbs = try #require(caretAtEnd(":thumbs_up"))
         #expect(EmojiShortcode.matches(thumbs).map(\.symbol).contains("👍"))
         let wide = try #require(caretAtEnd(":fa"))

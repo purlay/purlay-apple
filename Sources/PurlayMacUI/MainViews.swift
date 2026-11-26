@@ -12,6 +12,7 @@ struct MainView: View {
     @State private var selection: SidebarSelection?
     @State private var sheet: ChannelSheet?
     @State private var leaving: Channel?
+    @State private var confirmingSignOut = false
     @State private var detailsOpen = false
     @State private var detailsTab = ChannelDetailTab.about
     @State private var forward = true
@@ -67,8 +68,10 @@ struct MainView: View {
                     detailsTab = tab
                     detailsOpen = true
                 },
-                leave: { leaving = $0 })
+                leave: { leaving = $0 },
+                signOut: { confirmingSignOut = true })
         )
+        .modifier(SignOutConfirmation(model: model, isPresented: $confirmingSignOut))
         .onExitCommand {
             if model.paletteOpen {
                 model.paletteOpen = false

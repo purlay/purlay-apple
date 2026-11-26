@@ -41,8 +41,18 @@ enum EmojiShortcode {
         return (head + symbol + tail, query.start + symbol.utf16.count)
     }
 
+    /// What the catalogue finds, those whose name begins with the words first (`:rock` is 🚀 before 🤘, whose keyword it only
+    /// is), each group in the catalogue's order.
     static func matches(_ query: Query) -> [ReactionEmoji] {
-        Array(ReactionEmojiCatalog.matching(query.words.replacingOccurrences(of: "_", with: " ")).prefix(shownMax))
+        let words = query.words.replacingOccurrences(of: "_", with: " ")
+        let found = ReactionEmojiCatalog.matching(words)
+        let named = found.filter {
+            $0.name.range(of: words, options: [.anchored, .caseInsensitive, .diacriticInsensitive]) != nil
+        }
+        let rest = found.filter {
+            $0.name.range(of: words, options: [.anchored, .caseInsensitive, .diacriticInsensitive]) == nil
+        }
+        return Array((named + rest).prefix(shownMax))
     }
 
     /// Letters of any script (a Turkish name is a name), digits, and the joiners names are written with.
