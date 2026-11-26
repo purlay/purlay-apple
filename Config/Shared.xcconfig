@@ -4,8 +4,8 @@
 // file on top (iOS.xcconfig, macOS.xcconfig, and the iOS test bundles'), which wins over what is here.
 
 PRODUCT_NAME = Purlay
-// The build number is the commit count, so that it only grows (Sparkle compares it; the Mac's v0.3.0 is build 10). scripts/verify
-// and the release scripts write it into BuildNumber.xcconfig, which git ignores; a build without it is a development build.
+// The build number is the commit count, so that it only grows above the last build shipped (Sparkle compares it; scripts/build-number
+// states that build). scripts/verify and the release scripts write it into BuildNumber.xcconfig, which git ignores; a build without it is a development build.
 CURRENT_PROJECT_VERSION = 1
 #include? "BuildNumber.xcconfig"
 

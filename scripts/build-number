@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # The build number is the number of commits on the checked-out history: it only grows, which Sparkle needs (it compares build
-# numbers, and the Mac's v0.3.0 is build 10). Written into Config/BuildNumber.xcconfig, which git ignores and Shared.xcconfig
-# includes; scripts/verify and a release run this before they build.
+# numbers, and every build must be above the last one shipped, SHIPPED below). Written into Config/BuildNumber.xcconfig, which git
+# ignores and Shared.xcconfig includes; scripts/verify and a release run this before they build.
 #
-#   scripts/build-number        write it, and say it
+#   scripts/build-number            write it, and say it
+#   scripts/build-number --shipped  say the last build shipped, the one place it is stated (scripts/sign-release asks here)
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 # The last build the Mac shipped from purlay-macos (v0.3.0). A smaller number would never be offered as an update.
 SHIPPED=10
+if [ "${1:-}" = "--shipped" ]; then echo "$SHIPPED"; exit 0; fi
 
 # A shallow clone counts only the commits it fetched, which would number a build below one already shipped.
 if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
