@@ -1,0 +1,27 @@
+name: Feature
+description: Something the app should do that it does not.
+labels: ["type: feature"]
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where
+      options: [iPhone or iPad, Mac, Both]
+    validations:
+      required: true
+  - type: textarea
+    id: job
+    attributes:
+      label: What you are trying to get done
+      description: The situation and the outcome you want, not the button you imagine.
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What you do today instead
+  - type: textarea
+    id: done
+    attributes:
+      label: How we will know it works
+      description: Given … when … then …, as the requirements in docs/product/requirements.md are written.

@@ -1,0 +1,140 @@
+# Requirements: Purlay for Apple platforms
+
+> Last updated: 2026-11-26 · Vision: [vision.md](vision.md) · The Mac's behaviour in detail: [mac-behaviour.md](mac-behaviour.md) ·
+> Screen designs: [../design/](../design/)
+
+Statuses: Draft, Approved, In progress, Done, Blocked, Cancelled. Priorities: MVP, Next, Later, Maybe.
+
+Identifiers are grouped by where the requirement lives: **FR-001 to FR-099** the iPhone and iPad app, **FR-101 to FR-199** the
+Mac app, **FR-201 to FR-299** the shared engine (`PurlayKit`, `PurlayContract`, `PurlayTokens`, `PurlayTestSupport`), which both
+apps use. Where a test is named: *engine* tests are in `Tests/PurlayKitTests` (or the target the name says), *app* tests in
+`Apps/iOS/Tests/PurlayTests`, *Mac UI* tests in `Tests/PurlayMacUITests`, *UI* tests in `Apps/iOS/Tests/PurlayUITests`.
+
+## iPhone and iPad
+
+| ID | Requirement | Acceptance criteria (Given / When / Then) | Priority | Status |
+|----|-------------|-------------------------------------------|----------|--------|
+| FR-001 | Launch and handshake | Given no stored session, when the app launches, then it asks the server who it is and shows the sign-in screen. Test: engine "at launch with no session kept…"; UI `testTheServersSignInPageOpensAndCancellingReturnsToSignedOut` (needs a server) | MVP | Done |
+| FR-002 | Say what stands between the app and the server | Given the server is unreachable, is not a Purlay server, is rate-limiting this address, needs a newer app, or is older than the app supports, when the app checks it, then a problem screen shows and nothing else is asked, in words for a person (never the case's description or the server's own text), with a Try Again button that asks once however fast it is tapped. Tests: engine "a server that cannot be reached, is not a Purlay server…", "…needs a newer app, and one older…"; app `RootScreenTests` | MVP | Done |
+| FR-003 | Sign in through the system browser | Given the signed-out screen, when the person taps Sign In, then the server's page opens in the system browser session; when they approve, the app exchanges the one-time code (PKCE) and reaches the signed-in screen; when they close the page, nothing is said and they stay signed out; when the server refuses the code, that is said and they can try again. Tests: engine "closing the page ends it quietly…", "a code the server does not know is said…"; UI sign-in test | MVP | Done |
+| FR-004 | Resume a stored session | Given a session kept in the Keychain, when the app launches, then the person goes straight to their workspace; given the session ended while the app was away, then that is said and they sign in again. Tests: engine "with a session kept the person goes straight…", "a session that ended while the app was away…"; UI `testAStoredSessionOpensTheSignedInScreen` (needs a server) | MVP | Done |
+| FR-005 | Identify as an iOS client | Given any request or socket upgrade, then it carries `X-Purlay-Client: ios/<version> contract/<n>`, so the server labels the session `Purlay for iOS/…`. Tests: app `EnvironmentTests`; engine `ClientHeaderTests` | MVP | Done |
+| FR-006 | Development server in Debug only | Given a Debug build and `PURLAY_DEV_SERVER`, when the app launches, then it talks to that server, plain HTTP allowed for a local address; given a Release build, then it talks only to the hosted address over HTTPS with App Transport Security strict. Tests: app `EnvironmentTests` ("which server a build talks to (FR-006)"); the strict ATS is held by `scripts/enforcement` | MVP | Done |
+| FR-007 | Show only the modules a workspace may use | Given a registry of features, when the workspace allows a set of module ids, then the features of those ids are shown in the registry's order; an id the build does not know is ignored; a core-only workspace shows nothing. Tests: `ModuleRegistryTests`. Not yet built into the app (FR-020) | MVP | In progress |
+| FR-008 | Floating surfaces in the system's glass | Given a floating control or panel, when it is drawn on iOS 26 or later, then it is Liquid Glass; on iOS 18–25 a system material in the same shape. Test: `SurfaceTests` builds every role and shape; the look is checked by eye (no snapshot tests on iOS yet) | MVP | Done |
+| FR-009 | The entry screens of the design | Given each phase before a workspace (launch, connecting, a problem, signed out, two-step verification required, no workspace), then it has the screen [the entry design](../design/entry-shell-account.md) gives it. Done: the launch screen, connecting and Welcome, and the decisions for two-step and no workspace (`RootScreenTests`). To do: the Problem screen's design, the two-step and no-workspace screens, the notice banners in glass | MVP | In progress |
+| FR-020 | Shell: adaptive navigation and workspace switcher | Given a signed-in person, when the app is ready, then enabled modules appear as a tab bar on iPhone and a sidebar on iPad, and the person can switch workspace. Empty (no module), loading and error states exist | MVP | Draft |
+| FR-021 | Chat: channel list and message feed | Given a workspace with chat enabled, when the person opens Chat, then channels list with unread state, opening one shows its messages newest at the bottom, older ones load by cursor, and a channel with no messages says so | MVP | Draft |
+| FR-022 | Chat: send a message | Given an open channel, when the person sends text, then it is painted at once and reconciled when the server echoes; a refused or failed send stays visible as failed with retry; space-only text is not sent; a second tap does not send twice | MVP | Draft |
+| FR-023 | Sign out | Given a signed-in person, when they sign out on this device or everywhere, then the server's session ends, the socket closes, the credential is removed and the sign-in screen shows; with no network this device still signs out and says the server was not told | MVP | Draft |
+| FR-024 | Turkish and English | Given a device set to Turkish or English, then every sentence on the app's screens is in that language, and the date and the version in a sentence are written for it. Tests: `WordsTests`; `scripts/enforcement` refuses a catalogue entry with no translation | MVP | Done for the screens that exist |
+| FR-025 | Choose the server | Given the signed-out screen in a Release build, when the person enters their own server's address, then the app accepts only an HTTPS address that answers as a Purlay server, remembers it, and signs in there; a plain-HTTP, malformed or non-Purlay address is refused with a message | Next | Draft |
+| FR-030 | Closed-app notifications (APNs) | Given a registered device, when a message arrives that the person's Deep Work and quiet hours allow, then the device is notified. Needs a server endpoint and sender first | Next | Draft |
+| FR-031 | Issues module | Given a workspace with issues enabled, then an Issues section appears through the registry with no change to Chat | Next | Draft |
+| FR-032 | Inbox, search, profile and settings | Given a signed-in person, then they can read their inbox, search, and edit their profile and settings, as the web client can | Next | Draft |
+
+## Mac
+
+| ID | Requirement | Acceptance (Given / When / Then) | Priority | Status | Test |
+|----|-------------|----------------------------------|----------|--------|------|
+| FR-101 | Sign in through the system browser; the session lives in the Keychain | Given no session, when the person signs in at the server's page and it redirects to `purlay://auth`, then the app holds a session until sign-out; given they close the browser, then no failure is shown | MVP | Done | engine `HandoffTests`, `SessionCookieTests`, `ServerAddressTests`, `KeychainSessionStoreTests`; live `LiveSignInTests`; Mac UI `PurlayUITests`, snapshot of the sign-in page |
+| FR-102 | Refuse a server the app cannot read, and say why | Given a server older than 0.5.0, an unsupported contract, or a newer minimum client, when the app connects, then it stops with the reason | MVP | Done | engine `HandshakeTests`; Mac UI `PurlayUITests` |
+| FR-103 | Channels, direct messages, messages, threads and reactions | Given a workspace, when the person opens a channel, then its messages show with threads beside them and reactions they can add from 217 standard emoji, with search in English and Turkish and recents | MVP | Done | engine `ChannelFeatureTests`, `ChatStateTests`, `ChannelWindowTests`; Mac UI `ReactionEmojiTests`, snapshot of the signed-in window |
+| FR-104 | Realtime with replay, and a durable outbox | Given a connection that drops, when it returns, then the client replays from its cursors and misses nothing; given a send while offline, then it is kept across a relaunch and retried, and a failed send shows with Retry | MVP | Done | engine `ConnectionTests`, `ConnectionReplayTests`, `OutboxStoreTests`, `SendCoordinatorTests`; live `LiveSocketTests` |
+| FR-105 | Inbox with All, Mentions, DMs and Threads filters, and unread | Given a server that advertises type filters, when the person picks Threads, then replies and resolutions load from the server; given one that does not, then filtering is local; Mark All Read changes only visible rows | MVP | Done | engine `InboxTests`, `InboxModelTests` |
+| FR-106 | Open Topics: unresolved conversations across the workspace | Given unresolved threads, when the person opens Open Topics, then they list with channel filter, paging and Resolve, and opening a row goes to its thread without marking the channel read | Later | Done | engine `UnresolvedTests` |
+| FR-107 | Deep Work | Given a focus session, when it is on, then interruptions are quiet, and when it ends the person returns to what needs them | MVP | Done | engine `DeepWorkTests` |
+| FR-108 | Saved messages, and drafts | Given a saved message, when the person completes, archives or restores it, then the state changes on every device; an unfinished message is a draft they can return to | MVP | Done | engine `SavedListTests`, `SavedPinnedTests`, `DraftsTests` |
+| FR-109 | Search with channel and author filters and recents | Given filters, when the person pages through results, then every page keeps the filters; recents keep theirs per server, account and workspace and can be cleared | MVP | Done | engine `SearchModelTests` |
+| FR-110 | Scheduled messages, with Send Now | Given a server with `scheduledMessages`, when the person schedules after uploads finish, then it is confirmed once across retries and the draft clears only then; Send Now sends it | Later | Done | engine `ScheduledTests` |
+| FR-111 | Reminders | Given a server with `messageReminders`, when the person picks Remind Me, then a private reminder is set, listed, changeable and cancellable, and a macOS notification carries a deep link and no message content | Later | Done | engine `ReminderTests`; the system notification by hand |
+| FR-112 | Issues and Updates | Given a workspace whose server runs the module, when the person opens Issues or the inbox's Updates tab, then they list with loading, empty and failed states; an unknown module's notice is only read | Later | Done | engine `IssuesTests`, `InboxUpdatesTests`, `ModulesTests`; Mac UI snapshots of both |
+| FR-113 | Organize the sidebar | Given custom groups, when the person adds, renames, reorders or removes one, then conversations keep their membership and the server keeps the groups | Later | Done | engine `SidebarTests`, `SidebarLayoutTests` |
+| FR-114 | Conversation windows | Given a conversation, when opened in its own window, then it has its own navigation, thread and search while sharing one socket and outbox; closing it leaves the session running | Later | Done | engine `ConversationWindowTests` |
+| FR-115 | App links | Given `purlay://open?url=…` or a pasted permalink, when it is opened, then the matching workspace opens after sign-in; an inaccessible or foreign-server link shows an error; a newer link supersedes a pending one | Later | Done | engine `ConversationLinkTests` |
+| FR-116 | Settings, profile editing and workspace-aware administration | Given a role, when the person opens Settings, then owners and admins see workspace pages, owners see data, members see device and account settings, and a server admin sees Server Settings; changing name, title, status and time zone saves to the server | Later | Done | engine `SettingsPageTests`, `ProfileTests`; Mac UI snapshot of the profile editor |
+| FR-117 | Tell the person what needs them: Dock badge and notices | Given activity while the window is not in front, when there is something new, then a badge and a notice show, permission is asked the first time, and the notice never carries message content | MVP | Done | engine `AttentionTests`, `AttentionModelTests`; the permissions by hand |
+| FR-118 | Update in place | Given a newer release, when the person checks (or automatic checks run), then Sparkle verifies the signed feed, notes and archive before extraction and installs | MVP | Done | the release workflow verifies every signature; the update itself by hand (TD-014) |
+| FR-119 | English and Turkish | Given a Mac set to Turkish, when the app runs, then every string is Turkish; a string without a final Turkish value fails the check | MVP | Done | `scripts/localize --check` |
+| FR-120 | Appearance and accessibility | Given Reduce Transparency, Increase Contrast, Reduce Motion, or the Liquid Glass switch off, then the app draws solid, high-contrast, still; text and the hover stay readable in light and dark | MVP | Done | Mac UI `NativePaletteTests`, `TokenBindingTests`, `FloatingPanelTests` |
+| FR-121 | Slash commands in the message box | Given `/me`, `/shrug`, `/mute`, `/unmute`, `/star`, `/unstar`, `/invite`, `/leave`, `/deepwork` or `/search`, then a list follows the typing and the command runs; `//text` sends a message that starts with a slash | Later | Done | engine `SlashCommandTests` |
+| FR-122 | A workspace whose server has chat off still opens | Given a server with chat off, when the workspace opens, then it offers profile, members, invitations and data pages in the browser, hides the chat menus, and says chat is off for a conversation link | Later | Done | Mac UI snapshot (a workspace without chat); engine `ConversationLinkTests` |
+| FR-123 | A person at the keyboard is not shown as away | Given the app in front, when the person uses it, then the server is told, at most once a minute per workspace; an app in the background starts no work of its own | MVP | Done | engine `AwayTests`, `IdleBudgetTests` |
+| FR-124 | Delete a message for me, or for everyone | Given a server with `personalMessageDeletion`, when the person chooses, then Delete for Me hides it everywhere for them only, and Delete for Everyone follows the server's rule; failures keep the message | Later | Done | engine `PersonalDeletionTests` |
+| FR-125 | Followed threads | Given followed threads, when the person opens them, then they list | Maybe | Blocked: the contract has no endpoint | — |
+
+## Shared engine
+
+| ID | Requirement | Acceptance (Given / When / Then) | Priority | Status | Test |
+|---|---|---|---|---|---|
+| FR-201 | Every wire type reads what the server sends and writes it back unchanged | Given the pinned bundle's examples, when each schema decodes its examples and encodes them again, then the result equals the input | MVP | Done | `PurlayContractTests` |
+| FR-202 | Generated code is exactly what the generator writes from the pinned bundle | Given `Contract/bundle` is the one `Contract/contract.lock` names, when `scripts/generate --check` runs, then it fails on any difference between disk and output | MVP | Done | `scripts/verify generated`; the generator's `PurlayGenCoreTests` |
+| FR-203 | Tokens are the file's values and readable | Given `tokens.json`, when the colour pairs are checked, then each pair is readable in light and in dark, and each value equals the file's | MVP | Done | `PurlayTokensTests` |
+| FR-204 | The app refuses a server it cannot serve, and says why | Given a server whose minimum contract is newer, or whose version is older than the oldest read, when the handshake runs, then the result is "too new" or refused; given no minimum or an unreadable one, then it does not refuse on it | MVP | Done | `HandshakeTests` |
+| FR-205 | A typed server address becomes one origin, safely | Given text typed by a person, when it is read, then it becomes an `https` origin (equal spellings are equal); `http` is accepted only for this machine in a development build; credentials, paths, other schemes and bad ports are refused with the reason | MVP | Done | `ServerAddressTests` |
+| FR-206 | Sign-in goes through the system browser and keeps no password | Given a sign-in, when it runs, then the browser gets new values each time, a callback that is not the server's or whose code is not a code is dropped, and closing the page ends it with nothing sent or kept | MVP | Done | `PurlayTestSupportTests` (`NativeSignInTests`) |
+| FR-207 | The session is read from the server's header and kept per server in the Keychain | Given a `Set-Cookie` header (several cookies, with or without `Max-Age`), when read, then the session and its end are found; given two servers, then each has its own session and removing one leaves the other | MVP | Done | `SessionCookieTests`, `KeychainSessionStoreTests` |
+| FR-208 | The realtime connection replays from its cursor without losing or skipping | Given a replay that has more to come, when a live frame beyond the page arrives, then it is delivered but the cursor does not move until the replay finishes; a new connection starts from its own replay | MVP | Done | `ConnectionReplayTests`, `ConnectionTests` |
+| FR-209 | A message is on screen at once, and a failed send is never dropped | Given an open socket, when a message is sent, then it shows as sending before anything leaves; no ACK in three seconds marks it failed and Retry sends the same id again; only a failed message can be retried or discarded | MVP | Done | `SendCoordinatorTests` |
+| FR-210 | Unsent messages survive and stay one person's | Given the outbox, when it keeps messages, then they come back as they went, within the web's bounds (newest fifty), and what one person kept is never found or sent as another's | MVP | Done | `OutboxStoreTests` |
+| FR-211 | Signing out lets everything go | Given a session of use, when the person signs out, then nothing of theirs is held, and a second person on the same device sees none of the first's | MVP | Done | `SignOutLeakTests` |
+| FR-212 | An idle app costs nothing | Given a signed-in app waiting for nothing, when ten minutes pass, then it holds only the heartbeat and its watchdog as timers and asks the server for nothing over HTTP | MVP | Done | `IdleBudgetTests` |
+| FR-213 | Each request names its platform | Given a platform, when a request is built, then `X-Purlay-Client` names that platform, and macOS when none is given | MVP | Done | `ClientHeaderTests` |
+| FR-214 | An upload is checked before it is sent, and its failure says what it means | Given a file, when it is empty or past the limit, then it is refused before sending; each server answer is said as what it means; Retry is offered only when trying again can differ | MVP | Done | `UploadRulesTests` |
+| FR-215 | The real client works against a real server of the pinned version | Given a server of the version in `Contract/contract.lock`, when the live tests run, then sign-in, reads, engine, features and socket pass | Next | Partly: by hand, not in CI (TD-017) | `ContractTests/` through `scripts/contract-test` |
+| FR-216 | The apps' code can be tested without a server | Given `PurlayTestSupport`, when a package test scripts a transport or fakes a store, then the engine behaves as against a server | MVP | Done | `PurlayTestSupportTests` |
+
+## Non-functional requirements
+
+| ID | Area | Applies? | Target | Verified by |
+|----|------|----------|--------|-------------|
+| NFR-PERF | Performance budget | Yes | iOS: cold load to an interactive channel under 1.5 s (warm cache), own message painted in under 16 ms and never awaiting the network, channel switch under 100 ms (the server's budget). Both: an idle signed-in app holds two timers (heartbeat, watchdog) and makes no HTTP request in ten minutes; a Mac window not in front starts no work of its own | `IdleBudgetTests` (they block, not warn); the iOS budget on a device once chat ships |
+| NFR-SEC | Security | Yes | No password or web view in the app; the session only in the Keychain; PKCE bound to a secret the app keeps; ATS strict in Release; the Mac sandboxed with exactly the allowlisted entitlements, declared and signed; signed and notarized Mac releases; an Ed25519-signed update feed, notes and archive; no secret in the history; no third-party code beyond Sparkle | `scripts/enforcement`, `scripts/verify macos`, `scripts/verify security`, the release workflow's signature checks |
+| NFR-PRIV | Privacy (GDPR) | Yes | The apps hold only the session, preferences, drafts and the outbox, scoped by server, account and workspace; no analytics or tracking SDK; a notice never carries what was said; reminders carry a deep link and no content; logs carry ids and codes, not content; the iOS privacy manifest declares every required-reason API the code uses | `PrivacyManifestTests`, `scripts/enforcement` (required-reason APIs), `AttentionTests`, `SignOutLeakTests`; the collected-data declaration is A-004 |
+| NFR-A11Y | Accessibility | Yes | Every control labelled; Dynamic Type through AX5 with no clipping; Reduce Transparency, Increase Contrast and Reduce Motion honoured; 44 pt targets on iOS; VoiceOver | Mac UI `NativePaletteTests`; iOS screens seen at the largest accessibility size; `performAccessibilityAudit` once there are more screens; VoiceOver by ear (unverified) |
+| NFR-I18N | i18n / l10n | Yes | English and Turkish, complete, with the same format specifiers; one string catalogue per app | `scripts/localize --check` (Mac), `scripts/enforcement` and `WordsTests` (iOS) |
+| NFR-OBS | Observability | Partly | No telemetry by design; the server's logs are the record. The engine's `Log` and `Diagnostics` give what an app can show a person who reports a problem. Crash reports come from Apple's channel once distributed | `DiagnosticsTests`, `DiagnosticsModelTests` |
+| NFR-OFF | Offline / sync | Yes | Sends survive a lost connection and a relaunch (outbox) and replay on reconnect; iOS needs a cached channel list and recent messages for cold start (A-003) | `OutboxStoreTests`, `ConnectionReplayTests` |
+| NFR-REC | Failure and recovery | Yes | A server problem, an ended session, a failed load and a failed send are each shown and recoverable (Try Again, Retry, sign in again); no RPO/RTO: the apps hold no source of truth | engine tests; `LoadFailureTests`; Mac UI snapshot of a channel that could not be loaded |
+| NFR-VER | Versioning and compatibility | Yes | iOS 18 and macOS 26 floors, one number each; reads servers from 0.5.0, speaks the contract of the pinned server (0.8.0); the server's minimum-client gate refuses an app that is too old with a message (an `ios` gate is Q-003) | `HandshakeTests`, `scripts/enforcement` |
+| NFR-COST | Cost and speed of change | Yes | A pull request is mergeable within 3 minutes and a release ships within 10; CI fits the free plan's 5 concurrent macOS jobs | the timing summary of every run ([ci.md](../development/ci.md)) |
+| NFR-SCALE | Scale | No: one person's device | — | — |
+
+## Assumptions
+
+| ID | Assumption | Rationale | Impact | Status |
+|----|-----------|-----------|--------|--------|
+| A-001 | Bundle id `dev.purlay.ios` and the `purlay://auth` scheme are final | The scheme is fixed by the server (`NATIVE_REDIRECT`); the Mac shares it, which is safe because the platforms differ | Medium | Approved |
+| A-002 | The iOS screens are SwiftUI with no UIKit | No measured need yet; UIKit appears only where a system API asks for it | Low | Approved |
+| A-003 | The local store for cold start on iOS is decided by a replay spike before chat ships | Needs measurement against the replay protocol | Medium | Proposed |
+| A-004 | The iOS privacy manifest's collected data (name, email address, user id, other user content: linked to the person, for app functionality, never for tracking) is what the hosted server receives from the app. The device's name goes to the server as a session label and is not declared as an identifier | Read from what the app sends | High for release: App Store Connect repeats the declaration, and the two must match | Proposed: the owner confirms before the first submission |
+| A-005 | The iOS icon is the owner's logo on a white square | The logo is light blue on transparency and the App Store refuses transparency; the Mac icon sits on white too | Low | Proposed |
+| A-006 | The hosted service at purlay.app is the only server Mac release builds talk to | Mac changelog 0.3.0, `ServerAddress.hosted` | High | Confirmed by the code; the intent is Q-007 |
+| A-007 | One maintainer owns every area | `.github/CODEOWNERS` | Low | Confirmed |
+| A-008 | The engine stays free of third-party dependencies | `scripts/enforcement` refuses any package dependency | High | Confirmed |
+| A-009 | The server's contract moves rarely enough to move the pin deliberately | The lock names one server release; a weekly workflow reports drift | Low | Proposed |
+
+## Open questions
+
+| ID | Question | Owner | Target date | Answer / decision |
+|----|----------|-------|-------------|-------------------|
+| Q-001 | On what licensing basis may an iOS build be released (App Store terms against the AGPL; the CLA relicensing route)? Blocks TD-005 | Owner | Before the first TestFlight | Open (server D-338) |
+| Q-002 | What adoption and retention targets (weekly active people) and dates should the vision carry, per platform? | Owner | Before the first iOS release | Open |
+| Q-003 | Does the server get a minimum-client gate for `ios` (`MIN_CLIENT_*` names macOS only)? Until it does, `Handshake.evaluate` reads the macOS minimum for an iOS app too, so a server that raises the macOS minimum above the iOS app's version refuses it (P-10) | Owner | Before the first iOS release | Open |
+| Q-004 | Is a white background right for the iOS icon (A-005), and should there be a dark and a tinted icon (TD-010)? | Owner | Before the first TestFlight | Open |
+| Q-005 | Why Apple silicon only on the Mac, and why the macOS 26 floor rather than lower? ADR 0002 records the decision; the weighing of the alternatives was not recorded | Owner | — | Open |
+| Q-006 | Comments in the Mac code cite sections and milestones of a plan that is not in the repository (TD-011). Should its rules become ADRs, or the citations simply go? | Owner | — | Open |
+| Q-007 | Is sign-in at purlay.app only permanent on the Mac, or will self-hosted servers return? It decides whether the Mac keeps the server-address code, and whether FR-025 is shared | Owner | — | Open |
+| Q-008 | Should the live contract tests run in CI (TD-017), and who pays the macOS minutes? Proposed: in the release workflows only | Owner | Before the next contract pin | Open |
+
+The proposals P-1 to P-11 (account deletion, App Review requirements, the wipe on sign-out, the `ios` gate, legal addresses per
+server) are in [the entry design](../design/entry-shell-account.md#proposals-and-open-questions-for-the-owner-do-not-block-slice-1).
+
+## Out of scope
+
+- Mac Catalyst; a watchOS or visionOS target before its own design.
+- Dynamic or downloaded modules; client-side message encryption.
+- Hosting or administering a server (opened in the browser).
+- Intel Macs; macOS before 26.
+- Anything that changes the contract here: it changes in the server repository first.
+- A public SDK of the engine for third parties.

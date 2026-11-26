@@ -1,0 +1,132 @@
+#!/usr/bin/env swift
+// Both apps' icons, and the iOS launch screen's mark, made from the logo (Design/purlay.svg). The logo is a vector, so each size is
+// drawn from it and not scaled down from a larger picture, which keeps the small sizes sharp.
+//
+// - The Mac: the mark is drawn into the macOS icon shape (a rounded square of 824 on a 1024 canvas, transparent around it), at every
+//   size the asset catalog asks for. A full-bleed square would be put in a grey plate by the system; this shape is shown as it is.
+// - iOS: the mark on a white square, 1024 by 1024, with no alpha channel. The App Store refuses an icon that has one, and the system
+//   rounds the corners itself, so the picture is a full-bleed square and carries no shape of its own. The logo is transparent around
+//   its mark; the white behind it is this script's.
+// - The iOS launch mark (LaunchMark.imageset): the logo with its root width and height set to 120, the size PurlayMark has on the
+//   first frame, and the viewBox untouched so the padding is the same. scripts/enforcement checks it.
+//
+//   scripts/icon    write the icon sets and the launch mark (Apps/*/App/Resources/Assets.xcassets) from the logo
+import AppKit
+
+let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+let source = root.appendingPathComponent("Design/purlay.svg")
+let macCatalog = root.appendingPathComponent("Apps/macOS/App/Resources/Assets.xcassets")
+let iosCatalog = root.appendingPathComponent("Apps/iOS/App/Resources/Assets.xcassets")
+
+func fail(_ message: String) -> Never {
+    FileHandle.standardError.write(Data("FAIL: \(message)\n".utf8))
+    exit(1)
+}
+
+guard let logo = NSImage(contentsOf: source), logo.size.width > 0, logo.size.height > 0 else {
+    fail("\(source.path) cannot be read as a picture")
+}
+
+func png(_ context: CGContext) -> Data {
+    guard let image = context.makeImage(),
+        let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
+    else { fail("the picture cannot be written as a PNG") }
+    return png
+}
+
+func draw(_ rect: CGRect, into context: CGContext) {
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+    logo.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+    NSGraphicsContext.restoreGraphicsState()
+}
+
+func writeJSON(_ object: [String: Any], to url: URL) throws {
+    try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]).write(to: url)
+}
+
+guard let sRGB = CGColorSpace(name: CGColorSpace.sRGB) else { fail("no sRGB colour space") }
+let white = CGColor(red: 1, green: 1, blue: 1, alpha: 1)
+
+// The Mac. The mark sits in the middle of the logo's square with a wide margin; the middle 83 % is kept so the mark fills the shape
+// as Apple's own icons do, and the margin stays the logo's own (transparent, so the shape's white shows).
+let keep = 0.83
+
+func renderMac(_ pixels: Int) -> Data {
+    let scale = Double(pixels) / 1024
+    guard
+        let context = CGContext(
+            data: nil, width: pixels, height: pixels, bitsPerComponent: 8, bytesPerRow: 0,
+            space: sRGB, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+    else { fail("no drawing context") }
+    context.interpolationQuality = .high
+    let shape = CGRect(x: 100 * scale, y: 100 * scale, width: 824 * scale, height: 824 * scale)
+    let radius = 185.4 * scale
+    context.addPath(CGPath(roundedRect: shape, cornerWidth: radius, cornerHeight: radius, transform: nil))
+    context.clip()
+    context.setFillColor(white)
+    context.fill(shape)
+    // The logo's square, enlarged so that its middle 83 % is the shape.
+    let side = shape.width / keep
+    draw(CGRect(x: shape.midX - side / 2, y: shape.midY - side / 2, width: side, height: side), into: context)
+    return png(context)
+}
+
+let macSet = macCatalog.appendingPathComponent("AppIcon.appiconset")
+try? FileManager.default.removeItem(at: macSet)
+try FileManager.default.createDirectory(at: macSet, withIntermediateDirectories: true)
+var macImages: [[String: String]] = []
+for points in [16, 32, 128, 256, 512] {
+    for scale in [1, 2] {
+        let name = "icon_\(points)x\(points)\(scale == 2 ? "@2x" : "").png"
+        try renderMac(points * scale).write(to: macSet.appendingPathComponent(name))
+        macImages.append(["idiom": "mac", "size": "\(points)x\(points)", "scale": "\(scale)x", "filename": name])
+    }
+}
+try writeJSON(["images": macImages, "info": ["author": "xcode", "version": 1]], to: macSet.appendingPathComponent("Contents.json"))
+try writeJSON(["info": ["author": "xcode", "version": 1]], to: macCatalog.appendingPathComponent("Contents.json"))
+print("wrote \(macImages.count) sizes to \(macSet.path)")
+
+// iOS. An opaque context: its alpha byte is skipped, so the picture has no alpha channel to write.
+let side = 1024
+guard
+    let iosContext = CGContext(
+        data: nil, width: side, height: side, bitsPerComponent: 8, bytesPerRow: 0,
+        space: sRGB, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)
+else { fail("no drawing context") }
+iosContext.interpolationQuality = .high
+let canvas = CGRect(x: 0, y: 0, width: side, height: side)
+iosContext.setFillColor(white)
+iosContext.fill(canvas)
+draw(canvas, into: iosContext)
+
+let iosSet = iosCatalog.appendingPathComponent("AppIcon.appiconset")
+let iosName = "icon-1024.png"
+try FileManager.default.createDirectory(at: iosSet, withIntermediateDirectories: true)
+try png(iosContext).write(to: iosSet.appendingPathComponent(iosName))
+let iosEntry: [String: String] = ["filename": iosName, "idiom": "universal", "platform": "ios", "size": "1024x1024"]
+try writeJSON(["images": [iosEntry], "info": ["author": "xcode", "version": 1]], to: iosSet.appendingPathComponent("Contents.json"))
+print("wrote \(iosName) to \(iosSet.path)")
+
+// The iOS launch mark.
+let markSet = iosCatalog.appendingPathComponent("LaunchMark.imageset")
+let markName = "purlay-mark.svg"
+let markSide = 120
+guard var svg = try? String(contentsOf: source, encoding: .utf8), let firstLineEnd = svg.firstIndex(of: "\n") else {
+    fail("\(source.path) cannot be read as text")
+}
+var rootTag = String(svg[..<firstLineEnd])
+for attribute in ["width", "height"] {
+    guard let range = rootTag.range(of: "\(attribute)=\"1024\"") else { fail("the logo's root tag has no \(attribute)=\"1024\"") }
+    rootTag.replaceSubrange(range, with: "\(attribute)=\"\(markSide)\"")
+}
+svg.replaceSubrange(..<firstLineEnd, with: rootTag)
+try FileManager.default.createDirectory(at: markSet, withIntermediateDirectories: true)
+try svg.write(to: markSet.appendingPathComponent(markName), atomically: true, encoding: .utf8)
+let markContents: [String: Any] = [
+    "images": [["filename": markName, "idiom": "universal"]],
+    "info": ["author": "xcode", "version": 1],
+    "properties": ["preserves-vector-representation": true],
+]
+try writeJSON(markContents, to: markSet.appendingPathComponent("Contents.json"))
+print("wrote \(markName) to \(markSet.path)")

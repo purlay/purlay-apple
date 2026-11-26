@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Before a commit, in a few seconds: the staged Swift files are formatted, and the staged changes hold no secret. CI checks the same
+# things over the whole tree and the whole history; this finds them before they are committed. Installed by `make setup`
+# (scripts/dev/install-hooks). Skipping it (`git commit --no-verify`) skips nothing in CI.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+# Staged Swift files, as the format lane chooses them: generated code and build products are not linted.
+swift_files=()
+while IFS= read -r -d '' file; do
+  case "$file" in */Generated/* | */.build/*) continue ;; esac
+  swift_files+=("$file")
+done < <(git diff --cached --name-only --diff-filter=ACMR -z -- '*.swift')
+if [ "${#swift_files[@]}" -gt 0 ]; then
+  # The staged content, not the working copy: a fix left unstaged must not pass for one that is committed.
+  work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
+  for file in "${swift_files[@]}"; do
+    mkdir -p "$work/$(dirname "$file")"
+    git show ":$file" > "$work/$file"
+  done
+  cp .swift-format "$work/"
+  (cd "$work" && xcrun swift-format lint --strict --parallel "${swift_files[@]}") \
+    || { echo "pre-commit: format the files above (xcrun swift-format format -i FILE), stage them, and commit again" >&2; exit 1; }
+fi
+
+version="$(sed -n 's/^VERSION=//p' scripts/install-gitleaks)"
+gitleaks="$(command -v gitleaks || true)"
+[ -n "$gitleaks" ] && [ "$("$gitleaks" version 2>/dev/null | head -n 1)" = "$version" ] \
+  || gitleaks="${GITLEAKS_HOME:-$HOME/.local/share/purlay/gitleaks-$version}/gitleaks"
+[ -x "$gitleaks" ] || { echo "pre-commit: gitleaks $version is not installed; run make setup" >&2; exit 1; }
+"$gitleaks" git --pre-commit --staged --no-banner --redact --verbose --log-level warn \
+  || { echo "pre-commit: a secret is staged; unstage it, and if it was ever pushed, docs/runbooks/leaked-secret.md" >&2; exit 1; }

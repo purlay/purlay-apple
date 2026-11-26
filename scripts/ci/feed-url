@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# The Mac app's update feed, as Config/macOS.xcconfig states it once (PURLAY_UPDATE_FEED_URL), and where a release publishes it.
+#
+#   scripts/ci/feed-url             print feed=… and pages_path=… (also to $GITHUB_OUTPUT when it is set)
+#   scripts/ci/feed-url APP         and fail unless APP's Info.plist says that same feed (SUFeedURL)
+#
+# pages_path is the feed's path when the feed is served by this repository's GitHub Pages site (the stable feed); it is empty
+# when the feed is a GitHub releases address, which the release itself serves (docs/runbooks/mac-update-feed.md).
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+# xcconfig reads `//` as a comment, so the file writes `https:/$()/…`; the empty expansion is removed here as the build removes it.
+# shellcheck disable=SC2016 # the literal $() is what is removed
+feed="$(sed -n 's/^PURLAY_UPDATE_FEED_URL = //p' Config/macOS.xcconfig | sed 's/\$()//g')"
+[[ "$feed" =~ ^https://[^/]+/.+\.xml$ ]] || { echo "FAIL: Config/macOS.xcconfig states the feed '$feed', not an https address of an .xml file" >&2; exit 1; }
+case "$feed" in
+  https://github.com/*/releases/*) pages_path="" ;;
+  *) pages_path="${feed#https://*/}" ;;
+esac
+if [ -n "${1:-}" ]; then
+  said="$(plutil -extract SUFeedURL raw -o - "$1/Contents/Info.plist")"
+  [ "$said" = "$feed" ] || { echo "FAIL: $1 reads its updates from '$said'; Config/macOS.xcconfig states '$feed'" >&2; exit 1; }
+  echo "ok  the app reads its updates from $feed"
+fi
+{ echo "feed=$feed"; echo "pages_path=$pages_path"; } | tee -a "${GITHUB_OUTPUT:-/dev/null}"

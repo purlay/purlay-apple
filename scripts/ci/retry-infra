@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Runs a command, and runs it once more only when it failed for a reason that belongs to the machine, not to the code: a simulator
+# that would not boot, or a network fetch that did not arrive. A test that failed is never retried, whatever else the log says, so
+# a flaky test stays visible (docs/runbooks/flaky-test.md).
+#
+#   scripts/ci/retry-infra COMMAND [ARGUMENTS…]
+#
+# The second attempt is the last. Each retry is announced as a warning on the run, so retries are counted, not hidden.
+set -uo pipefail
+[ "$#" -gt 0 ] || { echo "usage: scripts/ci/retry-infra COMMAND [ARGUMENTS…]" >&2; exit 2; }
+
+# What the machine says when it, and not the code, failed.
+INFRA='Unable to boot|Failed to boot|Unable to lookup in current state: Shutdown|CoreSimulatorService|simulator runtime is not available|Timed out waiting for .*simulator|Could not resolve host|Connection reset by peer|Connection timed out|Operation timed out|curl: \((6|7|28|35|52|56)\)|HTTP (502|503|504)|error: RPC failed|SSL_ERROR_SYSCALL'
+# What a test says when it failed. Any of these, and the run is not retried.
+TEST='Failing tests:|recorded an issue|Expectation failed|✘ Test|XCTAssert|Test Case .* failed'
+
+log="$(mktemp)"
+trap 'rm -f "$log"' EXIT
+
+for attempt in 1 2; do
+  "$@" 2>&1 | tee "$log"
+  status="${PIPESTATUS[0]}"
+  [ "$status" -eq 0 ] && exit 0
+  if [ "$attempt" -eq 2 ] || grep -qE "$TEST" "$log" || ! grep -qE "$INFRA" "$log"; then exit "$status"; fi
+  reason="$(grep -oE "$INFRA" "$log" | head -n 1)"
+  echo "::warning title=Retried once for the machine::$* failed with \"$reason\"; running it once more"
+  # A simulator left half-booted is the usual cause; start the second attempt from a clean state.
+  if command -v xcrun >/dev/null 2>&1; then xcrun simctl shutdown all >/dev/null 2>&1 || true; fi
+  sleep 10
+done

@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""The time each job of this run took, against the target the run is held to, written to the run's summary page.
+
+Usage: scripts/ci/summary TARGET_SECONDS LABEL        (in a workflow: needs `actions: read` and GH_TOKEN)
+
+Reads the run's jobs from the GitHub API, so the job that calls it sees every other job's time. Wall time is measured from the run's
+creation, so it includes the wait for a runner, which is what a person waiting on the check experiences. Writes to
+$GITHUB_STEP_SUMMARY when it is set, and to standard output otherwise. It reports; it never fails the run (a slow run is a fact
+to act on, not a broken change).
+"""
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime, timezone
+
+
+STEP_WORTH_LISTING = 5
+
+
+def when(text: str | None) -> datetime | None:
+    return datetime.fromisoformat(text.replace("Z", "+00:00")) if text else None
+
+
+def main() -> None:
+    if len(sys.argv) != 3:
+        sys.exit("usage: scripts/ci/summary TARGET_SECONDS LABEL")
+    target, label = int(sys.argv[1]), sys.argv[2]
+    repository, run, attempt = os.environ["GITHUB_REPOSITORY"], os.environ["GITHUB_RUN_ID"], os.environ.get("GITHUB_RUN_ATTEMPT", "1")
+    try:
+        run_info = json.loads(subprocess.run(["gh", "api", f"repos/{repository}/actions/runs/{run}"],
+                                             check=True, capture_output=True, text=True).stdout)
+        jobs = json.loads(subprocess.run(["gh", "api", "--paginate", "--slurp",
+                                          f"repos/{repository}/actions/runs/{run}/attempts/{attempt}/jobs"],
+                                         check=True, capture_output=True, text=True).stdout)
+    except (subprocess.CalledProcessError, KeyError, ValueError) as error:
+        print(f"::warning title=No timing summary::the run's jobs could not be read: {error}")
+        return
+    now = datetime.now(timezone.utc)
+    rows = []
+    steps = []
+    for page in jobs:
+        for job in page["jobs"]:
+            started, completed = when(job.get("started_at")), when(job.get("completed_at"))
+            created = when(job.get("created_at"))
+            took = max(0, int(((completed or now) - started).total_seconds())) if started else 0
+            waited = max(0, int((started - created).total_seconds())) if started and created else 0
+            rows.append((job["name"], job.get("conclusion") or job.get("status"), took, waited))
+            for step in job.get("steps") or []:
+                began, ended = when(step.get("started_at")), when(step.get("completed_at"))
+                if began and ended and (ended - began).total_seconds() >= STEP_WORTH_LISTING:
+                    steps.append((job["name"], step["name"], int((ended - began).total_seconds())))
+    wall = int((now - when(run_info["run_started_at"])).total_seconds())
+    verdict = "within" if wall <= target else "OVER"
+    lines = [f"### {label}: {wall} s of {target} s ({verdict} the target)", "",
+             "| Job | Result | Ran (s) | Waited for a runner (s) |", "|---|---|---:|---:|"]
+    lines += [f"| {name} | {result} | {took} | {waited} |" for name, result, took, waited in sorted(rows, key=lambda r: -r[2])]
+    lines.append("")
+    if steps:
+        lines += [f"Steps of {STEP_WORTH_LISTING} s or more (each lane's own phases are in its job's summary):", "",
+                  "| Job | Step | Seconds |", "|---|---|---:|"]
+        lines += [f"| {job} | {step} | {took} |" for job, step, took in steps]
+        lines.append("")
+    text = "\n".join(lines) + "\n"
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        with open(summary, "a", encoding="utf-8") as handle:
+            handle.write(text)
+    print(text)
+    if wall > target:
+        print(f"::warning title={label} over its target::{wall} s against {target} s (docs/development/ci.md says what to do)")
+
+
+if __name__ == "__main__":
+    main()

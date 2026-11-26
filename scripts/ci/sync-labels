@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Makes the repository's labels exactly those of .github/labels.yml: creates and updates every label the file names, and removes
+# every label it does not (GitHub takes a removed label off the issues and pull requests that had it).
+#
+#   scripts/ci/sync-labels             say what would change
+#   scripts/ci/sync-labels --apply     change it (needs GH_TOKEN with issues: write)
+#
+# Ruby reads the YAML because it carries a YAML parser in its standard library and is on both macOS and the Linux runner.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+apply=false; [ "${1:-}" = --apply ] && apply=true
+repository="${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}"
+
+wanted="$(ruby -ryaml -rjson -e '
+labels = YAML.safe_load(File.read(".github/labels.yml"))
+abort "FAIL: .github/labels.yml is not a list" unless labels.is_a?(Array)
+names = labels.map { |l| l["name"] }
+abort "FAIL: a label is named twice" unless names.uniq.size == names.size
+labels.each do |l|
+  abort "FAIL: #{l.inspect} needs a name, a six-digit colour and a description" unless
+    l["name"].is_a?(String) && l["color"].to_s.match?(/\A\h{6}\z/) && l["description"].is_a?(String) && l["description"].size <= 100
+  puts [l["name"], l["color"].downcase, l["description"]].join("\t")
+end')"
+existing="$(gh label list --repo "$repository" --limit 500 --json name --jq '.[].name')"
+
+run() { if [ "$apply" = true ]; then "$@"; else echo "would run: $*"; fi; }
+while IFS=$'\t' read -r name color description; do
+  run gh label create "$name" --repo "$repository" --color "$color" --description "$description" --force
+done <<<"$wanted"
+while IFS= read -r name; do
+  [ -n "$name" ] || continue
+  cut -f1 <<<"$wanted" | grep -qxF "$name" || run gh label delete "$name" --repo "$repository" --yes
+done <<<"$existing"

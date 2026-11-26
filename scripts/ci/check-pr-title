@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# A pull request's title is a conventional commit, as the history is: the title becomes the squash commit's subject, and main takes
+# squash merges only. The same rule as .githooks/commit-msg, minus the subjects git writes itself.
+#
+#   TITLE="fix(app): the mark stays put" scripts/ci/check-pr-title
+set -euo pipefail
+title="${TITLE:?TITLE is empty: the workflow must pass the title of the pull request}"
+types='feat|fix|docs|refactor|build|ci|chore|test|perf|style|revert'
+if [[ "$title" =~ ^($types)(\([a-z0-9][a-z0-9./-]*\))?!?:\ [^[:space:]] ]]; then
+  echo "ok  the title is a conventional commit: $title"
+  exit 0
+fi
+{
+  echo "FAIL: the title \"$title\" is not a conventional commit, and it becomes the squash commit."
+  echo "  Write it as: type(scope): what changed"
+  echo "  type is one of: ${types//|/, }; the scope is optional; a ! before the colon marks a breaking change"
+} >&2
+exit 1

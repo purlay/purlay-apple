@@ -1,0 +1,35 @@
+# Every label of the repository. The labels workflow makes the repository's labels exactly these (it creates, updates and removes),
+# so a label is added or changed here, in a pull request. Pull requests get their area and platform labels from their paths
+# (.github/labeler.yml); type and priority are chosen by a person.
+
+# Where a change is.
+- { name: "area: kit", color: "1d76db", description: "The engine: PurlayKit and PurlayTestSupport" }
+- { name: "area: contract", color: "1d76db", description: "The pinned contract, the tokens and the generator" }
+- { name: "area: design", color: "1d76db", description: "The design system: PurlayDesign" }
+- { name: "area: module-api", color: "1d76db", description: "Feature modules and the registry: PurlayModuleAPI" }
+- { name: "area: mac-ui", color: "1d76db", description: "The Mac screens: PurlayMacUI" }
+- { name: "area: build", color: "1d76db", description: "The project, the build settings, the scripts and CI" }
+- { name: "area: docs", color: "1d76db", description: "Documentation only" }
+
+# Which app it reaches.
+- { name: "platform: ios", color: "5319e7", description: "The iPhone and iPad app" }
+- { name: "platform: macos", color: "5319e7", description: "The Mac app" }
+
+# What kind of change or report it is.
+- { name: "type: bug", color: "d73a4a", description: "Something does not work as a document says it should" }
+- { name: "type: feature", color: "0e8a16", description: "New behaviour" }
+- { name: "type: design", color: "c5def5", description: "A screen or flow design, or a change to one" }
+- { name: "type: chore", color: "ededed", description: "Maintenance with no change in behaviour" }
+- { name: "type: security", color: "b60205", description: "A security fix or hardening (report vulnerabilities privately: SECURITY.md)" }
+
+# How soon.
+- { name: "priority: p0", color: "b60205", description: "Blocks a release or breaks main: now" }
+- { name: "priority: p1", color: "d93f0b", description: "Next, before new work" }
+- { name: "priority: p2", color: "fbca04", description: "In turn" }
+
+# Written by automation.
+- { name: "dependencies", color: "0366d6", description: "A dependency update (Dependabot)" }
+- { name: "github_actions", color: "000000", description: "An update of a GitHub Action (Dependabot)" }
+- { name: "swift", color: "f05138", description: "An update of a Swift package (Dependabot)" }
+- { name: "ci-red-main", color: "b60205", description: "A lane is red on main (the simulator's, which no pull request waits for)" }
+- { name: "contract-drift", color: "fef2c0", description: "The server has released past the pinned contract (weekly workflow)" }

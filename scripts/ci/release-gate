@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# What must be true before a platform's release is built: the tag names the version the configuration states, the changelog has
+# that version's entry, and the commit already passed CI on main. A release never runs the tests again; it trusts that run, so it
+# refuses a commit that has none.
+#
+#   scripts/ci/release-gate macos|ios     (GITHUB_REPOSITORY, GITHUB_REF, GITHUB_SHA and GH_TOKEN, as a workflow has them)
+#
+# DRY_RUN=true (a rehearsal from any branch) reports the tag and CI conditions as warnings instead of failing on them. It never
+# relaxes the version and the changelog. Writes `version` to $GITHUB_OUTPUT.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+
+platform="${1:?usage: scripts/ci/release-gate macos|ios}"
+case "$platform" in
+  macos) config=Config/macOS.xcconfig; changelog=Apps/macOS/CHANGELOG.md ;;
+  ios) config=Config/iOS.xcconfig; changelog=Apps/iOS/CHANGELOG.md ;;
+  *) echo "FAIL: no platform '$platform' (macos or ios)" >&2; exit 2 ;;
+esac
+dry_run="${DRY_RUN:-false}"
+: "${GITHUB_REPOSITORY:?}" "${GITHUB_REF:?}" "${GITHUB_SHA:?}"
+
+fail() { echo "FAIL: $*" >&2; exit 1; }
+condition() { # message: fatal for a release, a warning for a rehearsal
+  if [ "$dry_run" = true ]; then echo "::warning title=A release would stop here::$1"; else fail "$1"; fi
+}
+
+version="$(sed -n 's/^MARKETING_VERSION = //p' "$config")"
+[[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "$config states MARKETING_VERSION '$version', not X.Y.Z"
+echo "version: $version ($config)"
+
+if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+  [ "${GITHUB_REF#refs/tags/}" = "$platform/v$version" ] \
+    || fail "the tag ${GITHUB_REF#refs/tags/} is not $platform/v$version, the version $config states"
+else
+  condition "$GITHUB_REF is not a tag: only a $platform/v$version tag publishes"
+fi
+
+if [ "$platform" = macos ]; then
+  notes="$(mktemp -d)"
+  scripts/release-notes "$version" "$notes" || fail "$changelog has no entry scripts/release-notes can publish for $version"
+  rm -rf "$notes"
+else
+  grep -qE "^## \[?$(printf '%s' "$version" | sed 's/\./\\./g')\]?( |$)" "$changelog" \
+    || fail "$changelog has no '## [$version]' entry"
+fi
+echo "ok  the changelog has $version"
+
+# The run main made for this commit succeeded, and its simulator lane with it: no pull request waits for the simulator, so main's
+# run is where a release learns the iOS tests passed. Skipped is not passed: on a push to main every lane runs.
+run="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&branch=main&event=push&status=success&per_page=1" \
+  --jq '.workflow_runs[0].id // ""')" || fail "the CI runs of $GITHUB_SHA could not be read"
+if [ -z "$run" ]; then
+  condition "$GITHUB_SHA has no successful CI run on main: merge it, wait for main to be green, then tag that commit"
+else
+  echo "ok  $GITHUB_SHA passed CI on main (run $run)"
+  simulator="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs?per_page=100" \
+    --jq '[.jobs[] | select(.name == "simulator") | .conclusion] | first // "missing"')" || fail "the jobs of run $run could not be read"
+  if [ "$simulator" = success ]; then
+    echo "ok  its simulator lane passed"
+  else
+    condition "the simulator lane of run $run is '$simulator', not success: a release needs main's iOS tests to have passed"
+  fi
+fi
+
+echo "version=$version" >> "${GITHUB_OUTPUT:-/dev/null}"

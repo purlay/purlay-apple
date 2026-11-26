@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# The simulator the simulator lane tests on: the device and iOS version .github/toolchain.env names, by its identifier, so every
+# run uses the same one. Fails with the devices that are there when it is missing (docs/runbooks/xcode-update.md).
+#
+#   scripts/ci/simulator-destination    writes PURLAY_DESTINATION=id=… to $GITHUB_ENV (when set) and prints it
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+device="$(sed -n 's/^SIMULATOR_DEVICE=//p' .github/toolchain.env)"
+os="$(sed -n 's/^SIMULATOR_OS=//p' .github/toolchain.env)"
+id="$(xcrun simctl list devices available -j | python3 -c '
+import json, sys
+device, runtime = sys.argv[1], "com.apple.CoreSimulator.SimRuntime.iOS-" + sys.argv[2].replace(".", "-")
+found = [d["udid"] for d in json.load(sys.stdin)["devices"].get(runtime, []) if d["name"] == device]
+print(found[0] if found else "")' "$device" "$os")"
+if [ -z "$id" ]; then
+  echo "FAIL: no available $device on iOS $os. What there is:" >&2
+  xcrun simctl list devices available | grep -E '^-- iOS|iPhone' >&2 || true
+  echo "      docs/runbooks/xcode-update.md" >&2
+  exit 1
+fi
+[ -z "${GITHUB_ENV:-}" ] || echo "PURLAY_DESTINATION=id=$id" >> "$GITHUB_ENV"
+echo "PURLAY_DESTINATION=id=$id ($device, iOS $os)"

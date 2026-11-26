@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Selects the Xcode .github/toolchain.env names and fails unless it is the one that answers. A runner image whose default Xcode
+# moved, or that no longer has this one, fails here with what to do, not later with a puzzling build error.
+#
+#   scripts/ci/select-xcode        writes DEVELOPER_DIR to $GITHUB_ENV (when set) and prints the version
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+version="$(sed -n 's/^XCODE_VERSION=//p' .github/toolchain.env)"
+[ -n "$version" ] || { echo "FAIL: .github/toolchain.env names no XCODE_VERSION" >&2; exit 1; }
+developer="${PURLAY_XCODE_APP:-/Applications/Xcode_$version.app}/Contents/Developer"
+[ -d "$developer" ] || {
+  echo "FAIL: Xcode $version is not on this runner ($developer). Installed: $(printf "%s " /Applications/Xcode*.app)" >&2
+  echo "      docs/runbooks/xcode-update.md" >&2
+  exit 1
+}
+actual="$(DEVELOPER_DIR="$developer" xcodebuild -version | head -n 1)"
+[ "$actual" = "Xcode $version" ] || { echo "FAIL: $developer answers '$actual', not Xcode $version" >&2; exit 1; }
+[ -z "${GITHUB_ENV:-}" ] || echo "DEVELOPER_DIR=$developer" >> "$GITHUB_ENV"
+echo "$actual ($(DEVELOPER_DIR="$developer" xcodebuild -version | sed -n 's/^Build version //p')): $developer"

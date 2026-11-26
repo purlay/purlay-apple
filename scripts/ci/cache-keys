@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# The names of a lane's compilation cache, for actions/cache. Written to $GITHUB_OUTPUT when it is set, and printed.
+#
+#   scripts/ci/cache-keys LANE
+#
+#   key         cas-LANE-XCODEBUILD-WEEK-DAY   what main saves: one per lane, Xcode and day
+#   this_week   cas-LANE-XCODEBUILD-WEEK-      what main restores, so a week starts cold and the cache cannot grow without end
+#   last_week   cas-LANE-XCODEBUILD-LASTWEEK-  what a pull request also restores, so Monday's first pull request is not cold
+#
+# The Xcode build is part of every name: a cache made by another Xcode is never offered to this one.
+set -euo pipefail
+lane="${1:?usage: scripts/ci/cache-keys LANE}"
+xcode="$(xcodebuild -version 2>/dev/null | sed -n 's/^Build version //p')"
+[ -n "$xcode" ] || { echo "FAIL: no Xcode is selected (DEVELOPER_DIR)" >&2; exit 1; }
+read -r week last_week day < <(python3 -c '
+from datetime import date, timedelta
+today = date.today()
+iso = lambda d: "%d-W%02d" % d.isocalendar()[:2]
+print(iso(today), iso(today - timedelta(days=7)), today.isoformat())')
+prefix="cas-$lane-$xcode"
+{
+  echo "key=$prefix-$week-$day"
+  echo "this_week=$prefix-$week-"
+  echo "last_week=$prefix-$last_week-"
+} | tee -a "${GITHUB_OUTPUT:-/dev/null}"
