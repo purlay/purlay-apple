@@ -2,7 +2,8 @@
 # The branch prefixes the organisation's CONTRIBUTING.md names, checked rather than remembered.
 #
 # The prefixes are the Conventional Commit types the same document requires of the commit message, so a branch and
-# its commits use one vocabulary. Owned by purlay-swift and copied to the other Swift repositories.
+# its commits use one vocabulary: build/ and ci/ are Conventional Commit types too. qa/ carries the quality guardian's failing
+# tests, which are neither a feature nor a fix.
 set -euo pipefail
 
 # CI passes the pull request's head ref; locally it is whatever is checked out.
@@ -25,13 +26,13 @@ case "$branch" in
     echo "'${branch}' is not a topic branch — no prefix to check"
     exit 0
     ;;
-  feat/* | fix/* | chore/* | refactor/* | docs/*)
+  feat/* | fix/* | chore/* | refactor/* | docs/* | build/* | ci/* | qa/*)
     echo "branch '${branch}' is named correctly"
     exit 0
     ;;
   *)
     echo "branch '${branch}' does not start with one of:" >&2
-    echo "  feat/  fix/  chore/  refactor/  docs/    (purlay/.github CONTRIBUTING.md)" >&2
+    echo "  feat/  fix/  chore/  refactor/  docs/  build/  ci/  qa/    (purlay/.github CONTRIBUTING.md)" >&2
     exit 1
     ;;
 esac
