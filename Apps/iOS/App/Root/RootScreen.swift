@@ -53,9 +53,23 @@ enum RootScreen: Equatable {
 }
 
 /// What a tap on a screen does. A second tap that arrives before the first has changed the phase finds the phase changed, and does
-/// nothing: one sign-in, one check, however fast the finger.
+/// nothing: one sign-in, one check, however fast the finger. Signing out and refreshing the account keep the phase `.ready` while
+/// the server answers, so the phase cannot say they are under way: each runs once per model while one is in flight.
 @MainActor
 enum RootActions {
+    /// An action that leaves the phase as it was while it waits for the server.
+    private enum Unphased: Hashable {
+        case signOut, refreshAccount
+    }
+
+    /// An unphased action under way on one model.
+    private struct Run: Hashable {
+        let model: ObjectIdentifier
+        let action: Unphased
+    }
+
+    private static var underWay: Set<Run> = []
+
     static func signIn(_ model: AppModel) async {
         guard model.phase == .signedOut else { return }
         await model.signIn()
@@ -68,12 +82,20 @@ enum RootActions {
 
     static func signOut(_ model: AppModel, everywhere: Bool) async {
         guard model.phase == .ready else { return }
-        _ = await model.signOut(everywhere ? .everywhere : .thisDevice)
+        await once(.signOut, on: model) { _ = await model.signOut(everywhere ? .everywhere : .thisDevice) }
     }
 
     static func refreshAccount(_ model: AppModel) async {
         guard model.phase == .ready else { return }
-        await model.refreshAccount()
+        await once(.refreshAccount, on: model) { await model.refreshAccount() }
+    }
+
+    /// Runs the action unless the same one is already under way on this model; a tap meanwhile does nothing.
+    private static func once(_ action: Unphased, on model: AppModel, _ work: () async -> Void) async {
+        let run = Run(model: ObjectIdentifier(model), action: action)
+        guard underWay.insert(run).inserted else { return }
+        defer { underWay.remove(run) }
+        await work()
     }
 
     /// The No Workspace refresh: `refreshAccount` loads a workspace only for an account that was held back, so after an invitation
