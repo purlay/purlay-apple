@@ -23,9 +23,9 @@ enum Words {
 
     /// The fixed sentences of the screens, so a test can look at each in every language.
     static let fixed: [LocalizedStringResource] = [
-        connecting, waitingForBrowser, loadingWorkspace, tagline, signInButton, continuesInBrowserNoHost, newAccount,
-        tryAgain,
-        dismiss, signedInTitle, signedInDetail, generic,
+        connecting, waitingForBrowser, loadingWorkspace,
+        tagline, signInButton, continuesInBrowserNoHost, newAccount,
+        tryAgain, dismiss, signedInTitle, signedInDetail, generic,
     ]
 
     /// Where the sign-in goes on: the person's browser, on the server's host.

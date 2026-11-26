@@ -27,6 +27,8 @@ struct ConnectingView: View {
         .task {
             try? await Task.sleep(for: Self.statusDelay)
             showsStatus = true
+            // The status arrives after the screen did: VoiceOver is told the screen changed, so it reads it.
+            AccessibilityNotification.LayoutChanged().post()
         }
     }
 
