@@ -41,7 +41,7 @@ if [ "$platform" = macos ]; then
   rm -rf "$notes"
 else
   grep -qE "^## \[?$(printf '%s' "$version" | sed 's/\./\\./g')\]?( |$)" "$changelog" \
-    || condition "$changelog has no '## [$version]' entry"
+    || fail "$changelog has no '## [$version]' entry"
 fi
 echo "ok  the changelog has $version"
 
