@@ -102,13 +102,9 @@ private struct WholeNotice: View {
                     .padding()
             }
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button {
-                        close()
-                    } label: {
-                        Text(EngineWords.dismiss)
-                    }
-                    .accessibilityIdentifier("notice.whole.close")
+                ToolbarItem(placement: .cancellationAction) {
+                    PurlayCloseButton(Text(EngineWords.dismiss)) { close() }
+                        .accessibilityIdentifier("notice.whole.close")
                 }
             }
         }

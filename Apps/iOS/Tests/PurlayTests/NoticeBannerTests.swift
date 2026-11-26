@@ -27,6 +27,13 @@ struct NoticeBannerTests {
         #expect(banner <= 4 * line + 2 * NoticeBanner.verticalPadding + 1, "a notice \(banner) pt tall")
     }
 
+    // A landscape iPhone hides the status bar and leaves no top safe area: the notice would touch the screen's edge.
+    @Test("in landscape a notice keeps a margin from the top edge; in portrait the status bar gives it one")
+    func landscapeMargin() {
+        #expect(NoticeList.topMargin(.compact) >= 8)
+        #expect(NoticeList.topMargin(.regular) == 0)
+    }
+
     @Test("a short notice is one line with its dismiss button, a 44 pt target, beside it")
     func shortNoticeIsOneLine() {
         let banner = height(of: NoticeBanner(words: "Saved.", dismiss: {}), at: .large)

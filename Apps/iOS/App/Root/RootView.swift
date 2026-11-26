@@ -64,7 +64,14 @@ private struct ProblemView: View {
 /// What the model said that is not a screen of its own, each to be dismissed, on the glass the notices share. VoiceOver does not
 /// read a banner that appears on its own, so each new one is announced, once.
 struct NoticeList: View {
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     let model: AppModel
+
+    /// The space above the notices. A landscape iPhone hides the status bar and leaves no top safe area, so the notices keep
+    /// their own margin there instead of touching the screen's edge; elsewhere the status bar's area is the margin.
+    nonisolated static func topMargin(_ verticalSizeClass: UserInterfaceSizeClass?) -> CGFloat {
+        verticalSizeClass == .compact ? 8 : 0
+    }
 
     var body: some View {
         PurlayNoticeStack {
@@ -76,6 +83,7 @@ struct NoticeList: View {
             }
         }
         .padding(.horizontal)
+        .padding(.top, Self.topMargin(verticalSizeClass))
         .purlayAnimation(.smooth, value: model.notices)
         .onChange(of: model.notices) { old, new in
             let sentences = Self.arrivals(from: old, to: new).compactMap { EngineWords.notice($0.kind) }

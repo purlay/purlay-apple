@@ -61,3 +61,23 @@ public struct PurlayNoticeStack<Content: View>: View {
         VStack(spacing: 8) { content }
     }
 }
+
+/// The button that closes a sheet without doing anything else, for a toolbar's cancellation place. From iOS 26 the system's close
+/// button (an xmark, `role: .close`); before, the label as a plain toolbar button. Either way VoiceOver reads the label.
+public struct PurlayCloseButton: View {
+    private let label: Text
+    private let action: () -> Void
+
+    public init(_ label: Text, action: @escaping () -> Void) {
+        self.label = label
+        self.action = action
+    }
+
+    public var body: some View {
+        if #available(iOS 26, macOS 26, *) {
+            Button(role: .close, action: action).accessibilityLabel(label)
+        } else {
+            Button(action: action) { label }
+        }
+    }
+}
