@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Pays the hosted runner's first-xcodebuild cost while the job does something else. On the `xcode-27` runner the first xcodebuild
+# that opens the project takes about 25–40 s whatever it does, and the next one 3–4 s (run 45921784210: resolving the packages
+# took 29 s first, then 3–4 s with a fresh derived data folder and a fresh packages folder). So the first one is started right
+# after the checkout, in the background, resolving the packages the lane needs, while the job restores its caches; the lane's
+# own `resolve` then finds the work done.
+#
+#   scripts/ci/warm-xcode start SCHEME    starts resolving SCHEME's packages in the background and returns at once
+#   scripts/ci/warm-xcode wait            waits until it has finished (at most PURLAY_WARM_TIMEOUT seconds, 300) and says how long
+#                                         it took. Never fails the job: the lane resolves again, and that is what judges.
+#
+# `wait` comes before the lane: two xcodebuilds resolving the same packages at once would fight over them.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+action="${1:?usage: scripts/ci/warm-xcode start SCHEME | wait}"
+state="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/purlay-warm-xcode"
+
+case "$action" in
+  start)
+    scheme="${2:?usage: scripts/ci/warm-xcode start SCHEME}"
+    mkdir -p "$state"
+    rm -f "$state/status"
+    date +%s >"$state/started"
+    # The same folders the lane uses (scripts/verify), so that what is resolved here is what the lane finds.
+    (
+      status=0
+      xcodebuild ${PURLAY_DERIVED_DATA:+-derivedDataPath "$PURLAY_DERIVED_DATA"} \
+        ${PURLAY_PACKAGES_DIR:+-clonedSourcePackagesDirPath "$PURLAY_PACKAGES_DIR"} \
+        -project Apps/Purlay.xcodeproj -scheme "$scheme" -resolvePackageDependencies >"$state/log" 2>&1 || status=$?
+      echo "$status" >"$state/status"
+    ) </dev/null &
+    disown
+    echo "xcodebuild: resolving the packages of $scheme in the background since $(date -u +%H:%M:%S)"
+    ;;
+  wait)
+    [ -f "$state/started" ] || { echo "nothing was started; the lane pays the first xcodebuild itself"; exit 0; }
+    limit="${PURLAY_WARM_TIMEOUT:-300}"
+    for ((second = 0; second < limit; second++)); do
+      [ -f "$state/status" ] && break
+      sleep 1
+    done
+    took=$(($(date +%s) - $(cat "$state/started")))
+    if [ ! -f "$state/status" ]; then
+      echo "::warning title=xcodebuild not warm::the warm-up was still running after $limit s; the lane goes on without it"
+      pkill -f -- '-resolvePackageDependencies' || true
+    elif [ "$(cat "$state/status")" != 0 ]; then
+      echo "::warning title=xcodebuild not warm::the warm-up failed after $took s; the lane resolves again"
+      tail -15 "$state/log"
+    else
+      echo "xcodebuild warm: the packages resolved $took s after the start; waited $second s for it here"
+    fi
+    ;;
+  *) echo "usage: scripts/ci/warm-xcode start SCHEME | wait" >&2; exit 2 ;;
+esac
