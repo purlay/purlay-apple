@@ -23,7 +23,8 @@ public struct KeychainError: Error, Sendable, Equatable {
 public struct KeychainSessionStore: SessionStore {
     private let service: String
 
-    public init(service: String = "dev.purlay.mac.session") {
+    /// `service`: the app's own (`AppIdentity.keychainService`), so that no two apps share a session.
+    public init(service: String) {
         self.service = service
     }
 

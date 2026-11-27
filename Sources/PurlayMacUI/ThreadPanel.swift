@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// A thread, beside the channel it is in (`UX.md` §4.2): its root and where it stands, its replies, and a box to answer in. One thread at
@@ -42,8 +43,12 @@ struct ThreadPanel: View {
                                         .font(.headline)
                                     Text("Check your connection and try again.")
                                         .font(.callout).foregroundStyle(.secondary)
-                                    Button("Try Again") { Task { await model.reloadThread() } }
-                                        .glassButton(prominent: true)
+                                    Button {
+                                        Task { await model.reloadThread() }
+                                    } label: {
+                                        Text(EngineWords.tryAgain)
+                                    }
+                                    .glassButton(prominent: true)
                                 }
                                 .frame(maxWidth: .infinity).padding(Spacing.space6)
                             } else if !thread.isLoaded {

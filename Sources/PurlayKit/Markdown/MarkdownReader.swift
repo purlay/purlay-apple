@@ -15,10 +15,13 @@ public enum MarkdownReader {
         let split = splitLines(body)
         let lines = split.map(\.text)
         if lines.contains(where: { nesting(of: $0) > nestingMax }) { return .typed(.nesting) }
-        let (blocks, codeLines) = BlockReader.read(split)
+        let (blocks, codeLines, tooDeep) = BlockReader.read(split)
+        // A body cut short for its depth has its code lines found up to the cut, which can name a reason other than the
+        // server's for a body that is too deep and has a thousand delimiters fenced below the cut. It reads as typed either way.
         let measure = measure(lines, skipping: codeLines)
         if measure.delimiters > delimitersMax { return .typed(.delimiters) }
         if measure.longestRun > runMax { return .typed(.run) }
+        if tooDeep { return .typed(.depth) }
         guard let narrowed = narrow(blocks, depth: 1) else { return .typed(.depth) }
         return .tree(narrowed)
     }

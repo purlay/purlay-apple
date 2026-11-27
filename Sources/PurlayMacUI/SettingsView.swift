@@ -3,6 +3,7 @@ import AppKit
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// "Copy diagnostics": versions, the connection and the last problems by code onto the pasteboard. Nothing is sent anywhere.
@@ -363,7 +364,11 @@ private struct SettingsMembersSection: View {
                 ProgressView("Loading members…")
             } else if failed {
                 Text("Members couldn’t be loaded. Try again.").foregroundStyle(.secondary)
-                Button("Try Again") { request += 1 }
+                Button {
+                    request += 1
+                } label: {
+                    Text(EngineWords.tryAgain)
+                }
             } else if members.isEmpty {
                 Text("No members to show.").foregroundStyle(.secondary)
             } else {

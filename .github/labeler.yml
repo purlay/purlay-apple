@@ -1,7 +1,7 @@
 # A pull request's area and platform labels, from the paths it changes (actions/labeler). The names are in .github/labels.yml.
 "area: kit":
   - changed-files:
-      - any-glob-to-any-file: ["Sources/PurlayKit/**", "Sources/PurlayTestSupport/**", "Tests/PurlayKitTests/**", "Tests/PurlayTestSupportTests/**", "ContractTests/**"]
+      - any-glob-to-any-file: ["Sources/PurlayKit/**", "Sources/PurlayWords/**", "Sources/PurlayTestSupport/**", "Tests/PurlayKitTests/**", "Tests/PurlayTestSupportTests/**", "Tests/PurlayWordsTests/**", "Tests/ContractTests/**"]
 "area: contract":
   - changed-files:
       - any-glob-to-any-file: ["Contract/**", "Tools/**", "Sources/PurlayContract/**", "Sources/PurlayTokens/**", "Tests/PurlayContractTests/**", "Tests/PurlayTokensTests/**", "scripts/contract*", "scripts/generate", "scripts/prepare-contract"]

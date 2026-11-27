@@ -6,9 +6,10 @@ import Testing
 struct ClientHeaderTests {
     private let version = SemanticVersion(1, 2, 3)
 
-    @Test("names macOS unless told otherwise")
-    func defaultsToMacOS() {
-        #expect(ClientHeader.value(appVersion: version, contractVersion: 1) == "macos/1.2.3 contract/1")
+    @Test("names the Mac as the server spells it, now that the Mac says so rather than being the default")
+    func namesMacOS() {
+        #expect(
+            ClientHeader.value(appVersion: version, platform: .macOS, contractVersion: 1) == "macos/1.2.3 contract/1")
     }
 
     @Test("names the platform it runs on")

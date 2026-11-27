@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 struct PinsSheet: View {
@@ -40,7 +41,11 @@ struct PinsSheet: View {
             } description: {
                 Text("Check your connection and try again.")
             } actions: {
-                Button("Try Again") { revision &+= 1 }.glassButton()
+                Button {
+                    revision &+= 1
+                } label: {
+                    Text(EngineWords.tryAgain)
+                }.glassButton()
             }
         } else if model.pinnedMessages.isEmpty {
             EmptyState(
@@ -110,7 +115,11 @@ struct SavedSheet: View {
             } description: {
                 Text("Check your connection and try again.")
             } actions: {
-                Button("Try Again") { revision &+= 1 }.glassButton()
+                Button {
+                    revision &+= 1
+                } label: {
+                    Text(EngineWords.tryAgain)
+                }.glassButton()
             }
         case .loaded:
             if model.savedItems.isEmpty {

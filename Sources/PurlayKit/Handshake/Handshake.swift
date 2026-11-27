@@ -14,7 +14,7 @@ public enum CompatibleContracts {
 /// The one header every request and the socket upgrade carries: what the server gates on (D-187).
 public enum ClientHeader {
     public static func value(
-        appVersion: SemanticVersion, platform: ClientPlatform = .macOS,
+        appVersion: SemanticVersion, platform: ClientPlatform,
         contractVersion: Int = ContractConstants.contractVersion
     ) -> String {
         "\(platform.rawValue)/\(appVersion) contract/\(contractVersion)"

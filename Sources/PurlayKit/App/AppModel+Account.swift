@@ -26,12 +26,21 @@ extension AppModel {
     public var twoFactorSetupURL: URL? { webURL(.account) ?? webFrontDoor }
 
     /// Reads the account again, as when it may have changed in the browser. An account no longer held back is let in: what was
-    /// not read while it was held back is read now.
+    /// not read while it was held back is read now. One asked for while one is under way waits for it, so an account let in
+    /// opens its workspace once.
     public func refreshAccount() async {
         if let sessionOwner {
             await sessionOwner.refreshAccount()
             return
         }
+        if let refreshingAccount { return await refreshingAccount.value }
+        let run = Task { await refreshAccountOnce() }
+        refreshingAccount = run
+        defer { refreshingAccount = nil }
+        await run.value
+    }
+
+    private func refreshAccountOnce() async {
         guard let api, phase == .ready else { return }
         let context = contextGeneration
         let held = mustEnrolTwoFactor

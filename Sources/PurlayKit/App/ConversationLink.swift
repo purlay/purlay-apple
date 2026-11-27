@@ -10,7 +10,7 @@ public struct ConversationLink: Equatable, Sendable {
 
     public static func parse(_ url: URL, allowsLocalHTTP: Bool = false) -> ConversationLink? {
         guard var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
-        if parts.scheme?.lowercased() == "purlay" {
+        if parts.scheme?.lowercased() == NativeRedirect.scheme {
             guard parts.host == "open", parts.user == nil, parts.password == nil, parts.port == nil,
                 parts.path.isEmpty || parts.path == "/", parts.fragment == nil,
                 let query = parts.queryItems, query.count == 1, query[0].name == "url",
@@ -40,7 +40,7 @@ public struct ConversationLink: Equatable, Sendable {
 
     public static func appURL(for webURL: URL) -> URL? {
         var parts = URLComponents()
-        parts.scheme = "purlay"
+        parts.scheme = NativeRedirect.scheme
         parts.host = "open"
         parts.queryItems = [URLQueryItem(name: "url", value: webURL.absoluteString)]
         return parts.url

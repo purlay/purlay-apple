@@ -2,13 +2,14 @@
 import AppKit
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// The frame every screen before the workspace shares: the app's own icon, a title and a line under it, and what can be done,
 /// on one glass card over the window's material. The first thing a person sees of Purlay looks like the rest of it.
 struct OnboardingCard<Content: View>: View {
-    let title: LocalizedStringKey
-    var subtitle: String?
+    let title: LocalizedStringResource
+    var subtitle: LocalizedStringResource?
     @ViewBuilder let content: () -> Content
 
     var body: some View {
@@ -84,7 +85,7 @@ struct OnboardingCard<Content: View>: View {
 /// Waiting for the server or the workspace, which is most of every launch of a signed-in app: the icon, breathing, and nothing of the
 /// sign-in page. What is happening is said only if the wait is long enough to be felt, and a quick launch never shows a word.
 struct LaunchView: View {
-    let label: String
+    let label: LocalizedStringResource
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var arrived = false
     @State private var pulsing = false
@@ -123,7 +124,7 @@ struct LaunchView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(.ultraThinMaterial, for: .window)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(label)
+        .accessibilityLabel(Text(label))
         .task {
             withAnimation(reduceMotion ? nil : .spring(response: 0.6, dampingFraction: 0.78)) { arrived = true }
             pulsing = true
@@ -141,11 +142,16 @@ struct ProblemView: View {
     let problem: ServerProblem
 
     var body: some View {
-        let words = Words.problem(problem)
-        OnboardingCard(title: LocalizedStringKey(words.title), subtitle: words.detail.isEmpty ? nil : words.detail) {
+        let words = EngineWords.problem(problem)
+        OnboardingCard(title: words.title, subtitle: words.detail) {
             VStack(spacing: Spacing.space3) {
                 Button(action: retry) {
-                    Label("Try Again", systemImage: "arrow.clockwise").frame(maxWidth: .infinity)
+                    Label {
+                        Text(EngineWords.tryAgain)
+                    } icon: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .frame(maxWidth: .infinity)
                 }
                 .glassButton(prominent: true)
                 .controlSize(.large)
@@ -166,8 +172,7 @@ struct SignInView: View {
     var body: some View {
         OnboardingCard(
             title: "Sign In to Purlay",
-            subtitle: String(
-                localized: "Continue in your browser to sign in securely.")
+            subtitle: "Continue in your browser to sign in securely."
         ) {
             VStack(spacing: Spacing.space3) {
                 ForEach(model.notices) { notice in
@@ -178,7 +183,7 @@ struct SignInView: View {
                 } label: {
                     HStack(spacing: Spacing.space2) {
                         if busy { ProgressView().controlSize(.small) }
-                        Text(busy ? "Waiting for the Browser…" : "Sign In with Browser")
+                        Text(busy ? EngineWords.waitingForBrowser : "Sign In with Browser")
                     }
                     .frame(maxWidth: .infinity)
                 }

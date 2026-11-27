@@ -6,9 +6,10 @@ app="${1:?app path required}"
 identity="${2:?signing identity required}"
 framework="$app/Contents/Frameworks/Sparkle.framework/Versions/B"
 [ -d "$framework" ] || { echo 'FAIL: Sparkle framework is missing' >&2; exit 1; }
-# Sparkle offers an update only above the build installed, and v0.3.0 is build 10: a build made without scripts/build-number is 1.
+# Sparkle offers an update only above the build installed, the last one shipped: a build made without scripts/build-number is 1.
+shipped="$("$(dirname "${BASH_SOURCE[0]}")/build-number" --shipped)"
 build="$(plutil -extract CFBundleVersion raw -o - "$app/Contents/Info.plist")"
-[ "$build" -gt 10 ] || { echo "FAIL: $app is build $build; run scripts/build-number before the build" >&2; exit 1; }
+[ "$build" -gt "$shipped" ] || { echo "FAIL: $app is build $build, not above $shipped; run scripts/build-number before the build" >&2; exit 1; }
 
 # The application and Sparkle helpers ship only Apple Silicon slices.
 while IFS= read -r -d '' binary; do

@@ -70,7 +70,7 @@ final class EngineHarness {
                     self?.timers.append(((self?.now ?? 0) + milliseconds, work, flag))
                     return { flag.live = false }
                 },
-                random: random, clock: { box.date }, serverClock: serverClock,
+                random: random, clock: { box.date }, serverClock: serverClock, log: Log(subsystem: "dev.purlay.tests"),
                 checkSession: { .unknown }, selfID: me, outbox: outbox,
                 sendHTTP: { [weak self] _, body in
                     let behave = await MainActor.run { self?.httpBehaviour }

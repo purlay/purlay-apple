@@ -15,7 +15,8 @@ final class Live {
     /// `direct`: to the API's own port, where a refused upgrade is a status and not a proxy's close.
     init(world: World, session: String, origin: String? = nil, direct: Bool = false, api: APIClient) {
         let transport = URLSessionSocketTransport(
-            origin: origin ?? world.server.description, clientHeader: ClientHeader.value(appVersion: world.appVersion),
+            origin: origin ?? world.server.description,
+            clientHeader: ClientHeader.value(appVersion: world.appVersion, platform: world.identity.platform),
             cookie: { session })
         let clock = serverClock
         ids = MessageIDGenerator(now: { clock.now() })
@@ -32,7 +33,7 @@ final class Live {
                     }
                     return { task.cancel() }
                 },
-                random: { Double.random(in: 0...1) }, clock: Date.init, serverClock: clock,
+                random: { Double.random(in: 0...1) }, clock: Date.init, serverClock: clock, log: world.log,
                 checkSession: {
                     do {
                         _ = try await PurlayAPI(client: api).getMe()

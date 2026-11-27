@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Everything the pipeline checks, in lanes, so that CI runs them side by side and a person runs them all.
 #
-#   scripts/verify               every lane, the Mac's Release build included
-#   scripts/verify rules         branch name, the architecture rules and their demonstration, workflows and shell, strings (no Xcode, no Swift)
+#   scripts/verify               every lane, both apps' Release builds included
+#   scripts/verify rules         branch name, the architecture rules (every catalogue's sentences among them) and their
+#                                demonstration, workflows and shell                                   (no Xcode, no Swift)
 #   scripts/verify generated     the pinned contract, the generated code, the generator                (needs Contract/bundle)
 #   scripts/verify packages      the layers, format, and every package test on macOS (TestPlans/macOS) (needs Contract/bundle)
-#   scripts/verify ios           the package and the iOS app, built for the simulator
+#   scripts/verify ios [CONFIGS]    the package and the iOS app (Debug, or the configurations named), built for the simulator:
+#                                   App Transport Security
 #   scripts/verify macos [CONFIGS]  the Mac app (Debug, or the configurations named): App Transport Security, entitlements
 #   scripts/verify simulator     the iOS tests on a simulator (TestPlans/iOS)
 #   scripts/verify security      the whole history scanned for secrets (gitleaks, at the version scripts/install-gitleaks pins)
@@ -102,10 +104,20 @@ check_build_number() { # Info.plist
   echo "ok  build $actual"
 }
 
+# The development shortcuts (a server and a session handed in through the environment) exist in a debug build alone. grep reads
+# all of what strings prints (no -q), so strings is not cut short and pipefail does not turn a match into a pass.
+check_no_development_shortcut() { # configuration executable
+  [ "$1" = Release ] || return 0
+  if strings -a "$2" | grep -E 'PURLAY_DEV_(SERVER|SESSION|RESET)' >/dev/null; then
+    echo "FAIL: the $1 build $2 carries the development shortcuts" >&2; exit 1
+  fi
+  echo "ok  $1: no development shortcut"
+}
+
 rules() {
   step check "branch name"
   scripts/check-branch
-  step check "architecture rules, and the demonstration that each one refuses its violation"
+  step check "architecture rules, every catalogue's sentences among them, and the demonstration that each one refuses its violation"
   # The layer rule compiles the manifest, which needs Swift; it runs in packages, on macOS, so that this lane needs neither.
   scripts/enforcement tree
   scripts/enforcement --demo tree
@@ -121,8 +133,6 @@ rules() {
   scripts/ci/check-pr-title-test >/dev/null
   step check "the release gate refuses what it must (scripts/ci/release-gate)"
   scripts/ci/release-gate-test >/dev/null
-  step check "every string of the Mac app has its Turkish translation"
-  scripts/localize --check
 }
 
 generated() {
@@ -135,7 +145,7 @@ generated() {
 
 format() {
   step format "every Swift file"
-  find Sources Tests Apps ContractTests Tools -name '*.swift' -not -path '*/.build/*' -not -path '*/Generated/*' -print0 \
+  find Sources Tests Apps Tools -name '*.swift' -not -path '*/.build/*' -not -path '*/Generated/*' -print0 \
     | xargs -0 xcrun swift-format lint --strict --parallel
 }
 
@@ -162,24 +172,40 @@ packages() {
   rm -rf "$snapshots"
 }
 
-ios() {
+ios() { # configurations to build and check
+  local configurations="$1" configuration app has
   scripts/build-number
   step build "every module of the package, built for iOS 18 and later"
   cached -scheme purlay-apple-Package -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
   resolve Purlay-iOS
-  step build "the iOS app, built for the simulator"
-  cached -project "$PROJECT" -scheme Purlay-iOS -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
-  check_build_number "$(built_app Purlay-iOS Debug 'generic/platform=iOS Simulator')/Purlay.app/Info.plist"
+  step build "the iOS app, built for the simulator: $configurations"
+  for configuration in $configurations; do
+    cached -project "$PROJECT" -scheme Purlay-iOS -configuration "$configuration" -destination 'generic/platform=iOS Simulator' \
+      CODE_SIGNING_ALLOWED=NO build
+    app="$(built_app Purlay-iOS "$configuration" 'generic/platform=iOS Simulator')/Purlay.app"
+    check_build_number "$app/Info.plist"
+    check_no_development_shortcut "$configuration" "$app/Purlay"
+    # The rule the Mac's built app is held to: the local-networking exception is in Debug alone.
+    has=false; plutil -extract NSAppTransportSecurity xml1 -o - "$app/Info.plist" >/dev/null 2>&1 && has=true
+    case "$configuration:$has" in
+      Debug:true|Release:false) echo "ok  $configuration: App Transport Security" ;;
+      *) echo "FAIL: iOS $configuration has ATS exception = $has" >&2; exit 1 ;;
+    esac
+  done
 }
 
 macos() { # configurations to build and check
-  local configurations="$1" configuration app has signed
+  local configurations="$1" configuration app has signed bundle_id
+  # The identifier the entitlements expand to, from the one place it is stated.
+  bundle_id="$(sed -nE 's/^PRODUCT_BUNDLE_IDENTIFIER *= *//p' Config/macOS.xcconfig)"
+  [ -n "$bundle_id" ] || { echo "FAIL: Config/macOS.xcconfig states no PRODUCT_BUNDLE_IDENTIFIER" >&2; exit 1; }
   scripts/build-number
   resolve Purlay-macOS
   step build "the Mac app: $configurations"
   for configuration in $configurations; do
     cached -project "$PROJECT" -scheme Purlay-macOS -configuration "$configuration" -destination 'platform=macOS' build
     check_build_number "$(built_app Purlay-macOS "$configuration")/Purlay.app/Contents/Info.plist"
+    check_no_development_shortcut "$configuration" "$(built_app Purlay-macOS "$configuration")/Purlay.app/Contents/MacOS/Purlay"
   done
 
   step check "App Transport Security stays strict in Release and is relaxed for localhost in Debug only"
@@ -194,16 +220,16 @@ macos() { # configurations to build and check
 
   step check "the sandbox and the entitlements are the allowlist and nothing else"
   canonical() { python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin), sort_keys=True, separators=(",", ":")))'; }
-  allowlist='{"com.apple.security.app-sandbox":true,"com.apple.security.files.user-selected.read-write":true,"com.apple.security.network.client":true,"com.apple.security.temporary-exception.mach-lookup.global-name":["dev.purlay.mac-spks","dev.purlay.mac-spki"]}'
+  allowlist='{"com.apple.security.app-sandbox":true,"com.apple.security.files.user-selected.read-write":true,"com.apple.security.network.client":true,"com.apple.security.temporary-exception.mach-lookup.global-name":["'"$bundle_id"'-spks","'"$bundle_id"'-spki"]}'
   # shellcheck disable=SC2016 # the literal $(PRODUCT_BUNDLE_IDENTIFIER) is what is replaced
-  entitlements="$(plutil -convert json -o - Apps/macOS/App/Resources/Purlay.entitlements | python3 -c 'import sys; print(sys.stdin.read().replace("$(PRODUCT_BUNDLE_IDENTIFIER)", "dev.purlay.mac"))' | canonical)"
+  entitlements="$(plutil -convert json -o - Apps/macOS/App/Resources/Purlay.entitlements | python3 -c 'import sys; print(sys.stdin.read().replace("$(PRODUCT_BUNDLE_IDENTIFIER)", sys.argv[1]))' "$bundle_id" | canonical)"
   [ "$entitlements" = "$allowlist" ] || { echo "FAIL: entitlements are not the allowlist: $entitlements" >&2; exit 1; }
   # shellcheck disable=SC2016 # the literal $(PRODUCT_BUNDLE_IDENTIFIER) is what is replaced
   debug_entitlements="$(plutil -convert json -o - Apps/macOS/App/Resources/Purlay.Debug.entitlements | python3 -c '
 import json,sys
 held=json.load(sys.stdin)
 assert held.pop("com.apple.security.cs.disable-library-validation") is True
-print(json.dumps(held).replace("$(PRODUCT_BUNDLE_IDENTIFIER)", "dev.purlay.mac"))' | canonical)"
+print(json.dumps(held).replace("$(PRODUCT_BUNDLE_IDENTIFIER)", sys.argv[1]))' "$bundle_id" | canonical)"
   [ "$debug_entitlements" = "$allowlist" ] || { echo "FAIL: unexpected Debug entitlements" >&2; exit 1; }
   echo "ok  declared"
   # Check the signed app too. Debug alone permits debugging and loading Sparkle under ad-hoc signing.
@@ -262,12 +288,12 @@ case "${1:-all}" in
   rules) rules ;;
   generated) generated ;;
   packages) packages ;;
-  ios) ios ;;
+  ios) ios "${2:-Debug}" ;;
   macos) macos "${2:-Debug}" ;;
   simulator) simulator ;;
   security) security ;;
-  all) rules; generated; packages; ios; macos "Debug Release"; simulator; security ;;
-  *) echo "usage: scripts/verify [rules|generated|packages|ios|macos [CONFIGURATIONS]|simulator|security]" >&2; exit 2 ;;
+  all) rules; generated; packages; ios "Debug Release"; macos "Debug Release"; simulator; security ;;
+  *) echo "usage: scripts/verify [rules|generated|packages|ios [CONFIGURATIONS]|macos [CONFIGURATIONS]|simulator|security]" >&2; exit 2 ;;
 esac
 
 end_phase

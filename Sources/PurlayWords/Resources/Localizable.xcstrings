@@ -1,0 +1,954 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%lld unsent messages could not be restored." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld unsent message could not be restored."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld unsent messages could not be restored."
+                }
+              }
+            }
+          }
+        },
+        "tr" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld gönderilmemiş mesaj geri yüklenemedi."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld unsent messages were removed because you no longer have access to their channel." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld unsent message was removed because you no longer have access to its channel."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld unsent messages were removed because you no longer have access to their channel."
+                }
+              }
+            }
+          }
+        },
+        "tr" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Kanala erişimin kalmadığı için %lld gönderilmemiş mesaj kaldırıldı."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "A message holds at most %lld files. The rest were not added." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bir mesaja en fazla %lld dosya eklenebilir. Kalanlar eklenmedi."
+          }
+        }
+      }
+    },
+    "Ask whoever runs it to update the server." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunucuyu yönetene güncellemesini söyle."
+          }
+        }
+      }
+    },
+    "Ask whoever runs the server to check its address settings." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunucuyu yönetene adres ayarlarını kontrol etmesini söyle."
+          }
+        }
+      }
+    },
+    "Check your connection, then try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantını kontrol et, sonra yeniden dene."
+          }
+        }
+      }
+    },
+    "Connecting…" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlanıyor…"
+          }
+        }
+      }
+    },
+    "Could not change Deep Work. Try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Derin Çalışma değiştirilemedi. Yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not change that issue. Try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu sorun değiştirilemedi. Yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not change the message. Check your connection and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesaj değiştirilemedi. Bağlantını denetleyip yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not change the pin. Try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sabitleme değiştirilemedi. Yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not change the question or decision. Check your connection and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soru veya karar değiştirilemedi. Bağlantını denetleyip yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not change the save. Try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kaydetme değiştirilemedi. Yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not change the star. Try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yıldız değiştirilemedi. Yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not change whether Purlay opens at login. Check System Settings > General > Login Items." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purlay’in girişte açılma ayarı değiştirilemedi. Sistem Ayarları > Genel > Giriş Öğeleri’ni denetle."
+          }
+        }
+      }
+    },
+    "Could not change whether this thread is resolved. Try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu konunun çözüldü durumu değiştirilemedi. Yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not change whether you follow this thread. Try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu konuyu takip etme durumun değiştirilemedi. Yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not change your away status. Try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uzakta durumun değiştirilemedi. Yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not change your groups. Try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupların değiştirilemedi. Yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not delete the message. Check your connection and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesaj silinemedi. Bağlantını denetleyip yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not leave the channel. Check your connection and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kanaldan ayrılınamadı. Bağlantını denetleyip yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not load messages. Check your connection." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesajlar yüklenemedi. Bağlantını denetle."
+          }
+        }
+      }
+    },
+    "Could not load the thread. Check your connection and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konu yüklenemedi. Bağlantını denetleyip yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not mark that as read. Check your connection and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Okundu olarak işaretlenemedi. Bağlantını denetleyip yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not mark that as unread. Check your connection and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Okunmadı olarak işaretlenemedi. Bağlantını denetleyip yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not open that. Check your connection and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Açılamadı. Bağlantını denetleyip yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not react to the message. Check your connection and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesaja tepki verilemedi. Bağlantını denetleyip yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not read %@. Check that it is still there, then attach it again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ okunamadı. Hâlâ yerinde olup olmadığını denetle ve yeniden ekle."
+          }
+        }
+      }
+    },
+    "Could not remove the bookmark. Try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yer imi kaldırılamadı. Yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not save the file there. Choose another place and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dosya oraya kaydedilemedi. Başka bir yer seçip yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not save your profile. Check your connection and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profilin kaydedilemedi. Bağlantını kontrol edip yeniden dene."
+          }
+        }
+      }
+    },
+    "Could not sign out everywhere. You are still signed in." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Her yerden çıkış yapılamadı. Oturumun hâlâ açık."
+          }
+        }
+      }
+    },
+    "Could not sign out: the server could not be reached and this device could not forget the sign-in. You are still signed in." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çıkış yapılamadı: sunucuya ulaşılamadı ve bu cihaz oturum bilgisini silemedi. Oturumun hâlâ açık."
+          }
+        }
+      }
+    },
+    "Dismiss" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapat"
+          }
+        }
+      }
+    },
+    "File storage is unavailable right now." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dosya deposu şu an kullanılamıyor."
+          }
+        }
+      }
+    },
+    "Give only the server's address, without a path." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yalnızca sunucu adresini yaz, yol eklemeden."
+          }
+        }
+      }
+    },
+    "It needs version %@ or newer." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ya da daha yeni bir sürüm gerekir."
+          }
+        }
+      }
+    },
+    "Leave the user name and password out of the address." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kullanıcı adı ve parolayı adrese ekleme."
+          }
+        }
+      }
+    },
+    "Loading your workspace…" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çalışma alanın yükleniyor…"
+          }
+        }
+      }
+    },
+    "No connection." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantı yok."
+          }
+        }
+      }
+    },
+    "Server Unavailable" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunucuya Ulaşılamıyor"
+          }
+        }
+      }
+    },
+    "Someone else changed this question or decision first. It now shows their change; review it and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu soruyu veya kararı önce başka biri değiştirdi. Şimdi onun değişikliği görünüyor; incele ve yeniden dene."
+          }
+        }
+      }
+    },
+    "That doesn't look like a Purlay server" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu bir Purlay sunucusuna benzemiyor"
+          }
+        }
+      }
+    },
+    "That is not an address a browser would open." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu, bir tarayıcının açacağı bir adres değil."
+          }
+        }
+      }
+    },
+    "That message is too long to send." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu mesaj göndermek için çok uzun."
+          }
+        }
+      }
+    },
+    "That sign-in expired or was already used. Try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu oturum açma isteğinin süresi doldu veya zaten kullanıldı. Yeniden dene."
+          }
+        }
+      }
+    },
+    "The address answered, but not as Purlay does." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adres yanıt verdi, ancak Purlay gibi değil."
+          }
+        }
+      }
+    },
+    "The browser could not be opened." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tarayıcı açılamadı."
+          }
+        }
+      }
+    },
+    "The file could not be sent." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dosya gönderilemedi."
+          }
+        }
+      }
+    },
+    "The server asks you to wait a moment." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunucu biraz beklemeni istiyor."
+          }
+        }
+      }
+    },
+    "The server could not be reached." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunucuya ulaşılamadı."
+          }
+        }
+      }
+    },
+    "The server did not accept this sign-in." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunucu bu oturum açma isteğini kabul etmedi."
+          }
+        }
+      }
+    },
+    "The server did not start a session. Try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunucu bir oturum başlatmadı. Yeniden dene."
+          }
+        }
+      }
+    },
+    "The server gave an address this app can't use" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunucu, bu uygulamanın kullanamayacağı bir adres verdi"
+          }
+        }
+      }
+    },
+    "The server is busy." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunucu meşgul."
+          }
+        }
+      }
+    },
+    "The server refused this app's connection. Check the server's address." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunucu bu uygulamanın bağlantısını reddetti. Sunucu adresini kontrol et."
+          }
+        }
+      }
+    },
+    "The session could not be saved to your Keychain." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oturum Anahtar Zinciri'ne kaydedilemedi."
+          }
+        }
+      }
+    },
+    "The sign-in did not come back the way it should. Try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oturum açma olması gerektiği gibi geri dönmedi. Yeniden dene."
+          }
+        }
+      }
+    },
+    "The workspace's storage is full. %@ left." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çalışma alanının depolama alanı dolu. %@ kaldı."
+          }
+        }
+      }
+    },
+    "This channel has as many pinned messages as it can hold. Unpin one first." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu kanal alabileceği en fazla sabitlenmiş mesaja sahip. Önce birinin sabitlemesini kaldır."
+          }
+        }
+      }
+    },
+    "This file is empty." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu dosya boş."
+          }
+        }
+      }
+    },
+    "This file is larger than the limit of %@." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu dosya %@ sınırından büyük."
+          }
+        }
+      }
+    },
+    "This kind of file is not accepted." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu tür dosyalar kabul edilmiyor."
+          }
+        }
+      }
+    },
+    "This picture cannot be read." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu resim okunamıyor."
+          }
+        }
+      }
+    },
+    "This picture is larger than Purlay can take." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu resim Purlay'ın kabul edebileceğinden büyük."
+          }
+        }
+      }
+    },
+    "This server is older than this app supports" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu sunucu, bu uygulamanın desteklediğinden daha eski"
+          }
+        }
+      }
+    },
+    "This server must be reached over https." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu sunucuya https üzerinden ulaşılmalı."
+          }
+        }
+      }
+    },
+    "This server needs a newer Purlay" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu sunucu daha yeni bir Purlay gerektiriyor"
+          }
+        }
+      }
+    },
+    "Too many attempts. Wait a moment and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çok fazla deneme yapıldı. Biraz bekleyip yeniden dene."
+          }
+        }
+      }
+    },
+    "Too many files are waiting. Send or remove some first." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çok fazla dosya bekliyor. Önce bazılarını gönder veya kaldır."
+          }
+        }
+      }
+    },
+    "Too many requests" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çok fazla istek"
+          }
+        }
+      }
+    },
+    "Try Again" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yeniden Dene"
+          }
+        }
+      }
+    },
+    "Type the address of your Purlay server." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purlay sunucunun adresini yaz."
+          }
+        }
+      }
+    },
+    "Unsent messages can't be saved on this device right now. Sending still works." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gönderilmemiş mesajlar şu anda bu cihaza kaydedilemiyor. Gönderme yine de çalışıyor."
+          }
+        }
+      }
+    },
+    "Update Purlay, then try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purlay'i güncelle, sonra yeniden dene."
+          }
+        }
+      }
+    },
+    "Use a web address, starting with https." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "https ile başlayan bir web adresi kullan."
+          }
+        }
+      }
+    },
+    "Waiting for the Browser…" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tarayıcı bekleniyor…"
+          }
+        }
+      }
+    },
+    "You are signed out here. The server could not be reached, so this session stays valid there until it expires." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Burada oturumun kapandı. Sunucuya ulaşılamadığı için bu oturum, süresi dolana kadar orada geçerli kalır."
+          }
+        }
+      }
+    },
+    "You are the last member of this private channel, so you can't leave it." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu özel kanalın son üyesisin, bu yüzden ayrılamazsın."
+          }
+        }
+      }
+    },
+    "You can add at most %lld reactions to a message. Remove one to add another." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bir mesaja en fazla %lld tepki ekleyebilirsin. Başka eklemek için birini kaldır."
+          }
+        }
+      }
+    },
+    "You have saved as many messages as Purlay keeps. Let some go to save more." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purlay'ın tutabileceği en fazla mesajı kaydettin. Daha fazlasını kaydetmek için bazılarını bırak."
+          }
+        }
+      }
+    },
+    "You no longer have access here." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artık buraya erişimin yok."
+          }
+        }
+      }
+    },
+    "You were signed out by the server. Sign in again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunucu oturumunu kapattı. Yeniden oturum aç."
+          }
+        }
+      }
+    },
+    "You were signed out." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oturumun kapatıldı."
+          }
+        }
+      }
+    },
+    "Your message to %@ was not sent: a file did not upload. Your words are back in the box." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ için yazdığın mesaj gönderilmedi: bir dosya yüklenemedi. Yazdıkların kutuya geri döndü."
+          }
+        }
+      }
+    },
+    "Your message was not sent: a file did not upload. Your words are back in the box." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesajın gönderilmedi: bir dosya yüklenemedi. Yazdıkların kutuya geri döndü."
+          }
+        }
+      }
+    },
+    "Your session ends on %@. Sign out and in again before then to stay connected." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oturumun %@ tarihinde sona eriyor. Bağlı kalmak için o zamandan önce çıkış yapıp yeniden giriş yap."
+          }
+        }
+      }
+    },
+    "Your session has ended. Sign in again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oturumun sona erdi. Yeniden oturum aç."
+          }
+        }
+      }
+    },
+    "Your session has expired. Sign in again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oturumunun süresi doldu. Yeniden oturum aç."
+          }
+        }
+      }
+    },
+    "Your unsent messages could not be read and were set aside." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gönderilmemiş mesajların okunamadı ve kenara alındı."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

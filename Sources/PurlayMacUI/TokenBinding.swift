@@ -3,9 +3,9 @@ import AppKit
 import PurlayTokens
 import SwiftUI
 
-// The one place a token becomes something drawn (§6.6, §16.2): a SwiftUI style, an AppKit colour, a font, an animation. A
-// view elsewhere names tokens and never a colour or a number of its own; the source scan in scripts/enforcement allows the
-// literals this file needs and refuses them everywhere else.
+// Where a token becomes something the Mac draws: a SwiftUI style, an AppKit colour, a font, an animation. A view names tokens
+// (or NativePalette's) and never a colour of its own; scripts/enforcement refuses a colour literal anywhere but the tokens,
+// the logo and NativePalette.swift.
 
 /// A colour token as SwiftUI draws it: `.foregroundStyle(Colors.ink.style)` takes the light value in light and the dark
 /// value in dark. A wrapper rather than a conformance of `TokenColor`, which is another module's type.

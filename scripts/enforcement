@@ -21,7 +21,7 @@ esac
 wants() { case " $RULE_GROUPS " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 
 # What a copy for the demonstration holds: everything a rule reads.
-TREE=(Package.swift Sources Tests Apps Config Design TestPlans Tools ContractTests)
+TREE=(Package.swift Sources Tests Apps Config Design TestPlans Tools)
 
 png_field() { # file offset length: that many bytes of the PNG header as a number (od and bash only: this runs on a Linux runner too)
   local hex
@@ -52,12 +52,13 @@ import json, re, sys
 allowed = {
     "PurlayContract": set(), "PurlayTokens": set(),
     "PurlayKit": {"PurlayContract"},
+    "PurlayWords": {"PurlayKit", "PurlayContract"},
     "PurlayTestSupport": {"PurlayKit", "PurlayContract"},
     "PurlayDesign": {"PurlayTokens"},
     "PurlayModuleAPI": set(),
-    "PurlayMacUI": {"PurlayKit", "PurlayContract", "PurlayTokens", "PurlayDesign"},
+    "PurlayMacUI": {"PurlayKit", "PurlayContract", "PurlayTokens", "PurlayDesign", "PurlayWords"},
 }
-feature = {"PurlayKit", "PurlayContract", "PurlayTokens", "PurlayDesign", "PurlayModuleAPI"}
+feature = {"PurlayKit", "PurlayContract", "PurlayTokens", "PurlayDesign", "PurlayModuleAPI", "PurlayWords"}
 package = json.load(sys.stdin)
 failed = False
 for target in package["targets"]:
@@ -107,10 +108,11 @@ check_tree() { # root: every rule but the layers
       echo "FAIL: $name imports another feature" >&2; failed=1
     fi
   done
-  # The engine, the contract and the tokens are platform-neutral: no UI framework. Each app draws its own interface.
+  # The engine, the contract, the tokens and the engine's words are platform-neutral: no UI framework. Each app draws its own
+  # interface.
   if grep -rnE '^\s*(@_exported )?import (SwiftUI|AppKit|UIKit|WatchKit)\b' \
-      "$root"/Sources/{PurlayContract,PurlayTokens,PurlayKit,PurlayTestSupport}; then
-    echo "FAIL: the engine, the contract or the tokens import a UI framework" >&2; failed=1
+      "$root"/Sources/{PurlayContract,PurlayTokens,PurlayKit,PurlayWords,PurlayTestSupport}; then
+    echo "FAIL: the engine, the contract, the tokens or the engine's words import a UI framework" >&2; failed=1
   fi
   # OS-version branching lives in PurlayDesign alone.
   if grep -rnE --include='*.swift' '#available|#unavailable|@available' "$root/Sources" "$root/Tests" "$root/Apps" \
@@ -132,6 +134,12 @@ check_tree() { # root: every rule but the layers
   # The project holds no build setting: every one is in Config/, where a review sees it.
   if grep -nE '"build-settings"' "$root/Apps/Purlay.xcodeproj/project.xcproj"; then
     echo "FAIL: Apps/Purlay.xcodeproj holds build settings; put them in Config/" >&2; failed=1
+  fi
+  # One package for the apps' modules and every test of them: a second one is built by no lane unless one is written for it,
+  # and resolves the root only by its folder's name. The code generator is a tool of its own, run by `scripts/verify generated`.
+  if find "$root" -name Package.swift -not -path '*/.build/*' -not -path "$root/Package.swift" \
+      -not -path "$root/Tools/PurlayGen/Package.swift" | grep .; then
+    echo "FAIL: a second Swift package; make its tests a test target of Package.swift" >&2; failed=1
   fi
   # Every test target runs: each is in the test plan of a lane (scripts/verify runs macOS and iOS).
   for target in $(tr '\n' ' ' < "$root/Package.swift" | grep -oE 'tests\( *"[A-Za-z0-9]+"' | grep -oE '"[A-Za-z0-9]+"' | tr -d '"') \
@@ -196,30 +204,6 @@ check_tree() { # root: every rule but the layers
       || ! head -n 1 "$launch" | grep -q '^<svg [^>]*width="120" height="120" viewBox="0 0 1024 1024"'; then
     echo "FAIL: the launch mark is not Design/purlay.svg at 120 pt (run scripts/icon)" >&2; failed=1
   fi
-  # Every string of the catalogue is translated into every language the app declares (CFBundleLocalizations).
-  if ! python3 - "$root/Apps/iOS/App/Resources/Localizable.xcstrings" "$root/Apps/iOS/Info.plist" <<'PY'
-import json, plistlib, re, sys
-catalogue = json.load(open(sys.argv[1]))
-# The Info.plist is preprocessed by the build, so its #ifdef lines are taken out before it is read here.
-plist = plistlib.loads(re.sub(rb"(?m)^#.*\n", b"", open(sys.argv[2], "rb").read()))
-languages = plist.get("CFBundleLocalizations", [])
-problems = []
-if catalogue.get("sourceLanguage") != "en":
-    problems.append("the catalogue's source language is not en")
-if "tr" not in languages:
-    problems.append("the app does not declare Turkish (CFBundleLocalizations)")
-for key, entry in catalogue["strings"].items():
-    for language in languages:
-        if language == "en":
-            continue
-        unit = entry.get("localizations", {}).get(language, {}).get("stringUnit", {})
-        if unit.get("state") != "translated" or not unit.get("value", "").strip():
-            problems.append("not translated into %s: %s" % (language, key))
-for problem in problems:
-    print("FAIL: " + problem, file=sys.stderr)
-sys.exit(1 if problems else 0)
-PY
-  then failed=1; fi
   # A button is built from a text label, never from a LocalizedStringResource: on the simulator `Button(Words.x)` showed English on a
   # Turkish device while `Text(Words.x)` beside it was Turkish.
   if grep -rnE --include='*.swift' 'Button\(Words\.' "$root/Apps/iOS/App"; then
@@ -229,19 +213,190 @@ PY
   # a build otherwise). The app's code is its own folder and the modules it links.
   local manifest="$root/Apps/iOS/App/Resources/PrivacyInfo.xcprivacy"
   [ -f "$manifest" ] || { echo "FAIL: there is no privacy manifest" >&2; failed=1; }
+  # Each declared category gives at least one reason, and only reasons Apple lists for that category: an unknown code is refused
+  # at submission like a missing one.
+  if [ -f "$manifest" ] && ! python3 - "$manifest" <<'PY'
+import plistlib, sys
+reasons = {
+    "NSPrivacyAccessedAPICategoryUserDefaults": {"CA92.1", "1C8F.1", "C56D.1", "AC6B.1"},
+    "NSPrivacyAccessedAPICategoryFileTimestamp": {"DDA9.1", "C617.1", "3B52.1", "0A2A.1"},
+    "NSPrivacyAccessedAPICategorySystemBootTime": {"35F9.1", "8FFB.1", "3D61.1"},
+    "NSPrivacyAccessedAPICategoryDiskSpace": {"85F4.1", "E174.1", "7D9E.1", "B728.1"},
+    "NSPrivacyAccessedAPICategoryActiveKeyboards": {"3EC4.1", "54BD.1"},
+}
+problems = []
+for entry in plistlib.load(open(sys.argv[1], "rb")).get("NSPrivacyAccessedAPITypes", []):
+    category = entry.get("NSPrivacyAccessedAPIType")
+    given = entry.get("NSPrivacyAccessedAPITypeReasons", [])
+    if category not in reasons:
+        problems.append(f"the privacy manifest declares an unknown category {category!r}")
+    elif not given:
+        problems.append(f"the privacy manifest gives no reason for {category}")
+    else:
+        problems += [f"{code!r} is not a reason Apple lists for {category}" for code in given if code not in reasons[category]]
+for problem in problems:
+    print("FAIL: " + problem, file=sys.stderr)
+sys.exit(1 if problems else 0)
+PY
+  then failed=1; fi
   while IFS='|' read -r category pattern; do
     if grep -rlE --include='*.swift' "$pattern" "$root/Apps/iOS/App" \
-        "$root"/Sources/{PurlayContract,PurlayTokens,PurlayKit,PurlayDesign,PurlayModuleAPI} | grep -q .; then
+        "$root"/Sources/{PurlayContract,PurlayTokens,PurlayKit,PurlayWords,PurlayDesign,PurlayModuleAPI} | grep -q .; then
       grep -q "NSPrivacyAccessedAPICategory$category" "$manifest" 2>/dev/null \
         || { echo "FAIL: code uses a $category API the privacy manifest does not declare" >&2; failed=1; }
     fi
   done <<'APIS'
-UserDefaults|UserDefaults
-FileTimestamp|creationDate|modificationDate|fileModificationDate|fileCreationDate|attributesOfItem
+UserDefaults|UserDefaults|@AppStorage
+FileTimestamp|creationDate|modificationDate|fileModificationDate|fileCreationDate|attributesOfItem|\bf?stat\(
 SystemBootTime|systemUptime|mach_absolute_time
 DiskSpace|volumeAvailableCapacity|volumeTotalCapacity|systemFreeSize|statfs|getattrlist
 ActiveKeyboards|activeInputModes
 APIS
+
+  # The logo is stated once, in Design/purlay.svg: PurlayMark and the Welcome field draw `Logo`, which scripts/icon writes from it.
+  if ! scripts/logo-swift --check "$root"; then failed=1; fi
+  # --- The sentences: one checker for every catalogue. The engine's sentences (PurlayWords) are said by both apps, so their
+  # catalogue answers to every language either app declares; each app's own catalogue answers to the languages that app
+  # declares (CFBundleLocalizations). A sentence has one home: a key in two catalogues is two translations that can drift.
+  if ! python3 - "$root" <<'PY'
+import json, plistlib, re, sys
+root = sys.argv[1]
+apps = {"iOS": "Apps/iOS", "macOS": "Apps/macOS"}
+spec = re.compile(r"%(?:\d+\$)?(?:lld|ld|lu|llu|@|d|u|f)")
+# Nothing to translate: only symbols, digits and format specifiers, or a code-like address.
+inert = re.compile(r"^[^A-Za-z]*$|^[a-z0-9.\-/]+$")
+plural_forms = {"zero", "one", "two", "few", "many", "other"}
+problems = []
+
+def declared(app):
+    # The Info.plist is preprocessed by the build, so its #ifdef lines are taken out before it is read here.
+    plist = plistlib.loads(re.sub(rb"(?m)^#.*\n", b"", open(f"{root}/{apps[app]}/Info.plist", "rb").read()))
+    languages = plist.get("CFBundleLocalizations", [])
+    if "en" not in languages or "tr" not in languages:
+        problems.append(f"the {app} app does not declare English and Turkish (CFBundleLocalizations): {languages}")
+    return set(languages)
+
+languages = {app: declared(app) for app in apps}
+catalogues = {
+    "Apps/iOS/App/Resources/Localizable.xcstrings": languages["iOS"],
+    "Apps/macOS/App/Resources/Localizable.xcstrings": languages["macOS"],
+    "Sources/PurlayWords/Resources/Localizable.xcstrings": languages["iOS"] | languages["macOS"],
+}
+
+def norm(text):
+    return sorted(re.sub(r"\d+\$", "", match) for match in spec.findall(text))
+
+def units(path, key, language, localization):
+    """Every value a language gives for a key: the one, or one per plural form, which must include `other`."""
+    if "stringUnit" in localization:
+        return [localization["stringUnit"]]
+    plural = localization.get("variations", {}).get("plural")
+    if plural is None:
+        problems.append(f"{path}: {key!r} in {language} is neither a value nor plural forms")
+        return []
+    if "other" not in plural or not set(plural) <= plural_forms:
+        problems.append(f"{path}: {key!r} in {language} has plural forms {sorted(plural)}, without `other` or with an unknown one")
+    return [form.get("stringUnit", {}) for form in plural.values()]
+
+homes = {}
+for path, wanted in catalogues.items():
+    catalogue = json.load(open(f"{root}/{path}"))
+    if catalogue.get("sourceLanguage") != "en":
+        problems.append(f"{path}: the source language is not en")
+    for key, entry in catalogue["strings"].items():
+        homes.setdefault(key, []).append(path)
+        if entry.get("shouldTranslate") is False:
+            continue
+        if entry.get("extractionState") == "stale":
+            problems.append(f"{path}: {key!r} is stale (no code says it any more); remove it")
+            continue
+        localizations = entry.get("localizations", {})
+        for language in sorted(wanted - {"en"}):
+            if language not in localizations:
+                if not inert.match(spec.sub("", key)):
+                    problems.append(f"{path}: {key!r} is not translated into {language}")
+                continue
+            for unit in units(path, key, language, localizations[language]):
+                if unit.get("state") != "translated" or not unit.get("value", "").strip():
+                    problems.append(f"{path}: {key!r} has no final {language} value ({unit.get('state')})")
+                elif norm(unit["value"]) != norm(key):
+                    problems.append(f"{path}: {key!r} -> {unit['value']!r}: the format specifiers differ")
+        # The English forms are held to the same rule, so that a plural cannot drop an argument.
+        if "en" in localizations:
+            for unit in units(path, key, "en", localizations["en"]):
+                if norm(unit.get("value", key)) != norm(key):
+                    problems.append(f"{path}: an English form of {key!r} changes its arguments")
+for key, paths in homes.items():
+    if len(paths) > 1:
+        problems.append(f"{key!r} is in {len(paths)} catalogues ({', '.join(paths)}); a sentence has one home")
+for problem in problems[:60]:
+    print("FAIL: " + problem, file=sys.stderr)
+if len(problems) > 60:
+    print(f"FAIL: … and {len(problems) - 60} more", file=sys.stderr)
+sys.exit(1 if problems else 0)
+PY
+  then failed=1; fi
+  # A sentence in a catalogue is one some code says. The catalogues carry no extraction state (the iOS one is edited by hand, the
+  # others are synced only by scripts/localize), so `stale` never shows a sentence the code stopped saying: the code is read here.
+  # Each catalogue is read by its own code: the iOS app's, the Mac app's with PurlayMacUI, and PurlayWords'.
+  if ! python3 - "$root" <<'PY'
+import json, pathlib, re, sys
+root = pathlib.Path(sys.argv[1])
+readers = {
+    "Apps/iOS/App/Resources/Localizable.xcstrings": ["Apps/iOS/App"],
+    "Apps/macOS/App/Resources/Localizable.xcstrings": ["Apps/macOS/App", "Sources/PurlayMacUI"],
+    "Sources/PurlayWords/Resources/Localizable.xcstrings": ["Sources/PurlayWords"],
+}
+spec = re.compile(r"%(?:\d+\$)?(?:lld|ld|lu|llu|@|d|u|f)")
+escapes = {"n": "\n", "t": "\t", '"': '"', "\\": "\\", "'": "'", "0": "\0"}
+
+def literal(text, i):
+    """The Swift string literal opening at text[i], each interpolation as NUL, and the index after it."""
+    if text.startswith('"""', i):
+        end = text.index('"""', i + 3)
+        lines = text[i + 3:end].strip("\n").split("\n")
+        indent = min((len(line) - len(line.lstrip()) for line in lines if line.strip()), default=0)
+        return "\n".join(line[indent:] for line in lines), end + 3
+    value, i = [], i + 1
+    while i < len(text) and text[i] not in '"\n':
+        if text[i] != "\\":
+            value.append(text[i]); i += 1
+        elif text[i + 1] == "(":
+            depth, i = 1, i + 2
+            while depth:
+                if text[i] == '"':
+                    _, i = literal(text, i)
+                    continue
+                depth += {"(": 1, ")": -1}.get(text[i], 0); i += 1
+            value.append("\0")
+        elif text[i + 1] == "u":
+            close = text.index("}", i)
+            value.append(chr(int(text[i + 3:close], 16))); i = close + 1
+        else:
+            value.append(escapes.get(text[i + 1], text[i + 1])); i += 2
+    return "".join(value), i + 1
+
+def said(folders):
+    found = set()
+    for folder in folders:
+        for path in sorted((root / folder).rglob("*.swift")):
+            text, i = re.sub(r"(?m)^\s*//.*$", "", path.read_text()), 0
+            while (i := text.find('"', i)) != -1:
+                value, i = literal(text, i)
+                found.add(value)
+    return found
+
+problems = []
+for path, folders in readers.items():
+    sentences = said(folders)
+    for key, entry in json.load(open(root / path))["strings"].items():
+        if entry.get("shouldTranslate") is not False and spec.sub("\0", key) not in sentences:
+            problems.append(f"{path}: {key!r} is said by no code that reads this catalogue; remove it")
+for problem in problems:
+    print("FAIL: " + problem, file=sys.stderr)
+sys.exit(1 if problems else 0)
+PY
+  then failed=1; fi
 
   # --- The Mac app.
   # The icon is the whole set the catalogue names, each at its own pixel size; scripts/icon writes it from Design/purlay.svg.
@@ -290,6 +445,115 @@ ok = release == allowlist and debug.pop("com.apple.security.cs.disable-library-v
 sys.exit(0 if ok else 1)
 PY
   then echo "FAIL: the Mac entitlements are not the allowlist" >&2; failed=1; fi
+
+  # --- One fact, one place: what is stated twice is checked against its source.
+  # The shared modules serve every app, so they name none: an app's bundle identifier, and the platform it runs on, are handed
+  # in by the app (AppIdentity, from its bundle), never defaulted to one app's in the engine.
+  if grep -rnE --include='*.swift' 'dev\.purlay\.(mac|ios)\b|ClientPlatform *= *\.' "$root/Sources" | grep -v '/Generated/' \
+      | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
+    echo "FAIL: a shared module names one app (its bundle identifier or its platform); take it from the app" >&2; failed=1
+  fi
+  # The Mac's bundle identifier is the one it shipped under: the Keychain service every installed Mac keeps its session under
+  # (`<bundle identifier>.session`) and Sparkle's updates both follow it, so a change signs every Mac out and strands its updates.
+  if [ "$(sed -nE 's/^PRODUCT_BUNDLE_IDENTIFIER *= *//p' "$root/Config/macOS.xcconfig")" != "dev.purlay.mac" ]; then
+    echo "FAIL: Config/macOS.xcconfig no longer names the shipped bundle identifier dev.purlay.mac" >&2; failed=1
+  fi
+  # A colour written in hex is read in one place: RGBA(hex:) in the tokens, which Color(hex:) in PurlayDesign draws through.
+  if grep -rnE --include='*.swift' 'init\(hex[: ]' "$root/Sources" "$root"/Apps/*/App | grep -v '/Generated/' \
+      | grep -vE "^$root/Sources/PurlayTokens/PurlayTokens.swift:|^$root/Sources/PurlayDesign/HexColor.swift:"; then
+    echo "FAIL: a second hex colour decoder; use Color(hex:) or RGBA(hex:)" >&2; failed=1
+  fi
+  # A colour is a token. A colour written as a literal (a hex value, with or without its alpha, or components given as numbers, in
+  # any colour space and through `.init` as well) is allowed only where its value is stated: the tokens (generated from the
+  # server's tokens.json), the logo (Logo.swift, written from Design/purlay.svg), and NativePalette.swift, the allowlist of the
+  # Mac's neutral greys and status colours, which no token states yet.
+  if grep -rnE --include='*.swift' \
+      '0x[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?\b|(Color|NSColor|UIColor|\.init)\((\.(sRGB|sRGBLinear|displayP3), *)?(red|srgbRed|white|hue|displayP3Red|calibratedRed|deviceRed|calibratedWhite|deviceWhite): *[0-9.]|#colorLiteral' \
+      "$root/Sources" "$root"/Apps/*/App | grep -v '/Generated/' \
+      | grep -vE "^$root/Sources/PurlayDesign/Logo.swift:|^$root/Sources/PurlayMacUI/NativePalette.swift:" \
+      | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
+    echo "FAIL: a colour literal outside the tokens, the logo and NativePalette.swift; name a token" >&2; failed=1
+  fi
+  # Both apps' controls are tinted with the accent token: the build names the AccentColor asset as the app's accent, and each
+  # app's asset is the token's value (Sources/PurlayTokens/Generated/Colors.swift), in every appearance the asset gives.
+  if ! grep -qE '^ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME *= *AccentColor$' "$root/Config/Shared.xcconfig"; then
+    echo "FAIL: Config/Shared.xcconfig does not name AccentColor as the apps' accent" >&2; failed=1
+  fi
+  if ! python3 - "$root" <<'PY'
+import json, re, sys
+root = sys.argv[1]
+colours = open(f"{root}/Sources/PurlayTokens/Generated/Colors.swift").read()
+match = re.search(r'name: "accent",\s*light: RGBA\(hex: 0x([0-9a-fA-F]{6})\),\s*dark: RGBA\(hex: 0x([0-9a-fA-F]{6})\)', colours)
+if not match:
+    sys.exit("FAIL: the accent token is not in the generated colours")
+token = {"light": match.group(1).lower(), "dark": match.group(2).lower()}
+
+def byte(component):
+    return int(component, 16) if component.lower().startswith("0x") else round(float(component) * 255)
+
+problems = []
+for app in ("iOS", "macOS"):
+    path = f"{root}/Apps/{app}/App/Resources/Assets.xcassets/AccentColor.colorset/Contents.json"
+    try:
+        colours = json.load(open(path))["colors"]
+    except (OSError, KeyError, ValueError):
+        problems.append(f"the {app} app has no AccentColor asset")
+        continue
+    for entry in colours:
+        dark = any(a.get("appearance") == "luminosity" and a.get("value") == "dark" for a in entry.get("appearances", []))
+        parts = entry["color"]["components"]
+        value = "".join(f"{byte(parts[c]):02x}" for c in ("red", "green", "blue"))
+        if entry["color"].get("color-space") != "srgb" or value != token["dark" if dark else "light"]:
+            problems.append(f"the {app} AccentColor is #{value}, not the accent token #{token['dark' if dark else 'light']}")
+for problem in problems:
+    print("FAIL: " + problem, file=sys.stderr)
+sys.exit(1 if problems else 0)
+PY
+  then failed=1; fi
+  # Who the retained data belongs to is kept one way, by PurlayKit's DefaultsOwner, for both apps.
+  if grep -rnE --include='*.swift' '(struct|class) DefaultsOwner\b' "$root/Sources" "$root"/Apps/*/App \
+      | grep -v "^$root/Sources/PurlayKit/App/DefaultsOwner.swift:"; then
+    echo "FAIL: a second DefaultsOwner; use PurlayKit's" >&2; failed=1
+  fi
+  # A scheme names the app it builds as the build names it (PRODUCT_NAME, Config/Shared.xcconfig).
+  local product
+  product="$(sed -nE 's/^PRODUCT_NAME *= *//p' "$root/Config/Shared.xcconfig")"
+  if grep -nE 'BuildableName = "[^"]*\.app"' "$root"/Apps/Purlay.xcodeproj/xcshareddata/xcschemes/*.xcscheme \
+      | grep -v "BuildableName = \"$product.app\""; then
+    echo "FAIL: a scheme names an app other than $product.app" >&2; failed=1
+  fi
+  # Both apps register their URL type alike: the same name (the app's own bundle identifier) and the same scheme.
+  if ! python3 - "$root/Apps/iOS/Info.plist" "$root/Apps/macOS/Info.plist" <<'PY'
+import plistlib, re, sys
+types = [plistlib.loads(re.sub(rb"(?m)^#.*\n", b"", open(path, "rb").read())).get("CFBundleURLTypes") for path in sys.argv[1:]]
+expected = [{"CFBundleURLName": "$(PRODUCT_BUNDLE_IDENTIFIER)", "CFBundleURLSchemes": ["$(PURLAY_URL_SCHEME)"]}]
+sys.exit(0 if all(entry == expected for entry in types) else 1)
+PY
+  then echo "FAIL: the apps' URL types differ, or are not named by the bundle identifier" >&2; failed=1; fi
+  # Every shared configuration file is in the project's Config group, so it is seen where the others are.
+  local config
+  for config in "$root"/Config/*.xcconfig; do
+    case "$(basename "$config")" in BuildNumber.xcconfig | Local.xcconfig) continue ;; esac
+    if ! grep -qF "{ \"path\": \"$(basename "$config")\" }" "$root/Apps/Purlay.xcodeproj/project.xcproj"; then
+      echo "FAIL: $(basename "$config") is not in the project's Config group" >&2; failed=1
+    fi
+  done
+  # A package test suite is not named like an app's test target, so a test's name says where it runs.
+  if grep -rnE --include='*.swift' '^(struct|final class|class) (PurlayTests|PurlayUITests)\b' "$root/Tests"; then
+    echo "FAIL: a package test suite named like an iOS test target" >&2; failed=1
+  fi
+  # The app's URL scheme is the server's: the scheme of `nativeRedirect` in the generated constants. The scheme both apps
+  # register (PURLAY_URL_SCHEME, which Info.plist cannot ask Swift for) says the same, and code asks NativeRedirect for it.
+  local redirect_scheme
+  redirect_scheme="$(sed -nE 's/.*nativeRedirect = "([a-z][a-z0-9+.-]*):.*/\1/p' "$root/Sources/PurlayContract/Generated/Constants.swift")"
+  if [ -z "$redirect_scheme" ] \
+      || [ "$(sed -nE 's/^PURLAY_URL_SCHEME *= *//p' "$root/Config/Shared.xcconfig")" != "$redirect_scheme" ]; then
+    echo "FAIL: PURLAY_URL_SCHEME is not the scheme of the contract's nativeRedirect (${redirect_scheme:-none found})" >&2
+    failed=1
+  elif grep -rnE --include='*.swift' "(scheme[^=]*==? *\"$redirect_scheme\"|\"$redirect_scheme:)" "$root/Sources" "$root"/Apps/*/App \
+      | grep -v '/Generated/' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
+    echo "FAIL: the URL scheme spelt by hand; take it from NativeRedirect" >&2; failed=1
+  fi
   return $failed
 }
 
@@ -302,7 +566,10 @@ fail=0
 copy_tree() { # a copy of what the rules read, without build products
   local copy
   copy="$(mktemp -d)"
-  rsync -a --exclude .build --exclude .swiftpm --exclude Generated --exclude 'xcuserdata' "${TREE[@]}" "$copy"/
+  # The generated constants and colours stay: the URL-scheme rule reads the contract's redirect there, the accent rule the token.
+  rsync -a --exclude .build --exclude .swiftpm --include '/Sources/PurlayContract/Generated/***' \
+    --include '/Sources/PurlayTokens/Generated/***' --exclude Generated \
+    --exclude 'xcuserdata' "${TREE[@]}" "$copy"/
   echo "$copy"
 }
 judge() { # name copy
@@ -343,12 +610,16 @@ plant "Design depending on Kit" Package.swift \
   'package.targets.first { $0.name == "PurlayDesign" }?.dependencies.append("PurlayKit")'
 plant "a feature depending on a feature" Package.swift \
   'package.targets += [.target(name: "FeatureChat", dependencies: ["PurlayKit", "FeatureAccount"]), .target(name: "FeatureAccount")]'
+# shellcheck disable=SC2016 # Swift source, planted as it is written
+plant "the engine's words depending on Design" Package.swift \
+  'package.targets.first { $0.name == "PurlayWords" }?.dependencies.append("PurlayDesign")'
 plant "a module the layer table does not name" Package.swift 'package.targets += [.target(name: "PurlayHelpers")]'
 # The structure, the rest of it.
 group=tree
 plant "a feature importing a feature" Sources/FeatureChat/Chat.swift "import FeatureAccount"
 plant "Kit imports SwiftUI" Sources/PurlayKit/App/AppEnvironment.swift "import SwiftUI"
 plant "Tokens imports UIKit" Sources/PurlayTokens/PurlayTokens.swift "import UIKit"
+plant "the engine's words import SwiftUI" Sources/PurlayWords/EngineWords.swift "import SwiftUI"
 plant "#available in an app" Apps/iOS/App/PurlayApp.swift 'func gated() { if #available(iOS 26, *) {} }'
 plant "@available in the Mac screens" Sources/PurlayMacUI/Strings.swift '@available(macOS 27, *) func gated() {}'
 plant "#unavailable in the engine" Sources/PurlayKit/App/AppEnvironment.swift 'func gated() { if #unavailable(iOS 26) {} }'
@@ -358,6 +629,8 @@ plant "a different iOS floor in Config" Config/iOSTests.xcconfig "IPHONEOS_DEPLO
 plant_in "a floor stated in Package.swift alone" Config 'sed -i.bak "/^MACOSX_DEPLOYMENT_TARGET/d" macOS.xcconfig && rm macOS.xcconfig.bak'
 plant_in "a build setting in the project" Apps/Purlay.xcodeproj \
   'python3 -c "import sys; p=\"project.xcproj\"; s=open(p).read(); open(p,\"w\").write(s.replace(\"\\\"last-upgrade\\\"\", \"\\\"build-settings\\\": { \\\"SWIFT_VERSION\\\": \\\"5\\\" },\\n  \\\"last-upgrade\\\"\", 1))"'
+plant_in "a second test package" . \
+  'mkdir -p ContractTests && printf "// swift-tools-version: 6.2\n" > ContractTests/Package.swift'
 plant "a test target in no test plan" Package.swift '// tests("PurlayOrphanTests", [])'
 # Dependencies and code that can trap.
 plant "a package dependency" Package.swift '// .package(url: "https://example.test/Alamofire", from: "1.0.0")'
@@ -382,15 +655,61 @@ plant_in "a launch mark that has drifted from the logo" Apps/iOS/App/Resources/A
   'echo "<!-- drift -->" >> purlay-mark.svg'
 plant_in "a launch mark at the wrong size" Apps/iOS/App/Resources/Assets.xcassets/LaunchMark.imageset \
   'sed -i.bak "1s/width=\"120\"/width=\"121\"/" purlay-mark.svg'
-plant_in "a string with no translation" Apps/iOS/App/Resources 'python3 -c "
-import json
-catalogue = json.load(open(\"Localizable.xcstrings\"))
-del catalogue[\"strings\"][\"Try Again\"][\"localizations\"][\"tr\"]
-json.dump(catalogue, open(\"Localizable.xcstrings\", \"w\"), ensure_ascii=False)"'
-plant "a button built from a LocalizedStringResource" Apps/iOS/App/Root/RootView.swift 'let leaked = Button(Words.tryAgain) {}'
+plant "the logo's Swift edited by hand" Sources/PurlayDesign/Logo.swift "// drawn a little differently"
+# The launch mark follows the changed logo, so only the Swift is behind it.
+plant_in "the logo changed without its Swift" . \
+  'sed -i.bak "s/#0759EB/#0759EC/" Design/purlay.svg Apps/iOS/App/Resources/Assets.xcassets/LaunchMark.imageset/purlay-mark.svg'
+# scripts/logo-swift says it refuses SVG it does not read; a logo moved, faded or given a shape that is not a path is a logo the
+# Swift does not draw. The launch mark follows each change, so only the Swift is behind it.
+LOGOS="Design/purlay.svg Apps/iOS/App/Resources/Assets.xcassets/LaunchMark.imageset/purlay-mark.svg"
+plant_in "the logo moved by a transform the Swift does not read" . "sed -i.bak 's/<g>/<g transform=\"translate(200 0)\">/' $LOGOS"
+plant_in "a logo shape that is not a path" . "sed -i.bak 's#</g>#<circle cx=\"512\" cy=\"512\" r=\"300\" fill=\"url(\\#stem)\"/></g>#' $LOGOS"
+plant_in "a logo shape faded by an opacity the Swift does not read" . \
+  "sed -i.bak 's/<path fill=\"url(#stem)\"/<path opacity=\".2\" fill=\"url(#stem)\"/' $LOGOS"
+plant_in "a logo stop faded by a stop-opacity the Swift does not read" . \
+  "sed -i.bak 's/<stop offset=\"1\" stop-color=\"#0EA5EE\"/<stop offset=\"1\" stop-opacity=\".3\" stop-color=\"#0EA5EE\"/' $LOGOS"
+plant "a button built from a LocalizedStringResource" Apps/iOS/App/Root/RootView.swift 'let leaked = Button(Words.signInButton) {}'
 plant "an undeclared required-reason API in the app" Apps/iOS/App/PurlayApp.swift 'let booted = ProcessInfo.processInfo.systemUptime'
 plant "an undeclared required-reason API in the engine" Sources/PurlayKit/App/AppEnvironment.swift \
   'let free = URLResourceKey.volumeAvailableCapacityKey'
+plant "a file's timestamp read with stat in the engine" Sources/PurlayKit/App/AppEnvironment.swift \
+  'func leakedAge(_ path: String) { var info = stat(); _ = stat(path, &info) }'
+plant "a file's timestamp read with fstat in the app" Apps/iOS/App/PurlayApp.swift \
+  'func leakedAge(_ descriptor: Int32) { var info = stat(); _ = fstat(descriptor, &info) }'
+# The defaults reached only through @AppStorage: every other use of UserDefaults is renamed away in the copy, so the property
+# wrapper alone is what must be found.
+plant_in "@AppStorage with defaults undeclared" . \
+  'grep -rlE "UserDefaults" --include="*.swift" Apps/iOS/App Sources | xargs sed -i.bak "s/UserDefaults/UserPrefs/g" \
+    && python3 -c "import plistlib; p=\"Apps/iOS/App/Resources/PrivacyInfo.xcprivacy\"; m=plistlib.load(open(p,\"rb\")); m[\"NSPrivacyAccessedAPITypes\"]=[]; plistlib.dump(m, open(p,\"wb\"))" \
+    && printf "struct Leaked { @AppStorage(\"k\") var k = 0 }\n" > Apps/iOS/App/Leaked.swift'
+plant_in "a reason Apple does not list" Apps/iOS/App/Resources \
+  'sed -i.bak "s/CA92.1/ZZ99.9/" PrivacyInfo.xcprivacy && rm PrivacyInfo.xcprivacy.bak'
+plant_in "a declared category with no reason" Apps/iOS/App/Resources \
+  'python3 -c "import plistlib; p=\"PrivacyInfo.xcprivacy\"; m=plistlib.load(open(p,\"rb\")); m[\"NSPrivacyAccessedAPITypes\"][0][\"NSPrivacyAccessedAPITypeReasons\"]=[]; plistlib.dump(m, open(p,\"wb\"))"'
+# The sentences, in each of the three catalogues.
+recatalogue() { # catalogue (relative), Python statements over `strings`, the catalogue's entries
+  printf 'import json; p = "%s"; c = json.load(open(p)); strings = c["strings"]; %s; json.dump(c, open(p, "w"), ensure_ascii=False)' "$1" "$2"
+}
+WORDS=Sources/PurlayWords/Resources/Localizable.xcstrings
+IOS_STRINGS=Apps/iOS/App/Resources/Localizable.xcstrings
+MAC_STRINGS=Apps/macOS/App/Resources/Localizable.xcstrings
+plant_in "an engine sentence with no Turkish" . "python3 -c '$(recatalogue $WORDS 'del strings["Try Again"]["localizations"]["tr"]')'"
+plant_in "an iOS sentence with no Turkish" . "python3 -c '$(recatalogue $IOS_STRINGS 'del strings["Sign In"]["localizations"]["tr"]')'"
+plant_in "a Mac sentence with no Turkish" . "python3 -c '$(recatalogue $MAC_STRINGS 'del strings["Starred"]["localizations"]["tr"]')'"
+plant_in "a Turkish value not yet final" . \
+  "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Channels"]["localizations"]["tr"]["stringUnit"]["state"] = "needs_review"')'"
+plant_in "a translation that drops a value" . \
+  "python3 -c '$(recatalogue $WORDS 'strings["It needs version %@ or newer."]["localizations"]["tr"]["stringUnit"]["value"] = "Daha yeni bir sürüm gerekir."')'"
+plant_in "plural forms without other" . "python3 -c '$(recatalogue $WORDS 'forms = strings["%lld unsent messages could not be restored."]["localizations"]["tr"]["variations"]["plural"]; forms["few"] = forms.pop("other")')'"
+plant_in "a stale sentence" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Starred"]["extractionState"] = "stale"')'"
+plant_in "a sentence in two catalogues" . "python3 -c '$(recatalogue $IOS_STRINGS 'strings["Try Again"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Yeniden Dene"}}}}')'"
+plant_in "an iOS sentence no code says" . "python3 -c '$(recatalogue $IOS_STRINGS 'strings["Your session ends on %@. Sign in again before then to stay connected."] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Oturumun %@ tarihinde sona eriyor."}}}}')'"
+plant_in "a Mac sentence no code says" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')'"
+plant_in "an engine sentence no code says" . "python3 -c '$(recatalogue $WORDS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')'"
+plant_in "the Mac declaring no languages" Apps/macOS 'python3 -c "
+import re
+text = open(\"Info.plist\").read()
+open(\"Info.plist\", \"w\").write(re.sub(r\"\\s*<key>CFBundleLocalizations</key>\\s*<array>.*?</array>\", \"\", text, flags=re.S))"'
 # The Mac app.
 plant_in "a Mac icon size missing" Apps/macOS/App/Resources/Assets.xcassets/AppIcon.appiconset 'rm icon_16x16@2x.png'
 plant_in "a Mac icon at the wrong size" Apps/macOS/App/Resources/Assets.xcassets/AppIcon.appiconset \
@@ -411,4 +730,43 @@ entitle() { # key: a line of Python that adds the key to the copy's Release enti
 plant_in "an entitlement beyond the allowlist" Apps/macOS/App/Resources "python3 -c '$(entitle com.apple.security.network.server)'"
 plant_in "library validation off in Release" Apps/macOS/App/Resources \
   "python3 -c '$(entitle com.apple.security.cs.disable-library-validation)'"
+# One fact, one place.
+plant "the engine naming the Mac's bundle identifier" Sources/PurlayKit/App/AppEnvironment.swift \
+  'let leakedIdentifier = "dev.purlay.mac.cache"'
+plant "the engine naming the iPhone's bundle identifier" Sources/PurlayKit/Diagnostics/Log.swift \
+  'let leakedSubsystem = "dev.purlay.ios"'
+plant "the engine presuming a platform" Sources/PurlayKit/App/AppEnvironment.swift \
+  'func leakedPlatform(_ platform: ClientPlatform = .macOS) {}'
+plant_in "the Mac's bundle identifier changed" Config \
+  'sed -i.bak "s/^PRODUCT_BUNDLE_IDENTIFIER = dev.purlay.mac$/PRODUCT_BUNDLE_IDENTIFIER = dev.purlay.macos/" macOS.xcconfig && rm macOS.xcconfig.bak'
+plant "a third hex colour decoder in an app" Apps/iOS/App/Entry/EntryBackdrop.swift \
+  'extension Color { fileprivate init(hex leaked: UInt32) { self.init(white: 0) } }'
+plant "a hex colour in an iOS view" Apps/iOS/App/Entry/WelcomeView.swift 'let leakedBlue = Color(hex: 0x2563EB)'
+plant "a colour by components in the Mac screens" Sources/PurlayMacUI/Strings.swift \
+  'let leakedGrey = Color(.sRGB, red: 0.5, green: 0.5, blue: 0.5)'
+plant "a colour by components in PurlayDesign" Sources/PurlayDesign/Brand.swift 'let leakedWhite = Color(white: 0.9)'
+plant "a hex colour in NativePalette's neighbour" Sources/PurlayMacUI/TokenBinding.swift 'let leakedHex: UInt32 = 0x015bf7'
+plant "a Display P3 colour by components in an iOS view" Apps/iOS/App/Entry/WelcomeView.swift \
+  'let leakedP3 = Color(.displayP3, red: 0.1, green: 0.2, blue: 0.3)'
+plant "a hex colour with its alpha in an iOS view" Apps/iOS/App/Entry/WelcomeView.swift 'let leakedRGBA: UInt32 = 0x2563EBFF'
+plant "a colour by components through .init" Apps/iOS/App/Entry/WelcomeView.swift \
+  'let leakedInit: Color = .init(red: 0.1, green: 0.2, blue: 0.3)'
+plant_in "the accent not named by the build" Config \
+  'sed -i.bak "/^ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME/d" Shared.xcconfig && rm Shared.xcconfig.bak'
+plant_in "the Mac's accent asset missing" Apps/macOS/App/Resources/Assets.xcassets 'rm -r AccentColor.colorset'
+plant_in "the iOS accent asset another blue" Apps/iOS/App/Resources/Assets.xcassets/AccentColor.colorset \
+  'sed -i.bak "s/\"0x63\"/\"0x64\"/" Contents.json && rm Contents.json.bak'
+plant "a second DefaultsOwner in the Mac app" Apps/macOS/App/Environment.swift 'struct DefaultsOwner {}'
+plant_in "a scheme naming an app the build does not make" Apps/Purlay.xcodeproj/xcshareddata/xcschemes \
+  'sed -i.bak "s/BuildableName = \"Purlay.app\"/BuildableName = \"Purlay iOS.app\"/" Purlay-iOS.xcscheme && rm Purlay-iOS.xcscheme.bak'
+# shellcheck disable=SC2016 # the literal $(PRODUCT_BUNDLE_IDENTIFIER) is what is replaced
+plant_in "an iOS URL type named its own way" Apps/iOS \
+  'sed -i.bak "s/<string>\$(PRODUCT_BUNDLE_IDENTIFIER)<\/string>/<string>dev.purlay.sign-in<\/string>/" Info.plist'
+plant "a configuration file outside the project's Config group" Config/Extra.xcconfig 'SWIFT_VERSION = 6.0'
+plant "a Mac suite named like the iOS UI tests" Tests/PurlayMacUITests/MacWordsTests.swift 'struct PurlayUITests {}'
+plant "a URL scheme other than the contract's" Config/Shared.xcconfig 'PURLAY_URL_SCHEME = purlay-dev'
+plant "the URL scheme compared by hand in the engine" Sources/PurlayKit/App/AppEnvironment.swift \
+  'func leakedScheme(_ url: URL) -> Bool { url.scheme == "purlay" }'
+plant "the URL scheme spelt in an address in the Mac app" Apps/macOS/App/PurlayApp.swift \
+  'let leakedCallback = URL(string: "purlay://auth")'
 exit $fail

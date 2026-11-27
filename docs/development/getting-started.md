@@ -81,12 +81,15 @@ Approving inside the system browser's page is not driven (TD-007); the server's 
 
 ## Strings
 
-- **iOS:** a sentence is a `LocalizedStringResource` in `Apps/iOS/App/Root/Words.swift` and an entry in
-  `Apps/iOS/App/Resources/Localizable.xcstrings`, translated into every language `CFBundleLocalizations` names
-  (`scripts/enforcement` checks).
-- **Mac:** write the sentence in English in the code; `scripts/localize` builds with string extraction and adds it to
-  `Apps/macOS/App/Resources/Localizable.xcstrings`. Give it its Turkish value with the state `translated`, then
-  `scripts/localize --check`.
+- **What both apps say about the engine** (a phase, a server problem, a sign-in failure, a notice, an upload failure): a
+  `LocalizedStringResource` with `bundle: .module` in `Sources/PurlayWords`, and an entry in its catalogue,
+  `Sources/PurlayWords/Resources/Localizable.xcstrings`.
+- **iOS's own:** a `LocalizedStringResource` in `Apps/iOS/App/Root/Words.swift` and an entry in
+  `Apps/iOS/App/Resources/Localizable.xcstrings`.
+- **The Mac's own:** write the sentence in English in the code.
+- `scripts/localize` builds the Mac app with string extraction and adds the new sentences of the Mac and of `PurlayWords` to their
+  catalogues. Give each its Turkish value with the state `translated`, then run `scripts/enforcement tree`: its one checker
+  holds the three catalogues to every language the apps declare (`CFBundleLocalizations`).
 
 ## Where to read next
 

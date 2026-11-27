@@ -49,9 +49,10 @@ flowchart LR
 
 ```
 Package.swift            every module, one package: the floors, Swift 6 and warnings-as-errors stated once
-Sources/                 PurlayContract, PurlayTokens (generated), PurlayKit, PurlayTestSupport, PurlayDesign,
-                         PurlayModuleAPI, PurlayMacUI
-Tests/<Module>Tests/     each module's tests, Swift Testing, run on macOS
+Sources/                 PurlayContract, PurlayTokens (generated), PurlayKit, PurlayWords, PurlayTestSupport,
+                         PurlayDesign, PurlayModuleAPI, PurlayMacUI
+Tests/<Module>Tests/     each module's tests, Swift Testing, run on macOS; Tests/ContractTests, the real client against a
+                         real server (skipped without one; scripts/contract-test starts one)
 Apps/Purlay.xcodeproj    the app targets only, in Xcode's JSON project format, with synchronized folders
 Apps/iOS/                the iPhone and iPad app: composition root, Info.plist, assets, catalogue, its tests, CHANGELOG.md
 Apps/macOS/              the Mac app: composition root, system adapters, Sparkle, entitlements, assets, CHANGELOG.md
@@ -59,8 +60,8 @@ Config/                  every build setting (*.xcconfig); the project holds non
 TestPlans/               iOS (the app's tests, its UI tests, PurlayDesignTests), macOS (every package test)
 Contract/contract.lock   the pinned server contract; Contract/bundle is fetched and ignored
 Tools/PurlayGen/         the generator, its own package with its tests
-ContractTests/           the real client against a real server (by hand: scripts/contract-test)
-Design/purlay.svg        the logo; both apps' icons and the iOS launch mark are drawn from it (scripts/icon)
+Design/purlay.svg        the logo; both apps' icons, the iOS launch mark and PurlayDesign's Logo.swift are written from it
+                         (scripts/icon)
 scripts/                 verify (the lanes), enforcement (the rules), and the tools; scripts/ci and scripts/dev
 docs/                    this documentation
 ```
@@ -97,7 +98,7 @@ cold start (A-003), and an `ios` minimum-client gate on the server (Q-003).
 | Bundle id | `dev.purlay.ios` | `dev.purlay.mac` |
 | Screens | `Apps/iOS/App`: one screen per phase of `AppModel`, decided from a pure value (`RootScreen`) | `Sources/PurlayMacUI`, every screen and control; the app target is a shell of scenes, commands and system adapters |
 | Design | `PurlayDesign` | `PurlayMacUI`'s `TokenBinding` and `NativePalette`, until it moves onto `PurlayDesign` |
-| Sentences | `Apps/iOS/App/Root/Words.swift` and `Apps/iOS/App/Resources/Localizable.xcstrings` | `Sources/PurlayMacUI/Strings.swift` and `Apps/macOS/App/Resources/Localizable.xcstrings` |
+| Sentences | `Apps/iOS/App/Root/Words.swift` and `Apps/iOS/App/Resources/Localizable.xcstrings`; the engine's from `PurlayWords` | `Sources/PurlayMacUI/Strings.swift` and `Apps/macOS/App/Resources/Localizable.xcstrings`; the engine's from `PurlayWords` |
 | Distribution | none yet (Q-001); `release-ios.yml` makes an unsigned archive | Developer ID, notarized, Sparkle (`Apps/macOS/App/Updates`) |
 
 The Mac app outlives its last window (`applicationShouldTerminateAfterLastWindowClosed` is false), so the socket stays open and a

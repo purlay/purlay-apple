@@ -33,7 +33,9 @@ struct Harness {
     ) -> AppEnvironment {
         AppEnvironment(
             transport: transport, sessions: sessions, preferences: MemoryPreferences(), authenticator: authenticator,
-            appVersion: SemanticVersion(0, 1, 0), platform: .iOS, deviceName: "Test iPhone", allowsLocalHTTP: false,
+            appVersion: SemanticVersion(0, 1, 0),
+            identity: AppIdentity(bundleIdentifier: "dev.purlay.ios.tests", platform: .iOS), deviceName: "Test iPhone",
+            allowsLocalHTTP: false,
             serverAddress: serverAddress,
             dataDirectory: FileManager.default.temporaryDirectory.appendingPathComponent(
                 "purlay-tests-" + UUID().uuidString, isDirectory: true),

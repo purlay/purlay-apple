@@ -4,8 +4,8 @@
 // file on top (iOS.xcconfig, macOS.xcconfig, and the iOS test bundles'), which wins over what is here.
 
 PRODUCT_NAME = Purlay
-// The build number is the commit count, so that it only grows (Sparkle compares it; the Mac's v0.3.0 is build 10). scripts/verify
-// and the release scripts write it into BuildNumber.xcconfig, which git ignores; a build without it is a development build.
+// The build number is the commit count, so that it only grows above the last build shipped (Sparkle compares it; scripts/build-number
+// states that build). scripts/verify and the release scripts write it into BuildNumber.xcconfig, which git ignores; a build without it is a development build.
 CURRENT_PROJECT_VERSION = 1
 #include? "BuildNumber.xcconfig"
 
@@ -15,7 +15,8 @@ SWIFT_TREAT_WARNINGS_AS_ERRORS = YES
 GCC_TREAT_WARNINGS_AS_ERRORS = YES
 ENABLE_USER_SCRIPT_SANDBOXING = YES
 
-// The scheme the sign-in hands the session back through: fixed by the server (`NATIVE_REDIRECT`).
+// The scheme the sign-in hands the session back through: the scheme of the server's `NATIVE_REDIRECT`, which Info.plist
+// cannot read from the contract, so scripts/enforcement holds this to it. Code asks NativeRedirect.
 PURLAY_URL_SCHEME = purlay
 GENERATE_INFOPLIST_FILE = NO
 INFOPLIST_PREPROCESS = YES
@@ -24,6 +25,8 @@ PURLAY_PLIST_DEFINITIONS =
 INFOPLIST_PREPROCESSOR_DEFINITIONS = $(PURLAY_PLIST_DEFINITIONS)
 // The icon, made from Design/purlay.svg by scripts/icon.
 ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
+// The system tints every control with the asset of this name (AccentColor), which scripts/enforcement holds to the accent token.
+ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor
 DEVELOPMENT_TEAM =
 
 // Xcode's recommended project settings, as the earlier generated projects carried them.

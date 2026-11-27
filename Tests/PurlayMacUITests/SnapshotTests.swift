@@ -24,7 +24,8 @@ struct SnapshotTests {
     private func model() -> AppModel {
         let environment = AppEnvironment(
             transport: ScriptedTransport(), sessions: InMemorySessionStore(), preferences: Preferences(),
-            authenticator: ScriptedAuthenticator([]), appVersion: SemanticVersion("0.2.1")!, deviceName: "Test Mac",
+            authenticator: ScriptedAuthenticator([]), appVersion: SemanticVersion("0.2.1")!,
+            identity: AppIdentity(bundleIdentifier: "dev.purlay.mac.tests", platform: .macOS), deviceName: "Test Mac",
             allowsLocalHTTP: true, dataDirectory: FileManager.default.temporaryDirectory,
             openSocket: { _, _ in preconditionFailure("a drawing opens no socket") }, schedule: { _, _ in {} },
             owner: InMemoryOwnerMemory())

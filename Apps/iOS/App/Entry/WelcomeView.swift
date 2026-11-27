@@ -2,12 +2,20 @@ import PurlayDesign
 import SwiftUI
 
 /// Signed out: who Purlay is, and the one thing to do. The shared mark (`entryMark`) arrives from the connecting screen; Sign In stands in the
-/// bottom bar with where the sign-in continues said under it.
+/// bottom bar with where the sign-in continues said under it, and the mark is never drawn over the bar (`entryMarkFloor`).
 struct WelcomeView: View {
     /// The host the browser will open, when the server is known.
     let server: String?
     let brand: Namespace.ID
     let signIn: () async -> Void
+
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    /// The tagline's and the footer's colour: the muted ink token, readable (4.5:1 and more) on the tinted field in light and
+    /// dark, where `.secondary` measured 3.3:1 in light. Increase Contrast asks for more, and is given the full ink.
+    static func quietInk(_ contrast: ColorSchemeContrast) -> Color {
+        contrast == .increased ? Brand.ink : Brand.inkMuted
+    }
 
     /// Wide enough for the button to read as the screen's action on an iPhone, and no wider on a large window.
     private static let barWidth: CGFloat = 480
@@ -18,12 +26,12 @@ struct WelcomeView: View {
                 hero
                 Text(Words.newAccount)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Self.quietInk(contrast))
                     .multilineTextAlignment(.center)
             }
             .padding()
         }
-        .purlayBottomBar { bar }
+        .purlayBottomBar { bar.entryMarkFloor() }
         .background { EntryBackdrop() }
     }
 
@@ -32,7 +40,7 @@ struct WelcomeView: View {
             EntryMarkSlot(brand: brand)
             VStack(spacing: 8) {
                 Text(verbatim: "Purlay").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
-                Text(Words.tagline).font(.title3).foregroundStyle(.secondary)
+                Text(Words.tagline).font(.title3).foregroundStyle(Self.quietInk(contrast))
             }
             .multilineTextAlignment(.center)
         }
@@ -50,6 +58,9 @@ struct WelcomeView: View {
                 .font(.footnote)
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.center)
+                // The bar is offered only the height left over, which in landscape at a large text size is less than the
+                // sentence needs: it takes its whole height and wraps instead of ending in "…".
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: Self.barWidth)
         .padding(.horizontal)

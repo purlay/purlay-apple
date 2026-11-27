@@ -41,7 +41,7 @@ struct SessionManagerTests {
         let calls = Calls()
         let memory = InMemoryOwnerMemory(owner)
         let manager = SessionManager(
-            store: store, owner: memory, wipers: [wiper], now: { clock.now },
+            store: store, owner: memory, log: Log(subsystem: "dev.purlay.tests"), wipers: [wiper], now: { clock.now },
             endSession: { scope in
                 calls.record(scope)
                 if fails { throw TransportError.offline }

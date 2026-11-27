@@ -123,7 +123,8 @@ struct ReconnectingTests {
                     waits.record(milliseconds)
                     return {}
                 }, random: { 0 }, clock: { Date(timeIntervalSince1970: Double(epochMs) / 1_000) },
-                serverClock: ServerClock(), checkSession: { .active }, newID: { idAt(0) }, onFrame: { _ in }))
+                serverClock: ServerClock(), log: Log(subsystem: "dev.purlay.tests"), checkSession: { .active },
+                newID: { idAt(0) }, onFrame: { _ in }))
         connection.start()
         #expect(connection.status == .waiting)
         #expect(waits.all == [base / 2])

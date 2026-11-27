@@ -20,7 +20,7 @@ public struct HandshakeClient: Sendable {
     private let sleep: @Sendable (Duration) async throws -> Void
 
     public init(
-        transport: any HTTPTransport, appVersion: SemanticVersion, platform: ClientPlatform = .macOS,
+        transport: any HTTPTransport, appVersion: SemanticVersion, platform: ClientPlatform,
         allowsLocalHTTP: Bool = false,
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     ) {

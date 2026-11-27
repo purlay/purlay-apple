@@ -16,9 +16,10 @@ replacing the code under test. The conventions are in [conventions.md](../archit
 | The iOS app's wiring and screen decisions (`RootScreenTests`, `WordsTests`, `EnvironmentTests`, `PrivacyManifestTests`) | `Apps/iOS/Tests/PurlayTests` | `iOS` | `simulator` |
 | The iOS sign-in against a real server (skips without one) | `Apps/iOS/Tests/PurlayUITests` | `iOS` | `simulator` |
 | The generator | `Tools/PurlayGen/Tests` | its own package | `generated` |
-| The real client against a real server of the pinned version | `ContractTests/` | its own package | by hand: `scripts/contract-test` (TD-017) |
+| What both apps say about the engine, in each language | `Tests/PurlayWordsTests` | `macOS` | `packages` |
+| The real client against a real server of the pinned version | `Tests/ContractTests` | `macOS` (compiled, and skipped without a server) | `packages`; against a server by hand: `scripts/contract-test` (TD-017) |
 | The rules, each with its violation planted | `scripts/enforcement`, `--demo` | — | `rules` |
-| The strings | `scripts/localize --check`, `scripts/enforcement` | — | `rules` |
+| The strings: the three catalogues, one checker | `scripts/enforcement` | — | `rules` |
 | The built apps: build number, App Transport Security, the Mac's entitlements declared and signed | `scripts/verify ios`, `scripts/verify macos` | — | `ios`, `macos` |
 | Secrets | `scripts/verify security` | — | `security` |
 
@@ -51,7 +52,7 @@ case, by name. All are in `Tests/PurlayKitTests` unless said otherwise.
 |---|---|---|
 | `backoff.test.ts`, `cursors.test.ts`, `server-clock.test.ts` | `RealtimePrimitivesTests` | ported |
 | `connection.test.ts` | `ConnectionTests`, `ConnectionNetworkTests`, `ConnectionReplayTests` | ported, every case |
-| `socket.test.ts` | `ContractTests/Tests/ContractTests/LiveSocketTests.swift` | against the real server (the transport is `URLSession`'s; a fake would test the fake) |
+| `socket.test.ts` | `Tests/ContractTests/LiveSocketTests.swift` | against the real server (the transport is `URLSession`'s; a fake would test the fake) |
 | `pending-store.ts`, the send cases of `engine.test.ts` | `OutboxStoreTests`, `SendCoordinatorTests` | ported |
 | `engine.test.ts` (frames, replay, refused subscriptions, routing) | `ChatStateTests`, `ChannelWindowTests`, `EngineTests` | ported by behaviour |
 

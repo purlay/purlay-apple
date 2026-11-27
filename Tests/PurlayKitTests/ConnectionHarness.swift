@@ -94,7 +94,7 @@ final class Harness {
                 },
                 random: random,
                 clock: { box.date },
-                serverClock: serverClock,
+                serverClock: serverClock, log: Log(subsystem: "dev.purlay.tests"),
                 checkSession: { [weak self] in
                     await withCheckedContinuation { continuation in
                         let check = Check()

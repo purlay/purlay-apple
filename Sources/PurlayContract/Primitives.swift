@@ -103,6 +103,17 @@ public enum JSONValue: Sendable, Hashable, Codable {
     case array([JSONValue])
     case object([String: JSONValue])
 
+    /// How many arrays and objects deep a document may nest, counted from its top (`[[0]]` is two). A value of any shape
+    /// is read recursively, and each level costs stack: a document nested far enough ends the app, which a server must
+    /// never be able to do. The contract's deepest answer is seven deep (a page of items holding lists of objects), so
+    /// this is nine times that.
+    public static let depthMax = 64
+
+    /// A document nested deeper than `depthMax`: not read, rather than read until the stack runs out.
+    public struct TooDeep: Error, Sendable, Equatable {
+        public let depthMax: Int
+    }
+
     public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
         if container.decodeNil() {
@@ -115,10 +126,19 @@ public enum JSONValue: Sendable, Hashable, Codable {
             self = .number(value)
         } else if let value = try? container.decode(String.self) {
             self = .string(value)
-        } else if let value = try? container.decode([JSONValue].self) {
-            self = .array(value)
         } else {
-            self = .object(try container.decode([String: JSONValue].self))
+            // Only an array or an object recurses, so only they are counted. The coding path is the way down from the
+            // top of the document: a value inside a typed answer counts the levels above it too.
+            guard decoder.codingPath.count < Self.depthMax else { throw TooDeep(depthMax: Self.depthMax) }
+            // Only "this is not an array" moves on to reading an object: an error from inside the array (its nesting
+            // among them) is the answer.
+            do {
+                self = .array(try container.decode([JSONValue].self))
+            } catch DecodingError.typeMismatch(_, let context)
+                where context.codingPath.count == decoder.codingPath.count
+            {
+                self = .object(try container.decode([String: JSONValue].self))
+            }
         }
     }
 

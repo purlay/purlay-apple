@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// Where a message is written: a row for every construct the renderer draws, the box, and under it what is left before the limit and
@@ -374,7 +375,13 @@ private struct ComposerNotice: View {
             Image(systemName: "info.circle")
             Text(text)
             Spacer()
-            Button("Dismiss", systemImage: "xmark", action: dismiss).labelStyle(.iconOnly).buttonStyle(.borderless)
+            Button(action: dismiss) {
+                Label {
+                    Text(EngineWords.dismiss)
+                } icon: {
+                    Image(systemName: "xmark")
+                }
+            }.labelStyle(.iconOnly).buttonStyle(.borderless)
         }
         .font(.callout)
         .foregroundStyle(.secondary)

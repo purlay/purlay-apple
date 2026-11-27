@@ -13,9 +13,14 @@ versioned bundle with a manifest of digests. An Android client is planned, and a
 - The pin moves deliberately, never by accident: `scripts/prepare-contract` fails if fetching would change the lock. A weekly
   workflow reports when the server has released past the pin.
 - Each platform generates its own types; Android keeps its own Kotlin core and shares only the bundle.
+- A colour is the bundle's token. A colour literal (a hex value, or components given as numbers) is allowed only where its value
+  is stated: the generated tokens, the logo (`Sources/PurlayDesign/Logo.swift`, which `scripts/icon` writes from
+  `Design/purlay.svg`), and `Sources/PurlayMacUI/NativePalette.swift`, the Mac's neutral greys and status colours that no token
+  states yet. Both apps' accent is the token's. `scripts/enforcement` refuses a literal anywhere else.
 
 **Rejected.** *A separate contract repository:* a route and its type could no longer change in one commit, and it would own nothing
-the bundle does not already carry. *Hand-written wire types:* they drift from the server silently. *A shared runtime (Kotlin
+the bundle does not already carry. *Hand-written wire types:* they drift from the server silently. *Colours of the apps' own:* the Mac's composer drew a blue
+(0x015bf7) that was not the brand's. *A shared runtime (Kotlin
 Multiplatform):* trades the platform-native feel for a shared runtime.
 
 **Consequences.** A contract change starts in the server; here it is a new pin, a regeneration and the fixes the compiler and the

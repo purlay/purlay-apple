@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 import PurlayContract
 import PurlayKit
 import PurlayMacUI
@@ -19,8 +20,11 @@ final class SystemAttention: NSObject, AttentionPresenter, UNUserNotificationCen
     var bringForward: (() -> Void)?
 
     private let center = UNUserNotificationCenter.current()
+    private let log: Logger
 
-    override init() {
+    /// `log`: the app's `attention` log, where what the system refused is kept.
+    init(log: Logger) {
+        self.log = log
         super.init()
         center.delegate = self
     }
@@ -37,7 +41,7 @@ final class SystemAttention: NSObject, AttentionPresenter, UNUserNotificationCen
     }
 
     func show(_ notice: AttentionNotice) {
-        Task { [center] in
+        Task { [center, log] in
             guard await Self.mayTell(center) else { return }
             let content = UNMutableNotificationContent()
             content.title = AttentionWords.title(notice)
@@ -53,7 +57,7 @@ final class SystemAttention: NSObject, AttentionPresenter, UNUserNotificationCen
                 try await center.add(UNNotificationRequest(identifier: notice.id, content: content, trigger: nil))
             } catch {
                 // Nothing to say in the app (the person sees the badge and the sidebar); kept for "notices never come".
-                Log.attention.error("the system refused a notice: \(error.localizedDescription, privacy: .public)")
+                log.error("the system refused a notice: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -68,7 +72,7 @@ final class SystemAttention: NSObject, AttentionPresenter, UNUserNotificationCen
         reminderChanges[scope] = change
         let prefix = "purlay-reminder:\(scope):"
         let previous = reminderTasks[scope]
-        reminderTasks[scope] = Task { [center] in
+        reminderTasks[scope] = Task { [center, log] in
             await previous?.value
             guard reminderChanges[scope] == change else { return }
             let pending = await center.pendingNotificationRequests()
@@ -100,7 +104,7 @@ final class SystemAttention: NSObject, AttentionPresenter, UNUserNotificationCen
                         center.removePendingNotificationRequests(withIdentifiers: [name])
                     }
                 } catch {
-                    Log.attention.error(
+                    log.error(
                         "the system refused a reminder: \(error.localizedDescription, privacy: .public)")
                 }
             }

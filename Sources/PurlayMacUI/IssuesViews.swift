@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// The workspace's issues (D-254): open or done, each with a title, who it is given to, and a check to finish it.
@@ -43,7 +44,11 @@ struct IssuesPage: View {
             } description: {
                 Text("Check your connection and try again.")
             } actions: {
-                Button("Try Again") { Task { await model.reloadIssues() } }.glassButton(prominent: true)
+                Button {
+                    Task { await model.reloadIssues() }
+                } label: {
+                    Text(EngineWords.tryAgain)
+                }.glassButton(prominent: true)
             }
         case .loaded:
             if model.issueItems.isEmpty {
