@@ -37,7 +37,7 @@ dump_package() { # root
   local cache digest partial
   # The user's own folder, as scripts/lib/cache.py judges it for the parse cache too: a reading planted by someone else would be
   # believed, so in a folder others could write (or reach through a link) the manifest is read afresh every time.
-  if ! cache="$(PYTHONPATH=scripts/lib python3 scripts/lib/cache.py 2>/dev/null)"; then
+  if ! cache="$(PYTHONPATH=scripts/lib python3 scripts/lib/cache.py)"; then
     (cd "$1" && swift package dump-package)
     return
   fi
