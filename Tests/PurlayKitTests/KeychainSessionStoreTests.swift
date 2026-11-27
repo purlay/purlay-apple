@@ -17,6 +17,22 @@ struct KeychainSessionStoreTests {
         StoredSession(cookie: value, expiresAt: expires, origin: "https://chat.example.com")
     }
 
+    @Test("a delete of one session through another store keeps the replacement written since")
+    func matchingAcrossInstances() throws {
+        let service = "dev.purlay.mac.tests." + UUID().uuidString
+        let reader = KeychainSessionStore(service: service)
+        let writer = KeychainSessionStore(service: service)
+        defer { try? writer.delete(for: server) }
+        let old = session("previous")
+        let replacement = session("replacement")
+        try reader.save(old, for: server)
+        try writer.save(replacement, for: server)
+        #expect(try !reader.delete(ifMatching: old, for: server))
+        #expect(try reader.load(for: server) == replacement)
+        #expect(try reader.delete(ifMatching: replacement, for: server))
+        #expect(try writer.load(for: server) == nil)
+    }
+
     @Test("nothing is stored until something is, and then it comes back as it went")
     func roundTrip() throws {
         let store = store()
