@@ -73,9 +73,14 @@ public struct FileOutboxStore: OutboxStore {
     /// `userID` becomes part of a file name, so it must be one: a person's id is a UUID, and anything else is refused.
     public init?(base: URL, userID: String, now: @escaping @Sendable () -> Date = Date.init) {
         guard Uuid(userID) != nil else { return nil }
-        directory = base.appendingPathComponent("outbox", isDirectory: true)
+        directory = Self.directory(in: base)
         file = directory.appendingPathComponent("\(userID).json")
         self.now = now
+    }
+
+    /// Where every person's outbox is kept under `base`, set-aside files included.
+    public static func directory(in base: URL) -> URL {
+        base.appendingPathComponent("outbox", isDirectory: true)
     }
 
     public func load() -> OutboxLoad {

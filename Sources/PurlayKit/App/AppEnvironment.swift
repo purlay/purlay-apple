@@ -4,6 +4,8 @@ import Foundation
 public protocol PreferenceStore: Sendable {
     func string(for key: String) -> String?
     func set(_ value: String?, for key: String)
+    /// Removes every value whose key begins with `prefix`: what is kept per person under one name (their drafts) goes at once.
+    func removeValues(withPrefix prefix: String)
 }
 
 public struct UserDefaultsPreferences: PreferenceStore {
@@ -20,6 +22,13 @@ public struct UserDefaultsPreferences: PreferenceStore {
 
     public func set(_ value: String?, for key: String) {
         if let value { defaults.set(value, forKey: key) } else { defaults.removeObject(forKey: key) }
+    }
+
+    public func removeValues(withPrefix prefix: String) {
+        let defaults = defaults
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
+            defaults.removeObject(forKey: key)
+        }
     }
 }
 
@@ -97,6 +106,8 @@ public struct AppEnvironment {
     public var serverAddress: String
     /// Where per-person files are kept (`outbox/<userId>.json`).
     public var dataDirectory: URL
+    /// Where copies the app can make again are kept (the Mac's Quick Look copies, `Previews/`): the system may empty it.
+    public var cacheDirectory: URL
     /// An `OpenSocket` for this server's canonical address and this session.
     public var openSocket: (_ origin: ServerAddress, _ session: String) -> OpenSocket
     public var schedule: Schedule
@@ -116,7 +127,7 @@ public struct AppEnvironment {
         transport: any HTTPTransport, sessions: any SessionStore, preferences: any PreferenceStore,
         authenticator: any WebAuthenticator,
         appVersion: SemanticVersion, identity: AppIdentity, deviceName: String, allowsLocalHTTP: Bool,
-        serverAddress: String = ServerAddress.hosted, dataDirectory: URL,
+        serverAddress: String = ServerAddress.hosted, dataDirectory: URL, cacheDirectory: URL? = nil,
         openSocket: @escaping (ServerAddress, String) -> OpenSocket, schedule: @escaping Schedule,
         random: @escaping () -> Double = { Double.random(in: 0...1) },
         clock: @escaping @Sendable () -> Date = Date.init,
@@ -139,6 +150,8 @@ public struct AppEnvironment {
         self.allowsLocalHTTP = allowsLocalHTTP
         self.serverAddress = serverAddress
         self.dataDirectory = dataDirectory
+        // A test, or a build with no caches of its own, keeps them beside its data.
+        self.cacheDirectory = cacheDirectory ?? dataDirectory.appendingPathComponent("Caches", isDirectory: true)
         self.attention = attention
         self.openSocket = openSocket
         self.schedule = schedule

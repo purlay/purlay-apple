@@ -96,10 +96,12 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
 - `Apps/iOS/App/Resources/PrivacyInfo.xcprivacy` declares every required-reason API the code uses; `scripts/enforcement` refuses
   code that uses one it does not declare.
 - A notice the system shows never carries what was said.
-- What the app keeps of a person on the device (drafts, the outbox, a cache) is removed through a `UserDataWiper` named in
-  `AppEnvironment.wipers`, made for the environment it is given. `SessionManager` runs each once when the person signs out or
-  erases their account, and when another person signs in where they were; a wiper that throws does not stop the others, and
-  is logged by its type and error code, never the error's description, which can name a file.
+- What the app keeps of a person on the device is removed through a `UserDataWiper`. The engine makes its own from each
+  model's environment (the drafts in its preferences, the outbox in its data directory, the Quick Look copies in its cache
+  directory), so a new kind of per-person data is kept under one of those, or comes with a wiper in `AppEnvironment.wipers`.
+  `SessionManager` runs each once when the person signs out or their account is erased, and when another person signs in
+  where they were; a wiper that throws does not stop the others, and is logged by its type and error code, never the error's
+  description, which can name a file.
 
 ## Strings and screens
 

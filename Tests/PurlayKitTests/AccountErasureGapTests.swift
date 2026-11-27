@@ -62,7 +62,7 @@ struct AccountErasureGapTests {
         let h = ModelHarness(wipers: [wiper])
         await h.signedIn()
         var ended = 0
-        h.model.onSessionEnded = { ended += 1 }
+        h.model.onSessionEnded = { _ in ended += 1 }
         let model = h.model!
         let signOut = Mutex<Task<SessionManager.SignOutResult, Never>?>(nil)
         h.server.edit {

@@ -207,6 +207,8 @@ public final class DesktopSessions {
             scoped.owner = PreferenceOwner(preferences: scoped.preferences)
             scoped.dataDirectory = environment.dataDirectory.appendingPathComponent(
                 "sessions/\(descriptor.id.uuidString)", isDirectory: true)
+            scoped.cacheDirectory = environment.cacheDirectory.appendingPathComponent(
+                "sessions/\(descriptor.id.uuidString)", isDirectory: true)
         }
         scoped.attention = DesktopAttentionSource(owner: attention, id: descriptor.id.uuidString)
         let model = AppModel(scoped, workspaceID: descriptor.workspace)
@@ -217,14 +219,14 @@ public final class DesktopSessions {
             guard let self, let session else { return }
             self.changed(session)
         }
-        model.onSessionEnded = { [weak self, weak model, weak session] in
+        model.onSessionEnded = { [weak self, weak model, weak session] removedData in
             guard let self, let model, let session else { return }
             if self.pendingLink?.server == model.origin || self.pendingLink?.server == model.server {
                 self.pendingLink = nil
                 self.linkGeneration += 1
             }
             for other in self.sessions where other.model !== model && other.model.origin == model.origin {
-                other.model.invalidateLocalSession()
+                other.model.invalidateLocalSession(removingData: removedData)
                 self.attention.clear(other.id.uuidString)
             }
             self.attention.clear(session.id.uuidString)
@@ -271,6 +273,7 @@ private struct ScopedPreferences: PreferenceStore {
     let prefix: String
     func string(for key: String) -> String? { base.string(for: prefix + key) }
     func set(_ value: String?, for key: String) { base.set(value, for: prefix + key) }
+    func removeValues(withPrefix prefix: String) { base.removeValues(withPrefix: self.prefix + prefix) }
 }
 
 private struct PreferenceOwner: OwnerMemory {

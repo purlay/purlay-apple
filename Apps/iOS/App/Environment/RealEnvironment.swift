@@ -19,6 +19,11 @@ enum RealEnvironment {
             ?? FileManager.default.temporaryDirectory
         let directory = support.appendingPathComponent(
             identity.bundleIdentifier, isDirectory: true)
+        // Copies the app can make again (Quick Look's), where the system may reclaim the space; the person's go at sign-out.
+        let caches =
+            (FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory).appendingPathComponent(
+                identity.bundleIdentifier, isDirectory: true)
         // The development server is read in a debug build only: in a release build the name is not looked at.
         #if DEBUG
         let choice = ServerChoice.resolve(isDebugBuild: true, override: variables["PURLAY_DEV_SERVER"])
@@ -30,7 +35,7 @@ enum RealEnvironment {
             transport: URLSessionTransport(), sessions: KeychainSessionStore(service: identity.keychainService),
             preferences: UserDefaultsPreferences(), authenticator: WebAuthSession(), appVersion: version,
             identity: identity, deviceName: UIDevice.current.name, allowsLocalHTTP: choice.allowsLocalHTTP,
-            serverAddress: choice.address, dataDirectory: directory,
+            serverAddress: choice.address, dataDirectory: directory, cacheDirectory: caches,
             openSocket: { origin, session in
                 URLSessionSocketTransport(origin: origin.description, clientHeader: clientHeader, cookie: { session })
                     .openSocket(session: session)
@@ -43,8 +48,9 @@ enum RealEnvironment {
                 return { task.cancel() }
             },
             owner: DefaultsOwner(),
-            // None yet (P-6 in docs/design/entry-shell-account.md): the engine's drafts and outbox, and the cache this app will
-            // keep for cold start (A-003), are added as they are built. The badge is cleared by the model.
+            // None of the app's own yet: the engine removes the drafts and the outbox it keeps under this environment (P-6 in
+            // docs/design/entry-shell-account.md); the cold-start cache (A-003) adds its wiper when it is built. The badge is
+            // cleared by the model.
             wipers: [])
     }
 }

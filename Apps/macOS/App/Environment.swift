@@ -20,6 +20,11 @@ enum RealEnvironment {
             ?? FileManager.default.temporaryDirectory
         let directory = support.appendingPathComponent(
             identity.bundleIdentifier, isDirectory: true)
+        // Copies the app can make again (Quick Look's), where the system may reclaim the space; the person's go at sign-out.
+        let cachesRoot =
+            FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        let caches = cachesRoot.appendingPathComponent(identity.bundleIdentifier, isDirectory: true)
         #if DEBUG
         let allowsLocalHTTP = true
         let serverAddress = ProcessInfo.processInfo.environment["PURLAY_DEV_SERVER"] ?? ServerAddress.hosted
@@ -34,6 +39,7 @@ enum RealEnvironment {
             identity: identity,
             deviceName: Host.current().localizedName ?? DeviceName.fallback,
             allowsLocalHTTP: allowsLocalHTTP, serverAddress: serverAddress, dataDirectory: directory,
+            cacheDirectory: caches,
             openSocket: { origin, session in
                 URLSessionSocketTransport(origin: origin.description, clientHeader: clientHeader, cookie: { session })
                     .openSocket(session: session)
@@ -46,9 +52,10 @@ enum RealEnvironment {
                 return { task.cancel() }
             },
             owner: DefaultsOwner(), attention: attention, loginItem: SystemLoginItem(),
-            // None yet (P-6 in docs/design/entry-shell-account.md): the drafts in the defaults, the outbox's files, and the
-            // Quick Look copies under Caches/Previews are kept and not yet removed at sign-out. The badge is cleared by the model.
-            wipers: [])
+            // The engine removes the drafts, the outbox and the Quick Look copies it keeps under this environment (per
+            // workspace session, P-6 in docs/design/entry-shell-account.md). The app's own: the copies an earlier version kept
+            // directly under Caches/Previews, for every session alike. The badge is cleared by the model.
+            wipers: [FolderWiper(cachesRoot.appendingPathComponent("Previews", isDirectory: true))])
     }
 
     #if DEBUG

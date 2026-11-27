@@ -210,6 +210,14 @@ public actor SessionManager {
         return told ? .done : .serverNotTold
     }
 
+    /// The person signed out, or their account was erased, through another of this app's sessions that shares this one's
+    /// credential (the Mac's workspaces of one server): what this one kept of them goes too, its owner forgotten when all of
+    /// it went. The credential is the other session's to remove.
+    public func personLeft() async {
+        await wipeAndForgetOwner()
+        move(to: .signedOut(.signedOutByPerson))
+    }
+
     /// The server erased the account (`204` from `POST /api/me/erase`, or the socket's `SESSION_ENDED` saying
     /// `account-deleted`) and ended every session of it, this one included. Run even when the server's ending signed this app
     /// out first: that ending was the erasure's, and nothing of the person's is kept for a sign-in that cannot come. A

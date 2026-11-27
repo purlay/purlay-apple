@@ -217,6 +217,8 @@ public final class Engine {
     public func retry(_ id: Uuid) { sends.retry(id) }
     public func discard(_ id: Uuid) { sends.discard(id) }
     public var pending: [PendingMessage] { sends.pending }
+    /// The outbox is being removed with the rest of what the person kept: nothing more is written to it.
+    public func forgetOutbox() { sends.forgetOutbox() }
 
     /// Asks again for every channel whose live updates were refused or interrupted: unwatched and watched again, each is subscribed from
     /// its cursor as if new.

@@ -24,6 +24,7 @@ final class MemoryPreferences: PreferenceStore {
     private let state = Mutex<[String: String]>([:])
     func string(for key: String) -> String? { state.withLock { $0[key] } }
     func set(_ value: String?, for key: String) { state.withLock { $0[key] = value } }
+    func removeValues(withPrefix prefix: String) { state.withLock { $0 = $0.filter { !$0.key.hasPrefix(prefix) } } }
 }
 
 final class MemoryOwnerStore: OwnerMemory {

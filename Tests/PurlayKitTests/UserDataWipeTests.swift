@@ -1,5 +1,7 @@
 import Foundation
+import PurlayContract
 import PurlayTestSupport
+import Synchronization
 import Testing
 
 @testable import PurlayKit
@@ -56,5 +58,106 @@ struct UserDataWipeTests {
         await h.settle()
         #expect(h.model.phase == .signedOut)
         #expect(wiper.wipes == 0)
+    }
+    // MARK: What the engine keeps of the person (P-6)
+
+    private var outbox: (ModelHarness) -> URL { { $0.directory.appendingPathComponent("outbox", isDirectory: true) } }
+
+    @Test("signing out removes every draft in this environment's preferences, another person's too, and nothing else")
+    func draftsGo() async throws {
+        let h = ModelHarness()
+        await h.signedIn()
+        let place = try #require(Uuid(channel(1)))
+        h.model.setDraft("half written", for: place)
+        let key = Drafts.key(user: try #require(Uuid(FakeServer.userID)), channel: place, parent: nil)
+        let leftOver = "purlay.draft.0199155c-6200-7b7f-8c11-0000000000e2.\(place.value)"
+        h.preferences.set("not theirs either", for: leftOver)
+        #expect(h.preferences.string(for: key) == "half written")
+        _ = await h.model.signOut(.thisDevice)
+        #expect(h.preferences.string(for: key) == nil)
+        #expect(h.preferences.string(for: leftOver) == nil)
+        #expect(h.preferences.string(for: "workspace") == "acme", "what is not the person's stays")
+    }
+
+    @Test("signing out removes the outbox, unsent messages and set-aside files included")
+    func outboxGoes() async throws {
+        let h = ModelHarness()
+        await h.signedIn()
+        #expect(h.model.send("not yet delivered"))
+        let file = outbox(h).appendingPathComponent("\(FakeServer.userID).json")
+        #expect(FileManager.default.fileExists(atPath: file.path))
+        try Data("[]".utf8).write(to: outbox(h).appendingPathComponent("\(FakeServer.userID).corrupt-1"))
+        _ = await h.model.signOut(.thisDevice)
+        #expect(!FileManager.default.fileExists(atPath: outbox(h).path))
+    }
+
+    @Test("a send that changes the outbox while the person's data is being removed does not write it back")
+    func outboxNotWrittenBack() async throws {
+        let target = Mutex<AppModel?>(nil)
+        // Runs after the engine's own wipers: the outbox is gone, and the engine is still running.
+        let late = RecordingWiper(onWipe: {
+            let model = target.withLock { $0 }
+            await MainActor.run { _ = model?.send("written after the wipe") }
+        })
+        let h = ModelHarness(wipers: [late])
+        target.withLock { $0 = h.model }
+        await h.signedIn()
+        #expect(h.model.send("not yet delivered"))
+        _ = await h.model.signOut(.thisDevice)
+        #expect(late.wipes == 1)
+        #expect(!FileManager.default.fileExists(atPath: outbox(h).path))
+    }
+
+    @Test("the Quick Look copies under this environment's caches go on sign-out")
+    func previewsGo() async throws {
+        let h = ModelHarness()
+        await h.signedIn()
+        let folder = h.model.previewsDirectory.appendingPathComponent("an-attachment", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data("pdf".utf8).write(to: folder.appendingPathComponent("plan.pdf"))
+        _ = await h.model.signOut(.thisDevice)
+        #expect(!FileManager.default.fileExists(atPath: h.model.previewsDirectory.path))
+    }
+
+    @Test("an erased account's drafts and outbox go as a sign-out's do")
+    func erasureWipes() async throws {
+        let h = ModelHarness()
+        await h.signedIn()
+        let place = try #require(Uuid(channel(1)))
+        h.model.setDraft("half written", for: place)
+        #expect(h.model.send("not yet delivered"))
+        #expect(await h.model.eraseAccount(confirmation: "ada") == .erased)
+        #expect(!FileManager.default.fileExists(atPath: outbox(h).path))
+        let key = Drafts.key(user: try #require(Uuid(FakeServer.userID)), channel: place, parent: nil)
+        #expect(h.preferences.string(for: key) == nil)
+    }
+
+    @Test("the messages not yet sent are counted, so the sign-out screen can say what will go")
+    func unsentCounted() async {
+        let h = ModelHarness()
+        await h.signedIn()
+        #expect(h.model.unsentMessageCount == 0)
+        #expect(h.model.send("one"))
+        #expect(h.model.send("two"))
+        #expect(h.model.unsentMessageCount == 2)
+    }
+}
+
+@Suite("removing preferences by their prefix")
+struct PreferencePrefixTests {
+    @Test("the defaults remove every key that begins with the prefix, and only those")
+    func defaults() throws {
+        let suite = "dev.purlay.kit-tests.prefix-\(UUID().uuidString)"
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let preferences = UserDefaultsPreferences(suite: suite)
+        preferences.set("a", for: "purlay.draft.u.c")
+        preferences.set("b", for: "purlay.draft.u.c.t")
+        preferences.set("acme", for: "workspace")
+        preferences.set("kept", for: "x.purlay.draft.u.c")
+        preferences.removeValues(withPrefix: "purlay.draft.")
+        #expect(preferences.string(for: "purlay.draft.u.c") == nil)
+        #expect(preferences.string(for: "purlay.draft.u.c.t") == nil)
+        #expect(preferences.string(for: "workspace") == "acme")
+        #expect(preferences.string(for: "x.purlay.draft.u.c") == "kept")
     }
 }

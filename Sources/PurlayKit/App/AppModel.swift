@@ -108,7 +108,9 @@ public final class AppModel {
         didSet { onPhaseChange?() }
     }
     @ObservationIgnored var onPhaseChange: (() -> Void)?
-    @ObservationIgnored var onSessionEnded: (() -> Void)?
+    /// The session ended here. `removedData`: the person signed out or the account was erased, and what this session kept of
+    /// them was removed; false when the server ended it (that data waits for their next sign-in).
+    @ObservationIgnored var onSessionEnded: ((_ removedData: Bool) -> Void)?
     private let preferredWorkspaceID: Uuid?
     public private(set) var server: ServerAddress?
     public private(set) var serverInfo: ClientInfo?
@@ -587,13 +589,27 @@ public final class AppModel {
         let client = environment.transport
         let version = environment.appVersion
         return SessionManager(
-            store: environment.sessions, owner: environment.owner, log: environment.log, wipers: environment.wipers,
+            store: environment.sessions, owner: environment.owner, log: environment.log,
+            wipers: personalDataWipers() + environment.wipers,
             now: environment.clock,
             endSession: { [weak self] scope in
                 guard let self else { return }
                 try await self.endServerSession(scope, client: client, version: version, address: address)
             },
             onWipeFailure: { [weak self] _ in await self?.say(.dataNotWiped) })
+    }
+
+    /// What the engine itself keeps of the person under this environment, removed before what the app names: the drafts in
+    /// its preferences, the outbox in its data (the sender stopped writing it first) and the Quick Look copies in its caches.
+    /// Made from this model's environment, which the Mac scopes per workspace session.
+    private func personalDataWipers() -> [any UserDataWiper] {
+        [
+            DraftsWiper(preferences: environment.preferences),
+            FolderWiper(
+                FileOutboxStore.directory(in: environment.dataDirectory),
+                stopWriting: { [weak self] in await self?.engine?.forgetOutbox() }),
+            FolderWiper(previewsDirectory),
+        ]
     }
 
     private func endServerSession(
@@ -676,7 +692,7 @@ public final class AppModel {
         case .endedByServer where announce: say(.sessionEndedByServer)
         case .expired, .endedByServer, .signedOutByPerson, .signedOutEverywhere, .accountErased, nil: break
         }
-        onSessionEnded?()
+        onSessionEnded?(false)
     }
 
     /// The socket's `SESSION_ENDED`. Only an erasure (`account-deleted`) removes what the person kept here: their account is
@@ -722,7 +738,20 @@ public final class AppModel {
         tearDown()
         phase = .signedOut
         say(notice)
-        onSessionEnded?()
+        onSessionEnded?(true)
+    }
+
+    /// How many messages the person sent that the server has not yet been heard to have: the outbox, which signing out
+    /// removes. The sign-out screen says it first, so nothing unsent goes without the person knowing.
+    public var unsentMessageCount: Int {
+        if let sessionOwner { return sessionOwner.unsentMessageCount }
+        return pending.count { $0.delivery != .sent }
+    }
+
+    /// Where this session's Quick Look copies of attachments are kept, under its environment's caches: removed with the rest
+    /// of what the person kept here.
+    public var previewsDirectory: URL {
+        environment.cacheDirectory.appendingPathComponent("Previews", isDirectory: true)
     }
 
     /// Ends the session here, or everywhere. The result says whether the server was told. Asked while an erasure is under way,
@@ -759,7 +788,7 @@ public final class AppModel {
         }
         tearDown()
         phase = .signedOut
-        onSessionEnded?()
+        onSessionEnded?(true)
         return result
     }
 
@@ -823,8 +852,13 @@ public final class AppModel {
         return .sessionEnded
     }
 
-    /// Stops this workspace without revoking the shared server credential a second time.
-    func invalidateLocalSession() {
+    /// Stops this workspace without revoking the shared server credential a second time. `removingData`: the person signed
+    /// out, or was erased, through another workspace of the same server, so what this one kept of them goes too.
+    func invalidateLocalSession(removingData: Bool = false) {
+        if removingData, let manager {
+            engine?.forgetOutbox()
+            Task { await manager.personLeft() }
+        }
         observation?.cancel()
         observation = nil
         tearDown()
