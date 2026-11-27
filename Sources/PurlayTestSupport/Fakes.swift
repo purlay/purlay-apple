@@ -25,6 +25,15 @@ public final class InMemorySessionStore: SessionStore {
         state.withLock { $0.sessions[server.description] }
     }
 
+    public func delete(ifMatching session: StoredSession, for server: ServerAddress) throws -> Bool {
+        try state.withLock {
+            guard $0.sessions[server.description] == session else { return false }
+            if $0.deleteFails { throw KeychainError(status: -25291, operation: "delete") }
+            $0.sessions[server.description] = nil
+            return true
+        }
+    }
+
     public func save(_ session: StoredSession, for server: ServerAddress) throws {
         state.withLock {
             $0.sessions[server.description] = session
