@@ -49,6 +49,8 @@ lanes_for() {
     TestPlans/*) echo "rules packages" ;;
     .github/actionlint.yaml | .githooks/* | scripts/dev/* | scripts/install-lint-tools) echo "rules" ;;
     scripts/enforcement | scripts/check-branch | scripts/localize | Design/*) echo "rules" ;;
+    # Read by scripts/enforcement alone (logo-swift also by scripts/icon, whose output is Swift and mapped as such).
+    scripts/lib/* | scripts/logo-swift) echo "rules" ;;
     scripts/sign-release | scripts/release-notes) echo "rules macos" ;;
     *) echo all ;;
   esac

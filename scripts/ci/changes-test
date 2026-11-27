@@ -25,6 +25,8 @@ expect pull_request "TestPlans/iOS.xctestplan" "rules simulator"
 expect pull_request "scripts/ci/boot-simulator" "rules simulator"
 # Shell and workflow files are linted by the rules lane, and by nothing else.
 expect pull_request ".githooks/pre-commit,scripts/dev/clean,.github/actionlint.yaml" "rules"
+# The rules' own Python and the logo's reader are read by the rules lane alone.
+expect pull_request "scripts/lib/swift_source.py,scripts/lib/sentence_calls.py,scripts/logo-swift,scripts/dev/sentence-calls" "rules"
 # Other packages, their tests, documents and CI alone never start a simulator.
 expect pull_request "Sources/PurlayKit/Engine.swift" "rules packages ios macos"
 expect pull_request "Tests/PurlayKitTests/EngineTests.swift,docs/x.md" "rules packages"
