@@ -13,14 +13,15 @@ import plistlib
 import re
 import sys
 
+from cache import private
+from cache import root as cache_root
 from sentence_calls import CALLS
 from swift_source import closing, code, literal, owner, parameters, skeleton, type_scopes
 
 HERE = pathlib.Path(__file__).resolve().parent
 VERSION = hashlib.sha1(b"".join((HERE / name).read_bytes() for name in ("rules.py", "swift_source.py"))).hexdigest()
-# The user's own folder (0700): a parse planted by someone else would be trusted, so a folder another user could write is
-# not used.
-CACHE = pathlib.Path(os.environ.get("XDG_CACHE_HOME") or pathlib.Path.home() / ".cache") / "purlay-enforcement" / "parse"
+# The user's own folder (cache.py): a parse planted by someone else would be believed.
+CACHE = cache_root() / "parse"
 
 # A format specifier, positional or not, with any length modifier; a count is an integer one. Xcode writes a sentence with more
 # than one count as substitutions, `%#@name@`, each read as its own specifier.
@@ -28,6 +29,8 @@ SPEC = re.compile(r"%(?:\d+\$)?(?:hh|h|ll|l|z|t|j|q)?[diouxX@feEgG]")
 COUNT = re.compile(r"%(?:\d+\$)?(?:hh|h|ll|l|z|t|j|q)?[diu]")
 SUBSTITUTION = re.compile(r"%(?:(\d+)\$)?#@(\w+)@")
 SENTENCE = r"\[?(?:LocalizedStringKey|LocalizedStringResource|String\.LocalizationValue|IntentDialog)\]?\??"
+# The type of a name bound again without one stated: no type declares a property of it, so nothing assigned through it counts.
+UNKNOWN = "<unknown>"
 # What scripts/generate writes, from the server's contract and tokens.
 GENERATED = ("Sources/PurlayContract/Generated", "Sources/PurlayKit/Generated", "Sources/PurlayTokens/Generated")
 
@@ -241,6 +244,18 @@ def parse(text):
         holding = [block for block in blocks if block[0] < match.start() < block[1]]
         start, end = max(holding) if holding else (0, len(shape))
         declarations.append([match.group(1), type_name, match.start(), end])
+    # A name bound again without a stated type hides the outer declaration where it holds, as a type not known (UNKNOWN), so a
+    # receiver of that name is not taken for the outer one: `let x = y`, `if let x`, `guard let x`, a pattern's `let x`,
+    # `for x in`, `catch let x`, and a closure's parameters.
+    for match in re.finditer(r"\b(?:let|var)\s+(\w+)\s*(?:=(?!\s*[A-Z]\w*\s*\()|[,){])", shape):
+        declarations.append([match.group(1), UNKNOWN, *bound(shape, blocks, match.start())])
+    for match in re.finditer(r"\b(?:for\s+(?:case\s+let\s+)?|catch\s+let\s+)\(?\s*(\w+)", shape):
+        body = shape.find("{", match.end())
+        if body != -1:
+            declarations.append([match.group(1), UNKNOWN, body, closing(shape, body)])
+    for match in re.finditer(r"\{\s*\(?\s*(\w+(?:\s*,\s*\w+)*)\s*\)?\s+in\b", shape):
+        for name in re.split(r"\s*,\s*", match.group(1)):
+            declarations.append([name, UNKNOWN, match.start(), closing(shape, match.start())])
     result["sites"] = sites(source, scopes, declarations)
     for match in COLOUR.finditer(source):
         # A colour's hex is six or eight digits, its separators (if any) between pairs: 0x25_63_EB. A mask grouped by fours
@@ -251,6 +266,16 @@ def parse(text):
             continue
         result["colours"].append([source.count("\n", 0, match.start()) + 1, " ".join(match.group(0).split())])
     return result
+
+
+def bound(shape, blocks, position):
+    """Where a binding at `position` holds: the block an `if` or `while` condition opens, else the block that holds it."""
+    if re.search(r"\b(?:if|while)\b[^{};]*$", shape[max(0, position - 200):position]):
+        body = shape.find("{", position)
+        if body != -1:
+            return position, closing(shape, body)
+    holding = [block for block in blocks if block[0] < position < block[1]]
+    return (position, max(holding)[1]) if holding else (position, len(shape))
 
 
 def receiver(declarations, name, position):
@@ -318,16 +343,6 @@ def sites(text, scopes, declarations):
             word = ""
         i += 1
     return found
-
-
-def private(folder):
-    """Whether the folder is the user's alone, made so if it is new."""
-    try:
-        folder.mkdir(mode=0o700, parents=True, exist_ok=True)
-        status = folder.stat()
-    except OSError:
-        return False
-    return status.st_uid == os.getuid() and not status.st_mode & 0o077
 
 
 def parsed(path, cache):

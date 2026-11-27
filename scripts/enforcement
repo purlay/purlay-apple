@@ -35,11 +35,14 @@ png_field() { # file offset length: that many bytes of the PNG header as a numbe
 # which copies the same manifest many times, reads it once.
 dump_package() { # root
   local cache digest partial
-  # The user's own folder: a manifest's reading planted by someone else would be trusted.
-  cache="${XDG_CACHE_HOME:-$HOME/.cache}/purlay-enforcement"
+  # The user's own folder, as scripts/lib/cache.py judges it for the parse cache too: a reading planted by someone else would be
+  # believed, so in a folder others could write (or reach through a link) the manifest is read afresh every time.
+  if ! cache="$(PYTHONPATH=scripts/lib python3 scripts/lib/cache.py 2>/dev/null)"; then
+    (cd "$1" && swift package dump-package)
+    return
+  fi
   digest="$(shasum -a 256 "$1/Package.swift" | cut -d' ' -f1)"
   if [ ! -s "$cache/$digest.json" ]; then
-    (umask 077 && mkdir -p "$cache")
     # The demonstration reads it from parallel jobs: each writes its own partial file, and the rename is atomic.
     partial="$(mktemp "$cache/$digest.XXXXXX")"
     (cd "$1" && swift package dump-package) > "$partial" || { rm -f "$partial"; return 1; }
@@ -377,13 +380,13 @@ start() { # verdict function, name, setting-up function and its arguments: one j
   local result
   result="$RESULTS/$(printf '%04d' "$job")"
   printf '%s\n' "$name" >"$result.name"
+  # The status is written however the job ends, so a job that fails after its verdict is reported with its own status.
   {
-    (
+    if (
       copy="$(copy_tree)"
       if "$@" "$copy"; then "$verdict" "$name" "$copy"; else echo "  BROKEN       $name (its setting-up failed)"; fi
       rm -rf "$copy"
-    ) >"$result" 2>&1
-    echo "$?" >"$result.status"
+    ) >"$result" 2>&1; then echo 0; else echo "$?"; fi >"$result.status"
   } &
 }
 # shellcheck disable=SC2329 # called by start()

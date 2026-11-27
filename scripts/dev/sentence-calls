@@ -5,11 +5,12 @@ macOS and the iOS simulator, with the label of each such parameter. scripts/enfo
 one of these calls says it. It needs Xcode, which the rules lane does not have; `--check` runs in the layers group of
 scripts/enforcement (the packages lane), so a new Xcode whose SDK says otherwise is seen there. The file is the SDK of the Xcode
 .github/toolchain.env names (CI's): another Xcode would write another file, so it writes nothing, and `--check` says so and
-checks nothing.
+checks nothing. On CI (CI or GITHUB_ACTIONS set) another Xcode is a failure: the check is never skipped where it guards.
 
   scripts/dev/sentence-calls            write the file
   scripts/dev/sentence-calls --check    fail unless the file is what this Xcode's SDK gives
 """
+import os
 import pathlib
 import re
 import subprocess
@@ -45,10 +46,11 @@ def toolchain():
 
 wanted, here = toolchain()
 if here != wanted:
-    print(f"scripts/dev/sentence-calls: this Xcode is {here}, CI's is {wanted} (.github/toolchain.env); "
-          f"the SDK's calls are written and checked with Xcode {wanted} only, so nothing was {'checked' if sys.argv[1:] == ['--check'] else 'written'}",
-          file=sys.stderr)
-    sys.exit(0)
+    on_ci = bool(os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"))
+    print(f"{'FAIL' if on_ci else 'scripts/dev/sentence-calls'}: this Xcode is {here}, CI's is {wanted} (.github/toolchain.env); "
+          f"the SDK's calls are written and checked with Xcode {wanted} only, so nothing was "
+          f"{'checked' if sys.argv[1:] == ['--check'] else 'written'}", file=sys.stderr)
+    sys.exit(1 if on_ci else 0)
 
 
 def interfaces():
