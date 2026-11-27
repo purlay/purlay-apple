@@ -12,6 +12,9 @@ User-facing changes to Purlay for macOS. Releases require macOS 26 or later.
   serve them, and reminders already set on this Mac still go off.
 - When a server node cannot take a change to a saved message, a pin or a bookmark, the change is undone in place instead of
   being lost; read receipts already confirmed, scheduled edits and reminders are kept, and only the thread acted on closes.
+- An open thread stays readable when a server node cannot load or change whether you follow it, and the setting is read again
+  once it can be; a refused unsubscribe pauses Chat on that connection instead of retrying, and the sidebar does not keep
+  asking for a group route that is not served.
 - Keep saved messages and the Add Bookmark form open when their Chat action is temporarily unavailable during a rollout.
 - The Schedule and Remind Me sheets stay open, with what you set, and say the action is temporarily unavailable instead of
   failing; a scheduled message being edited keeps its changes through a refresh.
