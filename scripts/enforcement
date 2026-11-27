@@ -345,95 +345,80 @@ PY
   then failed=1; fi
   # A sentence in a catalogue is one some code says. The catalogues carry no extraction state (the iOS one is edited by hand, the
   # others are synced only by scripts/localize), so `stale` never shows a sentence the code stopped saying: the code is read here.
-  # Each catalogue is read by its own code: the iOS app's, the Mac app's with PurlayMacUI, and PurlayWords'. Comments (line,
-  # trailing, block and nested block) are not code, and a literal counts only where it is said as a sentence: an argument SwiftUI
-  # or Foundation reads as one (Text, Button, .help, String(localized:), LocalizedStringResource…), a parameter or property the
-  # code types as one (LocalizedStringKey, LocalizedStringResource, String.LocalizationValue), or the value of a declaration so
-  # typed. The compiler's own extraction (scripts/localize) needs Swift, which this lane does not have.
-  if ! python3 - "$root" <<'PY'
+  # Each catalogue is read by its own code: the iOS app's, the Mac app's with PurlayMacUI, and PurlayWords'. A comment is not
+  # code, and a literal counts only where it is said as a sentence: an argument a call of the SDK takes as one
+  # (scripts/lib/sentence_calls.py, written from the SDK's interfaces by scripts/dev/sentence-calls), an argument of the code's
+  # own function, initialiser or memberwise initialiser whose parameter or property is typed as one (LocalizedStringKey,
+  # LocalizedStringResource, String.LocalizationValue, or an array of them), the value or body of a declaration so typed, or
+  # what is assigned to a property its type so declares. The compiler's own extraction (scripts/localize) needs Swift, which
+  # this lane does not have.
+  if ! PYTHONPATH=scripts/lib python3 - "$root" <<'PY'
 import json, pathlib, re, sys
+from sentence_calls import CALLS
+from swift_source import code, literal, owner, skeleton, type_scopes
 root = pathlib.Path(sys.argv[1])
 readers = {
     "Apps/iOS/App/Resources/Localizable.xcstrings": ["Apps/iOS/App"],
     "Apps/macOS/App/Resources/Localizable.xcstrings": ["Apps/macOS/App", "Sources/PurlayMacUI"],
     "Sources/PurlayWords/Resources/Localizable.xcstrings": ["Sources/PurlayWords"],
 }
-spec = re.compile(r"%(?:\d+\$)?(?:lld|ld|lu|llu|@|d|u|f)")
-escapes = {"n": "\n", "t": "\t", '"': '"', "\\": "\\", "'": "'", "0": "\0"}
-SENTENCE = r"(?:LocalizedStringKey|LocalizedStringResource|String\.LocalizationValue)"
-# The system's calls that read a sentence, and the argument labels that take it ("" for the unlabelled one).
-CALLS = {name: {""} for name in (
-    "Text", "Button", "Label", "Toggle", "Section", "TextField", "SecureField", "Picker", "Menu", "LabeledContent",
-    "ProgressView", "CommandMenu", "Tab", "Window", "WindowGroup", "DatePicker", "Link", "ContentUnavailableView", "help",
-    "accessibilityLabel", "accessibilityHint", "accessibilityValue", "navigationTitle", "navigationSubtitle",
-    "confirmationDialog", "alert", "LocalizedStringKey", "LocalizedStringResource")}
-CALLS |= {"String": {"localized"}, "AttributedString": {"localized"}}
+spec = re.compile(r"%(?:\d+\$)?(?:hh|h|ll|l|z|t|j|q)?[diouxX@feEgG]")
+SENTENCE = r"\[?(?:LocalizedStringKey|LocalizedStringResource|String\.LocalizationValue)\]?\??"
 
-def literal(text, i):
-    """The Swift string literal opening at text[i], each interpolation as NUL, and the index after it."""
-    if text.startswith('"""', i):
-        end = text.index('"""', i + 3)
-        lines = text[i + 3:end].strip("\n").split("\n")
-        indent = min((len(line) - len(line.lstrip()) for line in lines if line.strip()), default=0)
-        return "\n".join(line[indent:] for line in lines), end + 3
-    value, i = [], i + 1
-    while i < len(text) and text[i] not in '"\n':
-        if text[i] != "\\":
-            value.append(text[i]); i += 1
-        elif text[i + 1] == "(":
-            depth, i = 1, i + 2
-            while depth:
-                if text[i] == '"':
-                    _, i = literal(text, i)
-                    continue
-                depth += {"(": 1, ")": -1}.get(text[i], 0); i += 1
-            value.append("\0")
-        elif text[i + 1] == "u":
-            close = text.index("}", i)
-            value.append(chr(int(text[i + 3:close], 16))); i = close + 1
-        else:
-            value.append(escapes.get(text[i + 1], text[i + 1])); i += 2
-    return "".join(value), i + 1
 
-def code(text):
-    """The source with every comment blanked (a line's, a trailing one, a block, nested blocks); literals kept whole."""
-    out, i = [], 0
-    while i < len(text):
-        if text[i] == '"':
-            _, end = literal(text, i)
-        elif text.startswith("//", i):
-            end = text.find("\n", i)
-            end = len(text) if end == -1 else end
-            out.append(" " * (end - i)); i = end
-            continue
-        elif text.startswith("/*", i):
-            depth, end = 1, i + 2
-            while depth and end < len(text):
-                if text.startswith("/*", end):
-                    depth, end = depth + 1, end + 2
-                elif text.startswith("*/", end):
-                    depth, end = depth - 1, end + 2
-                else:
-                    end += 1
-            out.append(re.sub(r"[^\n]", " ", text[i:end])); i = end
-            continue
-        else:
-            end = i + 1
-        out.append(text[i:end]); i = end
-    return "".join(out)
+class Source:
+    """One file: its code, the same with every literal blanked, and the types that enclose each place in it."""
 
-def sentences(text, calls, typed):
+    def __init__(self, path):
+        self.text = code(path.read_text())
+        self.shape = skeleton(self.text)
+        self.scopes = type_scopes(self.shape)
+
+    def owner(self, position):
+        return owner(self.scopes, position)
+
+
+def declarations(sources):
+    """The code's own calls that take a sentence, by label, and the properties declared as one, by (type, name)."""
+    calls = {name: set(labels) for name, labels in CALLS.items()}
+    properties = set()
+    for source in sources:
+        for match in re.finditer(r"\b(?:func\s+(\w+)|init)\s*(?:<[^>]*>)?\(([^)]*)\)", source.shape):
+            call = match.group(1) or source.owner(match.start())
+            for parameter in match.group(2).split(","):
+                typed = re.match(rf"\s*(\w+)(?:\s+\w+)?\s*:\s*(?:@\w+\s+)?{SENTENCE}", parameter)
+                if typed and call:
+                    calls.setdefault(call, set()).add("" if typed.group(1) == "_" else typed.group(1))
+        for match in re.finditer(rf"\b(?:let|var)\s+(\w+)\s*:\s*{SENTENCE}", source.shape):
+            kind = source.owner(match.start())
+            if kind:
+                # A stored property is an argument of its type's memberwise initialiser, by its name.
+                calls.setdefault(kind, set()).add(match.group(1))
+                properties.add((kind, match.group(1)))
+    return calls, properties
+
+
+def sentences(source, calls, properties):
     """The literals of one file that stand where a sentence is said."""
-    found, frames, word, i = set(), [], "", 0  # a frame per open bracket: [bracket, call, argument label or typed body]
-    while i < len(text):
+    text, found, frames, word, i = source.text, set(), [], "", 0
+    while i < len(text):  # a frame per open bracket: [bracket, call, argument label, or whether it holds sentences]
         c = text[i]
         if c == '"':
             value, end = literal(text, i)
+            before = text[max(0, i - 120):i]
             frame = frames[-1] if frames else None
             argument = frame and frame[0] == "(" and frame[2] in calls.get(frame[1], ())
+            listed = frame and frame[0] == "[" and frame[2]
             body = frame and frame[0] == "{" and any(f[0] == "{" and f[2] for f in frames)
-            declared = re.search(rf"(?:{SENTENCE}\??\s*=|\b(?:{typed})\s*[:=])\s*$", text[max(0, i - 80):i])
-            if argument or body or declared:
+            declared = re.search(rf":\s*{SENTENCE}\s*=\s*$", before)
+            # Assigned to a property declared as a sentence: its own type's (bare or through self), or, through another
+            # value, any type's of that name, since the value's type is not known here.
+            assigned = re.search(r"(?<![\w.])((?:\w+\.)*)(\w+)\s*=\s*$", before)
+            assigned = assigned and not re.search(r"\b(?:let|var)\s+\w+\s*=\s*$", before) and (
+                (source.owner(i), assigned.group(2)) in properties if assigned.group(1) in ("", "self.")
+                else any(name == assigned.group(2) for _, name in properties))
+            verbatim = re.match(r"\s*as\s+String\b", text[end:])
+            if (argument or listed or body or declared or assigned) and not verbatim:
                 found.add(value)
             i, word = end, ""
             continue
@@ -441,16 +426,20 @@ def sentences(text, calls, typed):
             end = re.match(r"\w+", text[i:]).end() + i
             word, i = text[i:end], end
             continue
+        before = text[max(0, i - 120):i]
         if c == "(":
             frames.append(["(", word, ""])
+        elif c == "[":
+            inside = frames and frames[-1][0] == "(" and frames[-1][2] in calls.get(frames[-1][1], ())
+            frames.append(["[", None, bool(inside or re.search(rf":\s*{SENTENCE}\s*=\s*$", before))])
         elif c == "{":
-            frames.append(["{", None, bool(re.search(rf"(?:->|:)\s*{SENTENCE}\??\s*$", text[max(0, i - 120):i]))])
-        elif c in ")}" and frames:
+            frames.append(["{", None, bool(re.search(rf"(?:->|:)\s*{SENTENCE}\s*$", before))])
+        elif c in ")]}" and frames:
             frames.pop()
         elif c == "," and frames and frames[-1][0] == "(":
             frames[-1][2] = ""
         elif c == ":" and frames and frames[-1][0] == "(":
-            label = re.search(r"[(,]\s*(\w+)\s*$", text[max(0, i - 80):i])
+            label = re.search(r"[(,]\s*(\w+)\s*$", before)
             if label:
                 frames[-1][2] = label.group(1)
         if not c.isspace() and c != ".":
@@ -458,33 +447,17 @@ def sentences(text, calls, typed):
         i += 1
     return found
 
-def said(folders):
-    texts = [code(path.read_text()) for folder in folders for path in sorted((root / folder).rglob("*.swift"))]
-    calls = {name: set(labels) for name, labels in CALLS.items()}
-    typed = set()
-    for text in texts:
-        # The code's own functions and initialisers that take a sentence, by the label of each such parameter.
-        for match in re.finditer(r"\b(?:func\s+(\w+)|init)\s*(?:<[^>]*>)?\(([^)]*)\)", text):
-            owner = re.findall(r"\b(?:struct|class|enum|extension)\s+(\w+)", text[:match.start()])
-            call = match.group(1) or (owner[-1] if owner else None)
-            for parameter in match.group(2).split(","):
-                typed_parameter = re.match(rf"\s*(\w+)(?:\s+\w+)?\s*:\s*(?:@\w+\s+)?{SENTENCE}\b", parameter)
-                if typed_parameter and call:
-                    label = typed_parameter.group(1)
-                    calls.setdefault(call, set()).add("" if label == "_" else label)
-                    typed.add(label)
-        # A property typed as a sentence, given by its label in a memberwise initialiser or assigned.
-        typed |= set(re.findall(rf"\b(?:let|var)\s+(\w+)\s*:\s*{SENTENCE}\b", text))
-    typed.discard("_")
-    pattern = "|".join(sorted(typed)) or "(?!)"
-    return set().union(*(sentences(text, calls, pattern) for text in texts))
 
 problems = []
 for path, folders in readers.items():
-    words = said(folders)
+    sources = [Source(file) for folder in folders for file in sorted((root / folder).rglob("*.swift"))]
+    calls, properties = declarations(sources)
+    words = set().union(*(sentences(source, calls, properties) for source in sources))
     for key, entry in json.load(open(root / path))["strings"].items():
         if entry.get("shouldTranslate") is not False and spec.sub("\0", key) not in words:
-            problems.append(f"{path}: {key!r} is said by no code that reads this catalogue; remove it")
+            problems.append(
+                f"{path}: {key!r} is said by no code that reads this catalogue: remove it, or, if a call of the SDK says it "
+                "as a sentence, add that call to CALLS (scripts/dev/sentence-calls)")
 for problem in problems:
     print("FAIL: " + problem, file=sys.stderr)
 sys.exit(1 if problems else 0)
@@ -701,6 +674,20 @@ plant_in() { # name, folder (relative), shell command run there
   (cd "$copy/$2" && eval "$3")
   judge "$1" "$copy"
 }
+# A refusal shows a rule looks; it does not show the rule leaves good code alone. Each accept fixture writes code a rule must
+# not refuse (a call that does say a sentence, a colour named only in a comment) and requires the copy to hold every rule.
+accept_in() { # name, folder (relative), shell command run there
+  local copy
+  wants "$group" || return 0
+  copy="$(copy_tree)"
+  (cd "$copy/$2" && eval "$3")
+  if check "$copy" >/dev/null 2>&1; then
+    echo "  accepted     $1"
+  else
+    echo "  NOT ACCEPTED $1" >&2; check "$copy" 2>&1 | grep FAIL | head -5 >&2; fail=1
+  fi
+  rm -rf "$copy"
+}
 check . >/dev/null
 # The copies the violations are planted in must hold every rule before anything is planted, or a refusal would prove nothing.
 clean="$(copy_tree)"
@@ -826,9 +813,21 @@ plant_in "a Mac sentence said only in a block comment" . "python3 -c '$(recatalo
 plant_in "a Mac sentence said only in a trailing comment" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'let qaProbe = 1 // was Text(\"Never said\")' >> Sources/PurlayMacUI/Strings.swift"
 plant_in "a Mac sentence said only as a plain literal" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'let qaProbe = \"Never said\"' >> Sources/PurlayMacUI/Strings.swift"
 plant_in "a Mac sentence said only as an accessibility identifier" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'let qaProbe = Text(\"x\").accessibilityIdentifier(\"Never said\")' >> Sources/PurlayMacUI/Strings.swift"
-# QA (PR #6): a literal given to an AppKit String API is not said as a sentence, yet `title:` counts anywhere because some
-# parameter elsewhere is a LocalizedStringKey named `title`. Not refused yet.
+# A literal given to an API that takes a String is not said as a sentence, even where a label of that name takes one elsewhere.
 plant_in "a Mac sentence said only to an AppKit String API sharing a typed label" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'import AppKit' 'let qaProbe = NSMenuItem(title: \"Never said\", action: nil, keyEquivalent: \"\")' >> Sources/PurlayMacUI/Strings.swift"
+# Sentences said by calls that do take one, each a different key, so each call must be read as saying it: the SDK's (a navigation
+# link, a stepper, a search prompt, a badge, an accessibility action, NSLocalizedString), an array typed as sentences, and the
+# code's own memberwise initialiser and assignment to a property typed as one.
+SAID_BY_CALLS="$(printf '%s\n' \
+  'let said1 = NavigationLink("Said 1") { EmptyView() }' 'let said2 = Stepper("Said 2", value: .constant(1))' \
+  'let said3 = Color.clear.searchable(text: .constant(""), prompt: "Said 3")' 'let said4 = Color.clear.badge("Said 4")' \
+  'let said5 = Color.clear.accessibilityAction(named: "Said 5") {}' 'let said6 = NSLocalizedString("Said 6", comment: "")' \
+  'let said7: [LocalizedStringKey] = ["Said 7"]' 'let said8 = Color.clear.accessibilityInputLabels(["Said 8"])' \
+  'struct SaidProbe { var title: LocalizedStringKey; mutating func change() { title = "Said 9" } }' \
+  'let said10 = SaidProbe(title: "Said 10")' 'let said11 = GroupBox("Said 11") { EmptyView() }')"
+export SAID_BY_CALLS # read by the fixture's command, which runs in a subshell
+accept_in "sentences said by the SDK's calls, an array of sentences and the code's own typed properties" . \
+  "python3 -c '$(recatalogue $MAC_STRINGS 'strings.update({f"Said {n}": {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": f"Söylendi {n}"}}}} for n in range(1, 12)})')' && printf '%s\\n' \"\$SAID_BY_CALLS\" >> Sources/PurlayMacUI/Strings.swift"
 # A count said in English with one form reads "1 new replies".
 plant_in "a Mac count with no English plural forms" . "python3 -c '$(recatalogue $MAC_STRINGS 'del strings["%lld people"]["localizations"]["en"]')'"
 plant_in "an engine count with English plural forms but no one" . \
