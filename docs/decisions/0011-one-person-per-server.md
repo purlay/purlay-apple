@@ -16,8 +16,9 @@ erasing now remove what the app keeps of a person, two people on one server beca
   confirmed session is joined or compared against: one whose person has been read and that is kept, never one a browser
   has just brought back.
 - On the Mac, a browser sign-in's session is kept apart until `/api/me` says whose it is: in memory, and in the Keychain
-  under a pending entry of its own (`AppEnvironment.pendingSessions`), so a quit does not lose it; at launch it is read again
-  (kept or refused), or ended when a session is already kept for the server. It becomes the
+  under a pending entry of its own for each workspace session (`AppEnvironment.pendingSessions`, one Keychain service per
+  workspace), so a quit does not lose it and one workspace's never replaces another's; at launch it is read again (kept or
+  refused), or ended and forgotten when a session is already kept for the server or it was made for another address. It becomes the
   server's credential only then, and only when it is the person the server's other sessions hold; when that person already
   holds a confirmed session here, that session is used and the browser's is ended, so the server has one session. A first read that fails keeps it in
   memory, and Try Again reads again with it; a model that lets it go unkept ends it on the server (`/auth/logout`), so none

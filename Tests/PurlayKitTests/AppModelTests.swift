@@ -90,6 +90,19 @@ final class FakeLoginItem: LoginItemControl {
     func openSystemSettings() { settingsOpened += 1 }
 }
 
+/// A store of sessions for each workspace session but the first, made when first asked for.
+final class SlotSessions: Sendable {
+    private let stores = Mutex<[String: MemorySessions]>([:])
+    func store(for slot: String) -> MemorySessions {
+        stores.withLock { stores in
+            if let store = stores[slot] { return store }
+            let store = MemorySessions()
+            stores[slot] = store
+            return store
+        }
+    }
+}
+
 /// Time passed on a model's clock, set by a test.
 final class Elapsed: Sendable {
     private let value = Mutex<TimeInterval>(0)
@@ -102,8 +115,9 @@ final class ModelHarness {
     let server = FakeServer()
     let loginItem = FakeLoginItem()
     let sessions = MemorySessions()
-    /// The Mac's pending sign-ins (ADR 0011), kept apart from the session in use.
+    /// The Mac's pending sign-ins (ADR 0011), kept apart from the session in use: the first workspace's, and every other's.
     let pendingSessions = MemorySessions()
+    let otherPendingSessions = SlotSessions()
     let preferences: MemoryPreferences
     let owner = MemoryOwnerStore()
     let attention = RecordingAttention()
@@ -126,6 +140,10 @@ final class ModelHarness {
         let server = server
         let sessions = sessions
         let pendingSessions = pendingSessions
+        let otherPendingSessions = otherPendingSessions
+        let stores = PendingSessionStores { slot in
+            slot == "main" ? pendingSessions : otherPendingSessions.store(for: slot)
+        }
         let preferences = preferences
         let owner = owner
         let attention = attention
@@ -153,7 +171,7 @@ final class ModelHarness {
                 random: { 0 }, clock: { Date(timeIntervalSince1970: Double(epochMs) / 1_000 + elapsed.seconds) },
                 owner: owner,
                 sleep: { _ in }, attention: attention, loginItem: loginItem, wipers: wipers,
-                pendingSessions: pendingSessions))
+                pendingSessions: stores))
     }
 
     func settle() async {

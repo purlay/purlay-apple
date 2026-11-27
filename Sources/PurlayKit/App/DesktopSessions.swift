@@ -209,6 +209,7 @@ public final class DesktopSessions {
                 "sessions/\(descriptor.id.uuidString)", isDirectory: true)
             scoped.cacheDirectory = environment.cacheDirectory.appendingPathComponent(
                 "sessions/\(descriptor.id.uuidString)", isDirectory: true)
+            scoped.pendingSessions = environment.pendingSessions?.scoped(to: descriptor.id.uuidString)
         }
         scoped.attention = DesktopAttentionSource(owner: attention, id: descriptor.id.uuidString)
         let model = AppModel(scoped, workspaceID: descriptor.workspace)
@@ -238,11 +239,11 @@ public final class DesktopSessions {
                 guard let person = model?.personHere else { return 0 }
                 return self?.others(of: model).filter { $0.personHere == person }.reduce(0) { $0 + $1.unsentHere } ?? 0
             },
-            holdSends: { [weak self, weak model] in
-                for other in self?.others(of: model) ?? [] { other.holdSends() }
+            holdSends: { [weak self, weak model] signOut in
+                for other in self?.others(of: model) ?? [] { other.holdSends(for: signOut) }
             },
-            releaseSends: { [weak self, weak model] in
-                for other in self?.others(of: model) ?? [] { other.releaseSends() }
+            releaseSends: { [weak self, weak model] signOut in
+                for other in self?.others(of: model) ?? [] { other.releaseSends(for: signOut) }
             })
         // Every workspace of a server shares its credential, so one that ends ends them all; what each kept is removed only
         // when it is the same person's whose data the ending one removed.
