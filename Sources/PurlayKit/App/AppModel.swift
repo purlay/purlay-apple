@@ -645,7 +645,7 @@ public final class AppModel {
         switch reason {
         case .expired: say(.sessionExpired)
         case .endedByServer: say(.sessionEndedByServer)
-        case .signedOutByPerson, .signedOutEverywhere, nil: break
+        case .signedOutByPerson, .signedOutEverywhere, .accountErased, nil: break
         }
         onSessionEnded?()
     }

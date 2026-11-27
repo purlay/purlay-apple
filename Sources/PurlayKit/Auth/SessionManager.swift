@@ -1,9 +1,10 @@
 import Foundation
 
-/// Data the app keeps for a person between runs: the outbox, drafts, a window's state. Removed when that person signs
-/// out, and when somebody else signs in where they were (M-1 of §10: no message of one person is ever sent as another's).
+/// Data the app keeps for a person between runs: the outbox, drafts, a window's state, a cache. Removed when that person signs
+/// out or erases their account, and when somebody else signs in where they were (M-1 of §10: no message of one person is ever
+/// sent as another's). Throws what it could not remove: the others still run, and the failure is told.
 public protocol UserDataWiper: Sendable {
-    func wipe() async
+    func wipe() async throws
 }
 
 /// Who the retained data belongs to, kept beside it.
@@ -28,6 +29,8 @@ public actor SessionManager {
         case endedByServer
         case signedOutByPerson
         case signedOutEverywhere
+        /// The person erased their account: the server ended every session of theirs.
+        case accountErased
     }
 
     public enum State: Sendable, Equatable {
@@ -53,6 +56,7 @@ public actor SessionManager {
     private let wipers: [any UserDataWiper]
     private let now: @Sendable () -> Date
     private let endSession: @Sendable (SignOutScope) async throws -> Void
+    private let onWipeFailure: @Sendable (_ failures: Int) async -> Void
 
     public private(set) var state: State = .signedOut(nil)
     private var continuations: [UUID: AsyncStream<State>.Continuation] = [:]
@@ -60,7 +64,8 @@ public actor SessionManager {
     public init(
         store: any SessionStore, owner: any OwnerMemory, log: Log, wipers: [any UserDataWiper] = [],
         now: @escaping @Sendable () -> Date = Date.init,
-        endSession: @escaping @Sendable (SignOutScope) async throws -> Void
+        endSession: @escaping @Sendable (SignOutScope) async throws -> Void,
+        onWipeFailure: @escaping @Sendable (_ failures: Int) async -> Void = { _ in }
     ) {
         self.store = store
         self.owner = owner
@@ -68,6 +73,7 @@ public actor SessionManager {
         self.wipers = wipers
         self.now = now
         self.endSession = endSession
+        self.onWipeFailure = onWipeFailure
     }
 
     /// The session value to send as the cookie, or none.
@@ -130,9 +136,36 @@ public actor SessionManager {
     /// Once the person is known: data left from another person is not kept for this one.
     public func identify(userID: String) async {
         if let retained = owner.load(), retained != userID {
-            for wiper in wipers { await wiper.wipe() }
+            // What could not be removed stays the other person's: their id is kept, so the next sign-in tries again.
+            guard await wipeAll() else { return }
         }
         owner.save(userID)
+    }
+
+    /// Runs every wiper once, in order, whatever one of them throws. Each failure is logged by the wiper's type and the error's
+    /// domain and code, never its description (which can name a file, and so a person), and the count is told. True when all
+    /// succeeded.
+    private func wipeAll() async -> Bool {
+        var failures = 0
+        for wiper in wipers {
+            do {
+                try await wiper.wipe()
+            } catch {
+                failures += 1
+                let failure = error as NSError
+                log.storage.error(
+                    "\(String(describing: type(of: wiper)), privacy: .public) could not remove its data: \(failure.domain, privacy: .public) \(failure.code, privacy: .public)"
+                )
+            }
+        }
+        if failures > 0 { await onWipeFailure(failures) }
+        return failures == 0
+    }
+
+    /// The owner is forgotten only when everything of theirs went: otherwise the next sign-in of another person, or the next
+    /// sign-out, removes it again.
+    private func wipeAndForgetOwner() async {
+        if await wipeAll() { owner.save(nil) }
     }
 
     // MARK: Ending
@@ -172,9 +205,24 @@ public actor SessionManager {
             log.session.error("the sign-in could not be removed: \(String(describing: error), privacy: .public)")
             if !told { return .credentialKept }
         }
-        for wiper in wipers { await wiper.wipe() }
-        owner.save(nil)
+        await wipeAndForgetOwner()
         move(to: .signedOut(scope == .everywhere ? .signedOutEverywhere : .signedOutByPerson))
         return told ? .done : .serverNotTold
+    }
+
+    /// The server erased the account (`204` from `POST /api/me/erase`) and ended every session of it, this one included. Run
+    /// even when the socket's `SESSION_ENDED` signed this app out first: that ending was the erasure's, and nothing of the
+    /// person's is kept for a sign-in that cannot come. A credential the Keychain will not forget is harmless now, and is
+    /// logged.
+    public func accountErased() async {
+        if case .signedIn(_, let server) = state {
+            do {
+                try store.delete(for: server)
+            } catch {
+                log.session.error("the sign-in could not be removed: \(String(describing: error), privacy: .public)")
+            }
+        }
+        await wipeAndForgetOwner()
+        move(to: .signedOut(.accountErased))
     }
 }
