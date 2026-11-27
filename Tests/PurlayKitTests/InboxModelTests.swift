@@ -66,6 +66,98 @@ struct InboxModelTests {
         #expect(query(request, "unreadOnly") == "false")
     }
 
+    @Test(
+        "a closed Chat route dismisses notifications without losing the session or core Updates",
+        arguments: [false, true])
+    func closedChatRoute(paging: Bool) async {
+        let h = await opened(three, pageSize: 1)
+        await h.model.openInbox()
+        #expect(h.model.inboxHasMore)
+        #expect(h.model.updatesStatus == .loaded)
+        let before = lists(h).count
+        h.server.edit {
+            $0.notificationsStatus = 404
+            $0.notificationsErrorCode = "ROUTE_NOT_FOUND"
+        }
+        if paging { await h.model.loadMoreInbox() } else { await h.model.openInbox() }
+        #expect(lists(h).count == before + 1)
+        #expect(h.model.phase == .ready)
+        #expect(h.model.chatAvailable)
+        #expect(!h.model.inboxOpen)
+        #expect(h.model.inboxStatus == .idle)
+        #expect(h.model.inboxRows.isEmpty)
+        #expect(!h.model.inboxHasMore)
+        #expect(!h.model.inboxLoadingMore)
+        #expect(h.model.updatesStatus == .loaded)
+        #expect(!h.model.notices.contains { $0.kind == .loadFailed })
+
+        h.server.edit { $0.notificationsStatus = 200 }
+        await h.model.openInbox()
+        #expect(h.model.inboxOpen)
+        #expect(h.model.inboxStatus == .loaded)
+        #expect(h.model.inboxRows.map(\.message.id) == [idAt(3)])
+    }
+
+    @Test("other refusals still leave the Inbox open and report failure")
+    func genuineReadFailure() async {
+        for (status, code) in [(403, "FORBIDDEN"), (404, "MESSAGE_NOT_FOUND"), (403, "ROUTE_NOT_FOUND")] {
+            let h = await opened(three)
+            h.server.edit {
+                $0.notificationsStatus = status
+                $0.notificationsErrorCode = code
+            }
+            await h.model.openInbox()
+            #expect(h.model.inboxOpen)
+            #expect(h.model.inboxStatus == .failed)
+            #expect(h.model.phase == .ready)
+        }
+    }
+
+    @Test("cancelling the next page keeps the Inbox and its cursor without reporting failure")
+    func cancelPaging() async {
+        let h = await opened(three, pageSize: 1)
+        await h.model.openInbox()
+        let before = lists(h).count
+        h.server.edit {
+            $0.notificationsStatus = 404
+            $0.notificationsErrorCode = "ROUTE_NOT_FOUND"
+            $0.notificationDelays["false"] = 250
+        }
+        let page = Task { await h.model.loadMoreInbox() }
+        #expect(await eventually { lists(h).count == before + 1 })
+        page.cancel()
+        await page.value
+        #expect(h.model.inboxOpen)
+        #expect(h.model.inboxStatus == .loaded)
+        #expect(h.model.inboxRows.map(\.message.id) == [idAt(3)])
+        #expect(h.model.inboxHasMore)
+        #expect(!h.model.inboxLoadingMore)
+        #expect(!h.model.notices.contains { $0.kind == .loadFailed })
+    }
+
+    @Test("a late closed Chat answer leaves core Updates open and reopening Updates only reads the core")
+    func closedChatWithUpdates() async {
+        let h = await opened(three)
+        h.server.edit {
+            $0.notificationsStatus = 404
+            $0.notificationsErrorCode = "ROUTE_NOT_FOUND"
+            $0.notificationDelays["false"] = 250
+        }
+        let opening = Task { await h.model.openInbox() }
+        #expect(await eventually { lists(h).count == 1 })
+        await h.model.setInboxCategory(.updates)
+        await opening.value
+        #expect(h.model.inboxOpen)
+        #expect(h.model.inboxCategory == .updates)
+        #expect(h.model.updatesStatus == .loaded)
+        #expect(h.model.inboxStatus == .idle)
+        h.model.inboxOpen = false
+        await h.model.openInbox()
+        #expect(h.model.inboxOpen)
+        #expect(h.model.updatesStatus == .loaded)
+        #expect(lists(h).count == 1)
+    }
+
     @Test("Unread is asked of the server, so what waits is found however old, and All asks again")
     func filters() async throws {
         let h = await opened(three)
@@ -322,6 +414,82 @@ struct InboxModelTests {
         await h.model.markInboxRead(row)
         #expect(h.model.inboxRows.first?.isUnread == true)
         #expect(h.model.notices.map(\.kind).contains(.readFailed))
+    }
+
+    @Test("a closed Chat read-receipt route leaves core Updates and the session available")
+    func closedChatWrite() async throws {
+        let h = await opened(three)
+        let response = Gate()
+        await h.model.openInbox()
+        let row = try #require(h.model.inboxRows.first)
+        h.server.edit {
+            $0.notificationReadStatus = 404
+            $0.notificationReadErrorCode = "ROUTE_NOT_FOUND"
+            $0.beforeNotificationReadResponse = { await response.wait() }
+        }
+        let marking = Task { await h.model.markInboxRead(row) }
+        #expect(await eventually { h.server.requests.contains { $0.url.path == "/api/notifications/read" } })
+        await h.model.setInboxCategory(.updates)
+        await response.open()
+        await marking.value
+
+        #expect(h.model.inboxOpen)
+        #expect(h.model.inboxCategory == .updates)
+        #expect(h.model.updatesStatus == .loaded)
+        #expect(h.model.inboxStatus == .idle)
+        #expect(h.model.inboxNotes.isEmpty)
+        #expect(h.model.phase == .ready)
+        #expect(!h.model.notices.map(\.kind).contains(.readFailed))
+
+        h.server.edit {
+            $0.notificationReadStatus = 204
+            $0.beforeNotificationReadResponse = nil
+        }
+        await h.model.setInboxCategory(.all)
+        let retry = try #require(h.model.inboxRows.first)
+        #expect(retry.isUnread)
+        await h.model.markInboxRead(retry)
+        #expect(h.model.inboxRows.first?.isUnread == false)
+    }
+
+    @Test("a refused later batch does not put confirmed read receipts back")
+    func partialRead() async throws {
+        let h = await opened((1...101).reversed().map { note($0) }, pageSize: 101)
+        let response = Gate()
+        await h.model.openInbox()
+        h.server.edit { $0.beforeNotificationReadResponse = { await response.wait() } }
+        let marking = Task { await h.model.markAllInboxRead() }
+        #expect(await eventually { h.server.requests.contains { $0.url.path == "/api/notifications/read" } })
+        h.server.edit {
+            $0.notificationReadStatus = 500
+            $0.beforeNotificationReadResponse = nil
+        }
+        await response.open()
+        await marking.value
+
+        let accepted = try #require(h.server.notificationReads.first?.ids)
+        #expect(accepted.count == 100)
+        #expect(Set(h.model.inboxNotes.filter { $0.readAt != nil }.map(\.id)) == Set(accepted))
+        #expect(h.model.inboxNotes.filter { $0.readAt == nil }.count == 1)
+        #expect(h.model.notices.map(\.kind).contains(.readFailed))
+    }
+
+    @Test("signing out during Mark all read stops the remaining batches")
+    func signOutBetweenReadBatches() async {
+        let h = await opened((1...101).reversed().map { note($0) }, pageSize: 101)
+        let response = Gate()
+        await h.model.openInbox()
+        h.server.edit { $0.beforeNotificationReadResponse = { await response.wait() } }
+        let marking = Task { await h.model.markAllInboxRead() }
+        #expect(await eventually { h.server.requests.contains { $0.url.path == "/api/notifications/read" } })
+
+        await h.model.signOut(.thisDevice)
+        await response.open()
+        await marking.value
+
+        #expect(h.server.requests.filter { $0.url.path == "/api/notifications/read" }.count == 1)
+        #expect(h.model.me == nil)
+        #expect(h.model.inboxNotes.isEmpty)
     }
 
     @Test("Mark all read reads what is on screen and what is already read is not asked about")

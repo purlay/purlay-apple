@@ -1,6 +1,180 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ (%@)" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (%@)"
+          }
+        }
+      }
+    },
+    "%lld unsent messages will be deleted." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld unsent message will be deleted."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld unsent messages will be deleted."
+                }
+              }
+            }
+          }
+        },
+        "tr" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld gönderilmemiş mesaj silinecek."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Account" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesap"
+          }
+        }
+      }
+    },
+    "Back to %@" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Çalışma Alanına Dön"
+          }
+        }
+      }
+    },
+    "Channel Unavailable" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kanal Kullanılamıyor"
+          }
+        }
+      }
+    },
+    "Chat" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sohbet"
+          }
+        }
+      }
+    },
+    "Couldn’t Load Messages" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesajlar Yüklenemedi"
+          }
+        }
+      }
+    },
+    "Couldn’t load earlier messages." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Önceki mesajlar yüklenemedi."
+          }
+        }
+      }
+    },
+    "Couldn’t load newer messages." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daha yeni mesajlar yüklenemedi."
+          }
+        }
+      }
+    },
+    "Couldn’t send message." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesaj gönderilemedi."
+          }
+        }
+      }
+    },
+    "Direct Messages" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doğrudan Mesajlar"
+          }
+        }
+      }
+    },
+    "Loading earlier messages…" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Önceki mesajlar yükleniyor…"
+          }
+        }
+      }
+    },
+    "Loading messages…" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesajlar yükleniyor…"
+          }
+        }
+      }
+    },
+    "Message is too long." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesaj çok uzun."
+          }
+        }
+      }
+    },
+    "Message unavailable" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesaj kullanılamıyor"
+          }
+        }
+      }
+    },
     "New to Purlay? Create an account when you sign in." : {
       "localizations" : {
         "tr" : {
@@ -11,12 +185,52 @@
         }
       }
     },
-    "Nothing to show here yet." : {
+    "No Joined Channels" : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Burada henüz gösterilecek bir şey yok."
+            "value" : "Katıldığın Kanal Yok"
+          }
+        }
+      }
+    },
+    "No Messages Yet" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Henüz Mesaj Yok"
+          }
+        }
+      }
+    },
+    "No Modules Available" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kullanılabilir Modül Yok"
+          }
+        }
+      }
+    },
+    "No Workspaces Yet" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Henüz Çalışma Alanı Yok"
+          }
+        }
+      }
+    },
+    "Only workspace owners and admins can post here." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Burada yalnızca çalışma alanı sahipleri ve yöneticileri mesaj gönderebilir."
           }
         }
       }
@@ -31,12 +245,112 @@
         }
       }
     },
+    "Retry Message" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yeniden Gönder"
+          }
+        }
+      }
+    },
+    "Send Message" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesajı Gönder"
+          }
+        }
+      }
+    },
+    "Set Up Two-Factor Authentication" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İki Faktörlü Kimlik Doğrulamayı Kur"
+          }
+        }
+      }
+    },
     "Sign In" : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Giriş Yap"
+          }
+        }
+      }
+    },
+    "Sign Out on This Device" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu Cihazda Oturumu Kapat"
+          }
+        }
+      }
+    },
+    "Signing out…" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oturum kapatılıyor…"
+          }
+        }
+      }
+    },
+    "Switch Workspace, %@" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çalışma Alanını Değiştir, %@"
+          }
+        }
+      }
+    },
+    "This will end your Purlay sessions on all devices." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu işlem tüm cihazlarındaki Purlay oturumlarını kapatır."
+          }
+        }
+      }
+    },
+    "Two-Factor Authentication Required" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İki Faktörlü Kimlik Doğrulama Gerekli"
+          }
+        }
+      }
+    },
+    "Unknown Sender" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bilinmeyen Gönderen"
+          }
+        }
+      }
+    },
+    "Write a message" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesaj yaz"
           }
         }
       }
@@ -57,16 +371,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tarayıcında devam edeceksin."
-          }
-        }
-      }
-    },
-    "You're Signed In" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Oturum Açtın"
           }
         }
       }

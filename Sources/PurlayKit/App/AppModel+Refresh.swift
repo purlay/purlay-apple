@@ -25,6 +25,7 @@ extension AppModel {
         case .channels(let id) where id == workspace?.id:
             reread(refresh) {
                 let channels = await $0.reloadChannels()
+                guard $0.chatAvailable else { return true }
                 let groups = await $0.loadChannelGroups()
                 return channels && groups
             }
@@ -43,7 +44,7 @@ extension AppModel {
         case .pins(let channel) where channel == selectedChannel:
             reread(refresh) { await $0.reloadPins(channel) }
         case .bookmarks(let channel) where channel == selectedChannel:
-            reread(refresh) { await $0.reloadBookmarks(channel) }
+            reread(refresh) { await $0.reloadBookmarks(channel) != .failed }
         case .thread(let root) where root == thread?.root:
             Task { await self.reloadThread() }
         case .threads where thread != nil:
@@ -56,7 +57,17 @@ extension AppModel {
     @discardableResult
     func reloadChannels() async -> Bool {
         guard let api, let engine, let workspace else { return true }
-        guard let channels = try? await api.listChannels(workspaceId: workspace.id.value) else { return false }
+        let channels: ChannelList
+        do {
+            channels = try await api.listChannels(workspaceId: workspace.id.value)
+            guard self.engine === engine else { return true }
+            chatRouteUnavailable = false
+        } catch let error as APIError where error.isMissingRoute {
+            closeChatRoute(on: engine)
+            return true
+        } catch {
+            return false
+        }
         let held = Set(chat.channels.keys)
         let current = Set(channels.map(\.id))
         engine.lose(Array(held.subtracting(current)))

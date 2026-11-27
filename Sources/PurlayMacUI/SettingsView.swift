@@ -224,10 +224,12 @@ public struct SettingsView: View {
                 }
             }
             if page.group == .workspace, let workspace = model.workspace {
-                Section("Workspace") {
+                Section {
                     LabeledContent("Name", value: workspace.name)
                     LabeledContent("Address", value: workspace.slug)
                     LabeledContent("Your Role", value: model.workspaceRoleTitle)
+                } header: {
+                    Text(SharedWords.workspace)
                 }
             }
             if page == .members {

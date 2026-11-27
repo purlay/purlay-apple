@@ -82,6 +82,30 @@ struct SavedPinnedTests {
         #expect(h.model.notices.map(\.kind).contains(.savedFull))
     }
 
+    @Test("a closed Chat route rolls back saving and unsaving without a connection notice")
+    func closedSaveWrites() async {
+        let kept = them(1_000, "already saved")
+        let new = them(2_000, "consider saving")
+        let h = await opened([kept, new], saved: [kept.id.value: "completed"])
+        let reads = calls(h, "GET", "/saved").count
+        h.server.edit { $0.saveError = (404, "ROUTE_NOT_FOUND") }
+
+        await h.model.setSaved(true, new)
+        await h.model.setSaved(false, kept)
+        #expect(!h.model.isSaved(new))
+        #expect(h.model.savedIDs[kept.id] == .completed)
+        #expect(h.model.savedUpdating.isEmpty)
+        #expect(!h.model.notices.contains { $0.kind == .saveFailed })
+        #expect(calls(h, "GET", "/saved").count == reads)
+        #expect(calls(h, "PUT", "/saved").count == 1)
+        #expect(calls(h, "DELETE", "/saved").count == 1)
+        #expect(h.model.chatAvailable)
+
+        h.server.edit { $0.saveError = nil }
+        await h.model.setSaved(true, new)
+        #expect(h.model.isSaved(new))
+    }
+
     @Test("a deleted message is not saved, and one already saved can still be let go")
     func deletedSaves() async {
         let gone = me(1_000, "gone", deleted: true)
@@ -203,6 +227,85 @@ struct SavedPinnedTests {
         #expect(h.model.isPinned(them(1_000, "rule one")))
     }
 
+    @Test("a closed Chat pins route dismisses the sheet and keeps known pins for a healthy reopen")
+    func closedPinsRead() async {
+        let h = await opened([them(1_000, "kept"), them(2_000, "new")], pins: [idAt(1_000).value])
+        h.model.pinsOpen = true
+        h.model.searchOpen = true
+        h.server.edit { $0.pinsReadError = (404, "ROUTE_NOT_FOUND") }
+
+        #expect(await h.model.refreshPins())
+        #expect(!h.model.pinsOpen)
+        #expect(h.model.searchOpen)
+        #expect(h.model.chatAvailable)
+        #expect(h.model.pinnedMessages.map(\.message.id) == [idAt(1_000)])
+
+        h.server.edit {
+            $0.pinsReadError = nil
+            $0.pins[channel(1)] = [idAt(2_000).value]
+        }
+        h.model.pinsOpen = true
+        #expect(await h.model.refreshPins())
+        #expect(h.model.pinsOpen)
+        #expect(h.model.pinnedMessages.map(\.message.id) == [idAt(2_000)])
+    }
+
+    @Test("a closed Chat pins route on a background refresh does not schedule another read")
+    func closedPinsFrame() async {
+        let h = await opened([them(1_000, "kept")], pins: [idAt(1_000).value])
+        h.server.edit { $0.pinsReadError = (404, "ROUTE_NOT_FOUND") }
+        h.model.pinsOpen = true
+        let before = calls(h, "GET", "/pins").count
+        let refresh = Refresh.pins(channel: Uuid(channel(1))!)
+
+        h.last.handlers.message(#"{"event":"PINS_UPDATED","ts":1,"data":{"channelId":"\#(channel(1))"}}"#)
+        #expect(await eventually { !h.model.pinsOpen || h.model.refreshRetry[refresh] != nil })
+        #expect(!h.model.pinsOpen)
+        #expect(h.model.refreshRetry[refresh] == nil)
+        #expect(calls(h, "GET", "/pins").count == before + 1)
+        #expect(h.model.pinnedMessages.map(\.message.id) == [idAt(1_000)])
+    }
+
+    @Test("another pins error keeps the sheet open for retry", arguments: [404, 500])
+    func pinsReadFailure(status: Int) async {
+        let h = await opened([them(1_000, "kept")], pins: [idAt(1_000).value])
+        h.model.pinsOpen = true
+        h.server.edit { $0.pinsReadError = (status, status == 404 ? "CHANNEL_NOT_FOUND" : "ROUTE_NOT_FOUND") }
+
+        #expect(await h.model.refreshPins() == false)
+        #expect(h.model.pinsOpen)
+        #expect(h.model.pinnedMessages.map(\.message.id) == [idAt(1_000)])
+        h.last.handlers.message(#"{"event":"PINS_UPDATED","ts":1,"data":{"channelId":"\#(channel(1))"}}"#)
+        #expect(await eventually { h.model.refreshRetry[.pins(channel: Uuid(channel(1))!)] != nil })
+    }
+
+    @Test("a late closed pins route leaves a reopened sheet and its newer pins alone")
+    func lateClosedPinsRead() async {
+        let h = await opened([them(1_000, "kept"), them(2_000, "new")], pins: [idAt(1_000).value])
+        let gate = Gate()
+        h.server.edit {
+            $0.pinsReadError = (404, "ROUTE_NOT_FOUND")
+            $0.beforePinsResponse = { await gate.wait() }
+        }
+        let before = calls(h, "GET", "/pins").count
+        h.model.pinsOpen = true
+        let delayed = Task { await h.model.refreshPins() }
+        #expect(await eventually { calls(h, "GET", "/pins").count == before + 1 })
+
+        h.model.pinsOpen = false
+        h.server.edit {
+            $0.beforePinsResponse = nil
+            $0.pinsReadError = nil
+            $0.pins[channel(1)] = [idAt(2_000).value]
+        }
+        h.model.pinsOpen = true
+        #expect(await h.model.refreshPins())
+        await gate.open()
+        #expect(await delayed.value)
+        #expect(h.model.pinsOpen)
+        #expect(h.model.pinnedMessages.map(\.message.id) == [idAt(2_000)])
+    }
+
     @Test("pinning is painted at once and asked once, and letting go is the same")
     func pins() async {
         let target = them(1_000, "pin me")
@@ -213,6 +316,56 @@ struct SavedPinnedTests {
         await h.model.setPinned(false, target)
         #expect(!h.model.isPinned(target))
         #expect(calls(h, "DELETE", "/pin").count == 1)
+    }
+
+    @Test("a closed Chat route rolls back pinning and unpinning without a connection notice")
+    func closedPinWrites() async {
+        let kept = them(1_000, "already pinned")
+        let new = them(2_000, "consider pinning")
+        let h = await opened([kept, new], pins: [kept.id.value])
+        let reads = calls(h, "GET", "/pins").count
+        h.server.edit { $0.pinError = (404, "ROUTE_NOT_FOUND") }
+
+        await h.model.setPinned(true, new)
+        await h.model.setPinned(false, kept)
+        #expect(h.model.pinnedMessages.map(\.message.id) == [kept.id])
+        #expect(!h.model.notices.contains { $0.kind == .pinFailed })
+        #expect(calls(h, "GET", "/pins").count == reads)
+        #expect(calls(h, "PUT", "/pin").count == 1)
+        #expect(calls(h, "DELETE", "/pin").count == 1)
+
+        h.server.edit { $0.pinError = (403, "ROUTE_NOT_FOUND") }
+        await h.model.setPinned(true, new)
+        #expect(h.model.notices.contains { $0.kind == .pinFailed })
+        h.server.edit { $0.pinError = nil }
+        await h.model.setPinned(true, new)
+        #expect(h.model.isPinned(new))
+    }
+
+    @Test("a late closed unpin route restores that pin without overwriting a successful pin")
+    func closedUnpinKeepsConcurrentPin() async {
+        let kept = them(1_000, "already pinned")
+        let new = them(2_000, "pin while waiting")
+        let h = await opened([kept, new], pins: [kept.id.value])
+        let gate = Gate()
+        h.server.edit {
+            $0.pinError = (404, "ROUTE_NOT_FOUND")
+            $0.beforePinWriteResponse = { await gate.wait() }
+        }
+        let removing = Task { await h.model.setPinned(false, kept) }
+        #expect(await eventually { calls(h, "DELETE", "/pin").count == 1 })
+        #expect(!h.model.isPinned(kept))
+
+        h.server.edit {
+            $0.beforePinWriteResponse = nil
+            $0.pinError = nil
+        }
+        await h.model.setPinned(true, new)
+        await gate.open()
+        await removing.value
+        #expect(h.model.isPinned(kept))
+        #expect(h.model.isPinned(new))
+        #expect(!h.model.notices.contains { $0.kind == .pinFailed })
     }
 
     @Test("a refusal puts it back; the limit is said as the limit; a deleted message is not pinned")
@@ -283,6 +436,34 @@ struct SavedPinnedTests {
 
     private func savedReads(_ h: ModelHarness) -> Int {
         h.server.requests.filter { $0.url.path.hasSuffix("/saved/ids") }.count
+    }
+
+    @Test("a closed Chat route leaves saved markers as read and does not schedule a retry")
+    func closedSavedMarkers() async throws {
+        let h = ModelHarness()
+        h.server.edit {
+            $0.messages[channel(1)] = [me(1_000, "kept")]
+            $0.saved = [idAt(1_000).value: "in_progress"]
+        }
+        await h.signedIn()
+        #expect(await eventually { h.model.savedIDs[idAt(1_000)] == .inProgress })
+        let workspace = try #require(h.model.workspace?.id)
+        let before = savedReads(h)
+        h.server.edit {
+            $0.savedIdsStatus = 404
+            $0.savedIdsErrorCode = "ROUTE_NOT_FOUND"
+            $0.saved = [idAt(1_000).value: "completed"]
+        }
+        h.model.handle(.saved(workspace: workspace))
+        #expect(await eventually { savedReads(h) == before + 1 })
+        await h.settle()
+        await h.advance(milliseconds: AppModel.refreshRetries.reduce(0, +) + 1_000)
+        #expect(savedReads(h) == before + 1)
+        #expect(h.model.savedIDs[idAt(1_000)] == .inProgress)
+
+        h.server.edit { $0.savedIdsStatus = 200 }
+        h.model.handle(.saved(workspace: workspace))
+        #expect(await eventually { h.model.savedIDs[idAt(1_000)] == .completed })
     }
 
     @Test("saved markers that could not be read at the start are asked again after a pause, and shown when they come")

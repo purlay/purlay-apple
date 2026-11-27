@@ -1,6 +1,7 @@
 import Foundation
 import PurlayContract
 import PurlayKit
+import PurlayWords
 
 /// The Mac's own sentences, each a key its catalogue translates. What both apps say about what the engine reports (a notice, a
 /// server problem, a sign-in, a file) is PurlayWords' `EngineWords`, translated once for both.
@@ -8,8 +9,8 @@ enum Words {
     static func header(_ kind: SidebarSection.Kind) -> String {
         switch kind {
         case .custom(_, let name): return name
-        case .starred: return String(localized: "Starred")
-        case .channels: return String(localized: "Channels")
+        case .starred: return String(localized: SharedWords.starred)
+        case .channels: return String(localized: SharedWords.channels)
         case .conversations: return String(localized: "Conversations")
         }
     }

@@ -28,10 +28,12 @@ struct WordsTests {
         let notices: [Notice.Kind] =
             addresses.map { .invalidAddress($0) } + signIns.map { .signInFailed($0) } + [
                 .sessionExpired, .sessionEndedByServer, .signedOutElsewhere,
+                .serverNotTold, .signOutEverywhereFailed, .signOutFailed,
                 .sessionEndsSoon(Date(timeIntervalSince1970: 0)),
-                .storageProblem, .originMismatch, .loadFailed,
+                .storageProblem, .originMismatch, .loadFailed, .readFailed,
             ]
         return Words.fixed + EngineWords.fixed + [Words.continuesInBrowser("purlay.app")]
+            + [Words.backToWorkspace("Acme"), Words.switchWorkspace("Acme"), Words.unsentWillBeDeleted(2)]
             + problems.flatMap { [EngineWords.problem($0).title, EngineWords.problem($0).detail] }
             + signIns.compactMap(EngineWords.signIn) + notices.compactMap(EngineWords.notice)
     }
@@ -72,5 +74,18 @@ struct WordsTests {
     func ownSentence() throws {
         let words = try #require(EngineWords.notice(.loadFailed))
         #expect(text(words, in: "en") == "Could not load messages. Check your connection.")
+    }
+
+    @Test("the count of unsent messages a sign-out deletes is said in the form its number takes")
+    func unsentCount() {
+        #expect(text(Words.unsentWillBeDeleted(1), in: "en") == "1 unsent message will be deleted.")
+        #expect(text(Words.unsentWillBeDeleted(3), in: "en") == "3 unsent messages will be deleted.")
+        #expect(text(Words.unsentWillBeDeleted(3), in: "tr") == "3 gönderilmemiş mesaj silinecek.")
+    }
+
+    @Test("a sign-out asks first only when it would delete unsent messages")
+    func asksOnlyWithUnsent() {
+        #expect(!WorkspaceShell.asksBeforeSigningOut(unsent: 0))
+        #expect(WorkspaceShell.asksBeforeSigningOut(unsent: 1))
     }
 }

@@ -55,6 +55,13 @@
     {
       "target" : {
         "containerPath" : "container:..",
+        "identifier" : "FeatureChatTests",
+        "name" : "FeatureChatTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:..",
         "identifier" : "PurlayWordsTests",
         "name" : "PurlayWordsTests"
       }

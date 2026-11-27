@@ -239,11 +239,19 @@ public final class DesktopSessions {
                 guard let person = model?.personHere else { return 0 }
                 return self?.others(of: model).filter { $0.personHere == person }.reduce(0) { $0 + $1.unsentHere } ?? 0
             },
-            holdSends: { [weak self, weak model] signOut in
-                for other in self?.others(of: model) ?? [] { other.holdSends(for: signOut) }
+            // The person's own workspaces only, matched as the wipe and the unsent count are: a workspace of the server held by
+            // somebody else goes on sending.
+            holdSends: { [weak self, weak model] hold, stoppingEngine in
+                guard let person = model?.personHere else { return }
+                for other in self?.others(of: model) ?? [] where other.personHere == person {
+                    other.holdSends(for: hold, stoppingEngine: stoppingEngine)
+                }
             },
             releaseSends: { [weak self, weak model] signOut in
-                for other in self?.others(of: model) ?? [] { other.releaseSends(for: signOut) }
+                guard let person = model?.personHere else { return }
+                for other in self?.others(of: model) ?? [] where other.personHere == person {
+                    other.releaseSends(for: signOut)
+                }
             })
         // Every workspace of a server shares its credential, so one that ends ends them all; what each kept is removed only
         // when it is the same person's whose data the ending one removed.

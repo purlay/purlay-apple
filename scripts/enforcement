@@ -523,13 +523,13 @@ IOS_STRINGS=Apps/iOS/App/Resources/Localizable.xcstrings
 MAC_STRINGS=Apps/macOS/App/Resources/Localizable.xcstrings
 plant_in "an engine sentence with no Turkish" . "python3 -c '$(recatalogue $WORDS 'del strings["Try Again"]["localizations"]["tr"]')'"
 plant_in "an iOS sentence with no Turkish" . "python3 -c '$(recatalogue $IOS_STRINGS 'del strings["Sign In"]["localizations"]["tr"]')'"
-plant_in "a Mac sentence with no Turkish" . "python3 -c '$(recatalogue $MAC_STRINGS 'del strings["Starred"]["localizations"]["tr"]')'"
+plant_in "a Mac sentence with no Turkish" . "python3 -c '$(recatalogue $MAC_STRINGS 'del strings["Conversations"]["localizations"]["tr"]')'"
 plant_in "a Turkish value not yet final" . \
-  "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Channels"]["localizations"]["tr"]["stringUnit"]["state"] = "needs_review"')'"
+  "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Inbox"]["localizations"]["tr"]["stringUnit"]["state"] = "needs_review"')'"
 plant_in "a translation that drops a value" . \
   "python3 -c '$(recatalogue $WORDS 'strings["It needs version %@ or newer."]["localizations"]["tr"]["stringUnit"]["value"] = "Daha yeni bir sürüm gerekir."')'"
 plant_in "plural forms without other" . "python3 -c '$(recatalogue $WORDS 'forms = strings["%lld unsent messages could not be restored."]["localizations"]["tr"]["variations"]["plural"]; forms["few"] = forms.pop("other")')'"
-plant_in "a stale sentence" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Starred"]["extractionState"] = "stale"')'"
+plant_in "a stale sentence" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Conversations"]["extractionState"] = "stale"')'"
 plant_in "a sentence in two catalogues" . "python3 -c '$(recatalogue $IOS_STRINGS 'strings["Try Again"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Yeniden Dene"}}}}')'"
 plant_in "an iOS sentence no code says" . "python3 -c '$(recatalogue $IOS_STRINGS 'strings["Your session ends on %@. Sign in again before then to stay connected."] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Oturumun %@ tarihinde sona eriyor."}}}}')'"
 plant_in "a Mac sentence no code says" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')'"

@@ -15,4 +15,25 @@ struct MacWordsTests {
         #expect(ChannelIncident(severity: .v3, status: .mitigating).tint == .orange)
         #expect(ChannelIncident(severity: .unknown(7), status: .unknown("x")).severityName == "SEV7")
     }
+
+    @Test("an unavailable bookmark action shows neutral feedback and an accepted bookmark shows none")
+    func bookmarkActionFeedback() throws {
+        let temporary = try #require(AppModel.BookmarkAddOutcome.temporarilyUnavailable.feedback)
+        #expect(temporary.message == "Adding bookmarks is temporarily unavailable. Try again.")
+        #expect(temporary.systemImage == "info.circle")
+        #expect(AppModel.BookmarkAddOutcome.added.feedback == nil)
+        let errors: [AppModel.BookmarkAddOutcome] = [.invalid, .full, .failed]
+        for outcome in errors {
+            #expect(outcome.feedback?.systemImage == "exclamationmark.circle")
+        }
+    }
+
+    @Test("unavailable saved row actions have different feedback from actual errors")
+    func savedActionFeedback() throws {
+        let temporary = try #require(AppModel.SavedWriteOutcome.temporarilyUnavailable.feedback)
+        #expect(temporary.message == "Saved message changes are temporarily unavailable. Try again.")
+        #expect(temporary.systemImage == "info.circle")
+        #expect(AppModel.SavedWriteOutcome.failed.feedback?.systemImage == "exclamationmark.circle")
+        #expect(AppModel.SavedWriteOutcome.updated.feedback == nil)
+    }
 }

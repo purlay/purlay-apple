@@ -6,9 +6,11 @@ import SwiftUI
 /// One screen per phase of the app's model, with what the model said to the person above it. Only system components: navigation
 /// chrome and materials are the system's, and any OS-version branching would live in `PurlayDesign`, never here.
 struct RootView: View {
-    let model: AppModel
+    let sessions: WorkspaceSessions
     /// The mark the entry screens share, drawn once over them: it travels from the launch screen's place to Welcome and back.
     @Namespace private var brand
+
+    private var model: AppModel { sessions.active }
 
     var body: some View {
         let screen = RootScreen(model)
@@ -23,15 +25,14 @@ struct RootView: View {
     private func content(_ screen: RootScreen) -> some View {
         switch screen {
         case .busy(let busy): ConnectingView(busy: busy, brand: brand)
-        case .problem(let problem): ProblemView(problem: problem, retry: { await RootActions.retry(model) })
+        case .problem(let problem):
+            ProblemView(
+                problem: problem, retry: { await RootActions.retry(model) },
+                returnWorkspace: sessions.returnWorkspace?.name,
+                returnToWorkspace: { await sessions.returnToPreviousWorkspace() })
         case .signIn:
             WelcomeView(server: model.server?.origin.host(), brand: brand, signIn: { await RootActions.signIn(model) })
-        case .ready, .twoFactorRequired, .noWorkspace:
-            ContentUnavailableView {
-                Label(Words.signedInTitle, systemImage: "checkmark.circle")
-            } description: {
-                Text(Words.signedInDetail)
-            }
+        case .ready, .twoFactorRequired, .noWorkspace: WorkspaceShell(sessions: sessions)
         }
     }
 }
@@ -40,6 +41,8 @@ struct RootView: View {
 private struct ProblemView: View {
     let problem: ServerProblem
     let retry: () async -> Void
+    let returnWorkspace: String?
+    let returnToWorkspace: () async -> Void
 
     var body: some View {
         let words = EngineWords.problem(problem)
@@ -56,6 +59,13 @@ private struct ProblemView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
+                if let returnWorkspace {
+                    Button {
+                        Task { await returnToWorkspace() }
+                    } label: {
+                        Text(Words.backToWorkspace(returnWorkspace))
+                    }
+                }
             }
         }
     }
@@ -73,10 +83,18 @@ struct NoticeList: View {
         verticalSizeClass == .compact ? 8 : 0
     }
 
+    /// What a notice says in this app. The chat feed says in place that messages did not load (the channel's mark, whether or
+    /// not it already shows messages), with Try Again, so the engine's notice of it would say the same thing twice; the Mac
+    /// says it. iOS draws no other screen that reads `.loadFailed` yet: one that does says it in place too, or this changes.
+    nonisolated static func words(_ kind: Notice.Kind) -> LocalizedStringResource? {
+        if case .loadFailed = kind { return nil }
+        return EngineWords.notice(kind)
+    }
+
     var body: some View {
         PurlayNoticeStack {
             ForEach(model.notices) { notice in
-                if let words = EngineWords.notice(notice.kind) {
+                if let words = Self.words(notice.kind) {
                     NoticeBanner(words: words) { model.dismiss(notice) }
                         .purlayNoticeTransition()
                 }
@@ -85,8 +103,12 @@ struct NoticeList: View {
         .padding(.horizontal)
         .padding(.top, Self.topMargin(verticalSizeClass))
         .purlayAnimation(.smooth, value: model.notices)
+        // A notice this app does not show is dismissed as it arrives, so the model does not keep it for the session.
+        .onChange(of: model.notices, initial: true) { _, notices in
+            for notice in notices where Self.words(notice.kind) == nil { model.dismiss(notice) }
+        }
         .onChange(of: model.notices) { old, new in
-            let sentences = Self.arrivals(from: old, to: new).compactMap { EngineWords.notice($0.kind) }
+            let sentences = Self.arrivals(from: old, to: new).compactMap { Self.words($0.kind) }
             guard !sentences.isEmpty else { return }
             AccessibilityNotification.Announcement(sentences.map { String(localized: $0) }.joined(separator: "\n"))
                 .post()

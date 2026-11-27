@@ -12,18 +12,18 @@ need. Which module may depend on which is a table in `scripts/enforcement`, read
 | `PurlayContract` | the wire types, endpoints and constants, generated from the pinned bundle (`Generated/`); `Primitives.swift` (`Uuid`, `Timestamp`, `JSONValue`) by hand | nothing |
 | `PurlayTokens` | the design values, generated from the bundle's `tokens.json`; `PurlayTokens.swift`, the shapes they are written in | nothing |
 | `PurlayKit` | the engine: `AppModel` (one type in many files, `AppModel+<Feature>.swift`), its `AppEnvironment`, sign-in, transport, realtime with replay, the outbox, uploads, markdown; the typed API client (`Generated/PurlayAPI.swift`) | `PurlayContract` |
-| `PurlayWords` | what both apps say about what the engine reports (`EngineWords`: its phases, server problems, sign-in failures, notices, upload failures and account erasures), translated once in its own catalogue, `Resources/Localizable.xcstrings`; no UI framework | `PurlayKit`, `PurlayContract` |
+| `PurlayWords` | what both apps say about what the engine reports (`EngineWords`: its phases, server problems, sign-in failures, notices, upload failures and account erasures), and what both apps' screens say otherwise (`SharedWords`: Cancel, the workspace's places, a message's state), translated once in its own catalogue, `Resources/Localizable.xcstrings`; no UI framework | `PurlayKit`, `PurlayContract` |
 | `PurlayTestSupport` | fakes of the network, the Keychain and the browser, `ScriptedTransport`, for package tests | `PurlayKit`, `PurlayContract` |
 | `PurlayDesign` | the design system and the only place an OS version is asked about: `purlaySurface`, `purlayButton`, `purlayBottomBar`, `purlayNoticeTransition`, `purlayAnimation`, `PurlayMark`, `Brand`, `Motion` | `PurlayTokens` |
 | `PurlayModuleAPI` | `FeatureModule`, `ModuleID` (a string, so an unknown id survives decoding), `ModuleRegistry` | nothing |
-| `Feature<Module>` (none yet) | one server module's screens and models, in `Model/`, `Shared/`, `iOS/` and `macOS/` folders | `PurlayKit`, `PurlayContract`, `PurlayTokens`, `PurlayDesign`, `PurlayModuleAPI`, `PurlayWords`; never another feature |
+| `Feature<Module>` (`FeatureChat` today) | one server module's screens and models, in `Model/`, `Shared/`, `iOS/` and `macOS/` folders | `PurlayKit`, `PurlayContract`, `PurlayTokens`, `PurlayDesign`, `PurlayModuleAPI`, `PurlayWords`; never another feature |
 | `PurlayMacUI` | the Mac's screens and controls, until they move onto `PurlayDesign` and into features; whole files are wrapped for macOS so the package builds for iOS | `PurlayKit`, `PurlayContract`, `PurlayTokens`, `PurlayDesign`, `PurlayWords` (it uses all but `PurlayDesign` today) |
 | App targets | the composition roots: scenes, the real environment, system adapters | everything above |
 
 `PurlayKit` is grouped by concern: `App`, `Attention`, `Auth`, `Code`, `Composer`, `DeepWork`, `Diagnostics`, `Handshake`,
 `Markdown`, `Networking`, `Outbox`, `Palette`, `Realtime`, `State`, `Uploads`.
 
-What the apps link (`Apps/Purlay.xcodeproj`): the iOS app takes Contract, Design, Kit, ModuleAPI, Tokens and Words; its unit tests take
+What the apps link (`Apps/Purlay.xcodeproj`): the iOS app takes Contract, Design, FeatureChat, Kit, ModuleAPI, Tokens and Words; its unit tests take
 Contract and Kit, and not TestSupport ([ADR 0006](../decisions/0006-app-tests-use-their-own-fakes.md)); the Mac app takes
 Contract, Kit, MacUI (which brings Words), Tokens and Sparkle.
 

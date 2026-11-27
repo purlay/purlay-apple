@@ -50,9 +50,15 @@ struct ChannelDetails: View {
                 Text("Channel Details").font(.headline)
                 Spacer()
                 if tab != .about {
-                    Button("Refresh", systemImage: "arrow.clockwise", action: refresh)
-                        .labelStyle(.iconOnly).buttonStyle(.borderless).disabled(loading)
-                        .help("Refresh channel details")
+                    Button(action: refresh) {
+                        Label {
+                            Text(SharedWords.refresh)
+                        } icon: {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                    }
+                    .labelStyle(.iconOnly).buttonStyle(.borderless).disabled(loading)
+                    .help("Refresh channel details")
                 }
                 Button("Close Details", systemImage: "xmark", action: close)
                     .labelStyle(.iconOnly).buttonStyle(.borderless)

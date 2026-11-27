@@ -169,7 +169,10 @@ private struct IssueRow: View {
         }
         .confirmationDialog("Delete this issue?", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("Delete Issue", role: .destructive) { Task { await model.deleteIssue(issue) } }
-            Button("Cancel", role: .cancel) {}
+            Button(role: .cancel) {
+            } label: {
+                Text(SharedWords.cancel)
+            }
         } message: {
             Text("“\(issue.title)” is removed for everybody in the workspace. This can’t be undone.")
         }
@@ -205,7 +208,11 @@ private struct NewIssueSheet: View {
             }
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button {
+                    dismiss()
+                } label: {
+                    Text(SharedWords.cancel)
+                }.keyboardShortcut(.cancelAction)
                 Button("Make Issue", action: save)
                     .keyboardShortcut(.defaultAction)
                     .disabled(saving || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

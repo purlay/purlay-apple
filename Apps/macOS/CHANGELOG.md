@@ -2,7 +2,24 @@
 
 User-facing changes to Purlay for macOS. Releases require macOS 26 or later.
 
-## [Unreleased]
+## [0.3.2] — Unreleased
+
+### Fixed
+
+- During a server rollout, message search and Chat notifications close cleanly when a server node cannot serve them.
+  The session and Updates stay available.
+- Threads, Saved Messages, Open Topics, Scheduled Messages, Reminders and Pins close the same way when a server node does not
+  serve them, and reminders already set on this Mac still go off.
+- When a server node cannot take a change to a saved message, a pin or a bookmark, the change is undone in place instead of
+  being lost; read receipts already confirmed, scheduled edits and reminders are kept, and only the thread acted on closes.
+- An open thread stays readable when a server node cannot load or change whether you follow it, and the setting is read again
+  once it can be; a refused unsubscribe pauses Chat on that connection instead of retrying, and the sidebar does not keep
+  asking for a group route that is not served.
+- Keep saved messages and the Add Bookmark form open when their Chat action is temporarily unavailable during a rollout.
+- The Schedule and Remind Me sheets stay open, with what you set, and say the action is temporarily unavailable instead of
+  failing; a scheduled message being edited keeps its changes through a refresh.
+
+## [0.3.1] — 2026-11-27
 
 ### Changed
 
@@ -10,6 +27,7 @@ User-facing changes to Purlay for macOS. Releases require macOS 26 or later.
 
 ### Fixed
 
+- Sign-out holds queued messages. They resume if the server refuses sign-out and are discarded when the session ends.
 - A person at the keyboard no longer shows as away to everyone five minutes after connecting: the app now tells the server when you use it.
 - A workspace whose server has chat turned off, or whose channels are briefly not served during a rollout, opens instead of failing. It offers the workspace's profile, members, invitations and data pages in the browser, hides the chat menus, and says chat is off when a conversation link is opened.
 

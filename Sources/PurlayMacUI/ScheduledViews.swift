@@ -1,7 +1,35 @@
 #if os(macOS)
 import PurlayContract
 import PurlayKit
+import PurlayTokens
+import PurlayWords
 import SwiftUI
+
+enum TimingActionFeedback: Equatable, View {
+    case schedulingUnavailable
+    case remindersUnavailable
+    case failure(String)
+
+    init(_ error: any Error) {
+        switch (error as? SchedulingFailure, error as? ReminderFailure) {
+        case (.temporarilyUnavailable, _): self = .schedulingUnavailable
+        case (_, .temporarilyUnavailable): self = .remindersUnavailable
+        default: self = .failure(error.localizedDescription)
+        }
+    }
+
+    var body: some View {
+        switch self {
+        case .schedulingUnavailable:
+            InlineInformation(text: "Scheduled messages are temporarily unavailable. Try again.", dismiss: nil)
+        case .remindersUnavailable:
+            InlineInformation(text: "Message reminders are temporarily unavailable. Try again.", dismiss: nil)
+        case .failure(let message):
+            Text(message).font(.callout).foregroundStyle(Colors.dangerText.style)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
 
 struct FutureTimePicker: View {
     @Binding var date: Date
@@ -34,7 +62,7 @@ struct ScheduleMessageSheet: View {
     @State private var date: Date
     @State private var files: [Attachment]
     @State private var busy = false
-    @State private var failure: String?
+    @State private var feedback: TimingActionFeedback?
 
     init(
         model: AppModel, channel: Uuid, parent: Uuid?, text: String, existing: ScheduledMessage? = nil,
@@ -80,9 +108,13 @@ struct ScheduleMessageSheet: View {
             FutureTimePicker(date: $date)
             Text("Sends even when Purlay is closed. You can edit or cancel it in Scheduled.")
                 .font(.caption).foregroundStyle(.secondary)
-            if let failure { Text(failure).foregroundStyle(.red).font(.callout) }
+            if let feedback { feedback }
             HStack {
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button {
+                    dismiss()
+                } label: {
+                    Text(SharedWords.cancel)
+                }.keyboardShortcut(.cancelAction)
                 Spacer()
                 if busy { ProgressView().controlSize(.small) }
                 Button(existing == nil ? "Schedule" : "Save Changes") { Task { await save() } }
@@ -94,7 +126,7 @@ struct ScheduleMessageSheet: View {
 
     private func save() async {
         busy = true
-        failure = nil
+        feedback = nil
         defer { busy = false }
         do {
             if let existing {
@@ -104,7 +136,7 @@ struct ScheduleMessageSheet: View {
             }
             completed()
             dismiss()
-        } catch { failure = error.localizedDescription }
+        } catch { feedback = TimingActionFeedback(error) }
     }
 }
 
@@ -114,20 +146,20 @@ struct ScheduledSheet: View {
     @State private var editing: ScheduledMessage?
     @State private var cancelling: ScheduledMessage?
     @State private var busy: Uuid?
-    @State private var failure: String?
+    @State private var feedback: TimingActionFeedback?
 
     var body: some View {
         VStack(spacing: 0) {
             SheetHeader(
                 title: "Scheduled Messages", subtitle: "Messages waiting for their time to be sent.", image: "clock",
-                refresh: { Task { await model.loadScheduled() } }, refreshing: model.scheduledLoading
+                refresh: { Task { await refresh() } }, refreshing: model.scheduledLoading
             ) { dismiss() }
             Divider()
-            if let failure { Text(failure).foregroundStyle(.red).padding(.horizontal) }
+            if let feedback { feedback.padding(.horizontal) }
             if model.scheduledFailed {
                 HStack {
                     Text("Scheduled messages could not be refreshed.")
-                    Button("Retry") { Task { await model.loadScheduled() } }
+                    Button("Retry") { Task { await refresh() } }
                 }.padding()
             }
             if model.scheduledItems.isEmpty {
@@ -188,11 +220,11 @@ struct ScheduledSheet: View {
             }
         }.modifier(ModalFrame(width: 600, height: 500))
             .task {
-                await model.loadScheduled()
+                await refresh()
                 while !Task.isCancelled {
                     do { try await Task.sleep(for: .seconds(15)) } catch { return }
                     guard !Task.isCancelled else { return }
-                    await model.loadScheduled()
+                    await refresh()
                 }
             }
             .sheet(isPresented: Binding(get: { editing != nil }, set: { if !$0 { editing = nil } })) {
@@ -210,9 +242,9 @@ struct ScheduledSheet: View {
                 Button("Cancel Scheduled Message", role: .destructive) {
                     Task {
                         busy = message.id
-                        failure = nil
+                        feedback = nil
                         defer { busy = nil }
-                        do { try await model.cancelScheduled(message) } catch { failure = error.localizedDescription }
+                        do { try await model.cancelScheduled(message) } catch { feedback = TimingActionFeedback(error) }
                     }
                 }
             } message: { _ in
@@ -220,12 +252,16 @@ struct ScheduledSheet: View {
             }
     }
 
+    private func refresh() async {
+        await model.refreshScheduled(isEditing: { editing != nil })
+    }
+
     private func sendNow(_ message: ScheduledMessage) {
         Task {
             busy = message.id
-            failure = nil
+            feedback = nil
             defer { busy = nil }
-            do { try await model.sendScheduledNow(message) } catch { failure = error.localizedDescription }
+            do { try await model.sendScheduledNow(message) } catch { feedback = TimingActionFeedback(error) }
         }
     }
 }

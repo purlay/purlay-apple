@@ -24,25 +24,36 @@ final class FakeServer: HTTPTransport {
         var uploadError: (status: Int, code: String, remaining: Int?)?
         var uploadErrors: [String: (status: Int, code: String, remaining: Int?)] = [:]
         var uploadDelays: [String: Int] = [:]
+        var beforeUploadResponse: (@Sendable () async -> Void)?
         var attachmentData: [String: Data] = [:]
         var reminders: [MessageReminder] = []
         var reminderError: (status: Int, code: String)?
         var reminderDelay = 0
+        var beforeReminderResponse: (@Sendable () async -> Void)?
         var scheduled: [ScheduledMessage] = []
         var scheduledError: (status: Int, code: String)?
         var scheduledDelay = 0
+        var beforeScheduledResponse: (@Sendable () async -> Void)?
         var saved: [String: String] = [:]
         var savedIdsStatus = 200
+        var savedIdsErrorCode = "INTERNAL"
         var savedListStatus = 200
+        var savedListErrorCode = "INTERNAL"
         var savedPageSize = 20
         var savedDelays: [String: Int] = [:]
         var saveDelay = 0
         var savedMutationDelay: Int?
         var saveError: (status: Int, code: String)?
         var pins: [String: [String]] = [:]
+        var pinsReadError: (status: Int, code: String)?
+        var beforePinsResponse: (@Sendable () async -> Void)?
         var pinError: (status: Int, code: String)?
+        var beforePinWriteResponse: (@Sendable () async -> Void)?
         var searchStatus = 200
+        var searchErrorCode = "INTERNAL"
         var unresolvedStatus = 200
+        var unresolvedErrorCode = "INTERNAL"
+        var unresolvedGate: Gate?
         var unresolvedPageSize = 20
         var unresolvedDelay = 0
         var knowledgeDelay = 0
@@ -67,20 +78,25 @@ final class FakeServer: HTTPTransport {
         var linkPreviews: [String: String] = [:]
         var linkPreviewStatus = 200
         /// The modules the server runs, and the ones this workspace's grant leaves the person (`nil`: the grant says nothing).
-        var modules = ["chat", "issues"]
+        var modules: [String]? = ["chat", "issues"]
+        var meExtraJSON = ""
         var workspaceModules: [String]?
         /// The person's own groups of channels (D-284), in the order the server lists them.
         var channelGroups: [ChannelGroup] = []
         var groupStatus = 200
+        var groupErrorCode: ErrorCode = .internal
         var awayStatus = 200
         var inboxReads: [MarkInboxReadRequest] = []
         var notificationsStatus = 200
+        var notificationsErrorCode = "INTERNAL"
         var notificationTypeFiltering = true
         var notificationQueryValidationField: String?
         var notificationPageSize: Int?
         /// How long the server takes over a list, by the `unreadOnly` it was asked with ("true" or "false").
         var notificationDelays: [String: Int] = [:]
         var notificationReadStatus = 204
+        var notificationReadErrorCode = "INTERNAL"
+        var beforeNotificationReadResponse: (@Sendable () async -> Void)?
         var notificationReads: [ReadNotificationsRequest] = []
         var searchPageSize: Int?
         var savedSearches: [SavedSearch] = []
@@ -89,6 +105,7 @@ final class FakeServer: HTTPTransport {
         var savedSearchLimit = 50
         var savedSearchDelay = 0
         var searchDelays: [String: Int] = [:]
+        var searchGate: Gate?
         var aroundNewer: String?
         var deepWorkUntil: String?
         var deepWorkStatus = 200
@@ -100,11 +117,19 @@ final class FakeServer: HTTPTransport {
         var threads: [String: [Message]] = [:]
         var threadPageSize: Int?
         var threadStatus = 200
+        var threadErrorCode = "INTERNAL"
+        var threadErrorOnCursor = false
+        var beforeThreadResponse: (@Sendable () async -> Void)?
+        var threadWriteError: (status: Int, code: String)?
+        var beforeThreadWriteResponse: (@Sendable () async -> Void)?
         var messagesStatus = 200
+        var messagesErrorCode = "INTERNAL"
         var threadDelays: [String: Int] = [:]
         var threadReads: [(root: String, read: String)] = []
         var follows: [String: Bool] = [:]
         var followStatus = 200
+        var followErrorCode: ErrorCode = .internal
+        var beforeFollowReadResponse: (@Sendable () async -> Void)?
         var workspaceMembers: [WorkspaceMember] = []
         var channelMembers: [String: [User]] = [:]
         var messages: [String: [Message]] = [:]
@@ -139,7 +164,9 @@ final class FakeServer: HTTPTransport {
         /// The person's role in the workspace, as `/api/me` says it.
         var role = "member"
         var bookmarks: [String: [ChannelBookmark]] = [:]
+        var bookmarkReadError: (status: Int, code: String)?
         var bookmarkError: (status: Int, code: String)?
+        var beforeBookmarkWriteResponse: (@Sendable () async -> Void)?
         var unreadStatus = 200
         var unreads: [(channel: String, from: String)] = []
         var readAllStatus = 200
@@ -244,7 +271,7 @@ final class FakeServer: HTTPTransport {
     static func meJSON(
         deepWorkUntil: String? = nil, role: String = "member", mustEnrolTwoFactor: Bool = false,
         nameFromGitHub: Bool = false, scheduledDeletions: [WorkspaceDeletion] = [], awayChosen: Bool = false,
-        modules: [String] = ["chat", "issues"], workspaceModules: [String]? = nil,
+        modules: [String]? = ["chat", "issues"], workspaceModules: [String]? = nil, meExtraJSON: String = "",
         profile: String = #"{"title":null,"timeZone":null,"status":null}"#, username: String = "ada",
         userID: String = userID
     ) -> String {
@@ -254,7 +281,7 @@ final class FakeServer: HTTPTransport {
         "memberships":[{"workspace":{"id":"\(workspaceID)","name":"Acme","slug":"acme","avatarUrl":null},"role":"\(role)",\
         "joinedAt":"2026-10-09T12:00:00.000Z","deepWorkUntil":\(deepWorkUntil.map { "\"\($0)\"" } ?? "null")\(workspaceModules.map { ",\"modules\":\(encoded($0))" } ?? "")}],"mayCreateWorkspace":false,"isServerAdmin":false,\
         "nameFromGitHub":\(nameFromGitHub),"mustEnrolTwoFactor":\(mustEnrolTwoFactor),"scheduledDeletions":\(encoded(scheduledDeletions)),\
-        "modules":\(encoded(modules)),"awayChosen":\(awayChosen)}
+        "awayChosen":\(awayChosen)\(modules.map { ",\"modules\":\(encoded($0))" } ?? "")\(meExtraJSON)}
         """
     }
 
@@ -277,6 +304,7 @@ final class FakeServer: HTTPTransport {
         }
         if path.contains("/reminder") {
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            await snapshot.beforeReminderResponse?()
             if snapshot.reminderDelay > 0 { try await Task.sleep(for: .milliseconds(snapshot.reminderDelay)) }
             if let error = snapshot.reminderError {
                 return json(error.status, "{\"error\":{\"code\":\"\(error.code)\",\"message\":\"x\"}}")
@@ -346,6 +374,7 @@ final class FakeServer: HTTPTransport {
         }
         if path.contains("/scheduled") {
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            await snapshot.beforeScheduledResponse?()
             if snapshot.scheduledDelay > 0 { try await Task.sleep(for: .milliseconds(snapshot.scheduledDelay)) }
             if let error = snapshot.scheduledError {
                 return json(error.status, "{\"error\":{\"code\":\"\(error.code)\",\"message\":\"x\"}}")
@@ -419,7 +448,8 @@ final class FakeServer: HTTPTransport {
                     deepWorkUntil: snapshot.deepWorkUntil, role: snapshot.role,
                     mustEnrolTwoFactor: snapshot.mustEnrolTwoFactor, nameFromGitHub: snapshot.nameFromGitHub,
                     scheduledDeletions: snapshot.scheduledDeletions, awayChosen: snapshot.awayChosen,
-                    modules: snapshot.modules, workspaceModules: snapshot.workspaceModules, profile: snapshot.profile,
+                    modules: snapshot.modules, workspaceModules: snapshot.workspaceModules,
+                    meExtraJSON: snapshot.meExtraJSON, profile: snapshot.profile,
                     username: snapshot.username, userID: cookie.flatMap { snapshot.userIDBySession[$0] } ?? Self.userID)
             )
         case ("GET", "/api/workspaces/\(Self.workspaceID)/channels"):
@@ -463,13 +493,14 @@ final class FakeServer: HTTPTransport {
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
             let id = String(path.dropFirst("/api/messages/".count).dropLast("/thread".count))
             if let wait = snapshot.threadDelays[id] { try? await Task.sleep(for: .milliseconds(wait)) }
-            if snapshot.threadStatus != 200 {
-                return json(snapshot.threadStatus, #"{"error":{"code":"INTERNAL","message":"x"}}"#)
-            }
-            var items = snapshot.threads[id] ?? []
+            await snapshot.beforeThreadResponse?()
             let after = URLComponents(url: request.url, resolvingAgainstBaseURL: false)?.queryItems?.first {
                 $0.name == "after"
             }?.value
+            if snapshot.threadStatus != 200, !snapshot.threadErrorOnCursor || after != nil {
+                return json(snapshot.threadStatus, #"{"error":{"code":"\#(snapshot.threadErrorCode)","message":"x"}}"#)
+            }
+            var items = snapshot.threads[id] ?? []
             if let after { items = items.filter { $0.id.value > after } }
             let size = snapshot.threadPageSize ?? 100
             let page = Array(items.prefix(size))
@@ -483,13 +514,19 @@ final class FakeServer: HTTPTransport {
             return HTTPResponse(status: 204)
         case ("GET", _) where path.hasPrefix("/api/messages/") && path.hasSuffix("/follow"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            await snapshot.beforeFollowReadResponse?()
             if snapshot.followStatus != 200 {
-                return json(snapshot.followStatus, #"{"error":{"code":"INTERNAL","message":"x"}}"#)
+                return json(
+                    snapshot.followStatus, #"{"error":{"code":"\#(snapshot.followErrorCode.rawValue)","message":"x"}}"#)
             }
             let id = String(path.dropFirst("/api/messages/".count).dropLast("/follow".count))
             return json(200, "{\"following\":\(snapshot.follows[id] ?? false)}")
         case ("PUT", _) where path.hasPrefix("/api/messages/") && path.hasSuffix("/follow"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            await snapshot.beforeThreadWriteResponse?()
+            if let failure = snapshot.threadWriteError {
+                return json(failure.status, #"{"error":{"code":"\#(failure.code)","message":"x"}}"#)
+            }
             if snapshot.mutationStatus != 200 {
                 return json(snapshot.mutationStatus, #"{"error":{"code":"FORBIDDEN","message":"x"}}"#)
             }
@@ -501,6 +538,10 @@ final class FakeServer: HTTPTransport {
         case ("POST", _) where path.hasPrefix("/api/messages/") && path.hasSuffix("/resolve"),
             ("DELETE", _) where path.hasPrefix("/api/messages/") && path.hasSuffix("/resolve"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            await snapshot.beforeThreadWriteResponse?()
+            if let failure = snapshot.threadWriteError {
+                return json(failure.status, #"{"error":{"code":"\#(failure.code)","message":"x"}}"#)
+            }
             if snapshot.mutationStatus != 200 {
                 return json(snapshot.mutationStatus, #"{"error":{"code":"FORBIDDEN","message":"x"}}"#)
             }
@@ -565,9 +606,12 @@ final class FakeServer: HTTPTransport {
             return json(200, Self.encoded(message))
         case ("GET", "/api/workspaces/\(Self.workspaceID)/unresolved"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            await snapshot.unresolvedGate?.wait()
             if snapshot.unresolvedDelay > 0 { try? await Task.sleep(for: .milliseconds(snapshot.unresolvedDelay)) }
             if snapshot.unresolvedStatus != 200 {
-                return json(snapshot.unresolvedStatus, #"{"error":{"code":"INTERNAL","message":"x"}}"#)
+                return json(
+                    snapshot.unresolvedStatus,
+                    "{\"error\":{\"code\":\"\(snapshot.unresolvedErrorCode)\",\"message\":\"x\"}}")
             }
             let query = URLComponents(url: request.url, resolvingAgainstBaseURL: false)?.queryItems ?? []
             let before = query.first { $0.name == "before" }?.value
@@ -636,7 +680,9 @@ final class FakeServer: HTTPTransport {
                 try? await Task.sleep(for: .milliseconds(wait))
             }
             if snapshot.notificationsStatus != 200 {
-                return json(snapshot.notificationsStatus, #"{"error":{"code":"INTERNAL","message":"x"}}"#)
+                return json(
+                    snapshot.notificationsStatus,
+                    #"{"error":{"code":"\#(snapshot.notificationsErrorCode)","message":"x"}}"#)
             }
             let types = items.first { $0.name == "types" }?.value
             if types != nil && !snapshot.notificationTypeFiltering {
@@ -669,8 +715,11 @@ final class FakeServer: HTTPTransport {
             return json(200, "{\"data\":\(Self.encoded(page)),\"nextCursor\":\(next)}")
         case ("PUT", "/api/notifications/read"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            await snapshot.beforeNotificationReadResponse?()
             if snapshot.notificationReadStatus != 204 {
-                return json(snapshot.notificationReadStatus, #"{"error":{"code":"INTERNAL","message":"x"}}"#)
+                return json(
+                    snapshot.notificationReadStatus,
+                    #"{"error":{"code":"\#(snapshot.notificationReadErrorCode)","message":"x"}}"#)
             }
             guard let body = request.body,
                 let read = try? JSONDecoder().decode(ReadNotificationsRequest.self, from: body)
@@ -698,9 +747,13 @@ final class FakeServer: HTTPTransport {
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
             let items = URLComponents(url: request.url, resolvingAgainstBaseURL: false)?.queryItems ?? []
             let q = items.first { $0.name == "q" }?.value ?? ""
+            if let gate = snapshot.searchGate {
+                await gate.wait()
+                try Task.checkCancellation()
+            }
             if let wait = snapshot.searchDelays[q] { try await Task.sleep(for: .milliseconds(wait)) }
             if snapshot.searchStatus != 200 {
-                return json(snapshot.searchStatus, #"{"error":{"code":"INTERNAL","message":"x"}}"#)
+                return json(snapshot.searchStatus, #"{"error":{"code":"\#(snapshot.searchErrorCode)","message":"x"}}"#)
             }
             let filtered = items.contains { !["q", "before", "limit"].contains($0.name) }
             if (q.isEmpty && !filtered) || (!q.isEmpty && q.count < 3) || q.count > 200 {
@@ -757,7 +810,8 @@ final class FakeServer: HTTPTransport {
         case _ where path.hasPrefix("/api/workspaces/\(Self.workspaceID)/channel-groups"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
             if snapshot.groupStatus != 200 {
-                return json(snapshot.groupStatus, #"{"error":{"code":"INTERNAL","message":"x"}}"#)
+                return json(
+                    snapshot.groupStatus, #"{"error":{"code":"\#(snapshot.groupErrorCode.rawValue)","message":"x"}}"#)
             }
             let id = path.split(separator: "/").count == 5 ? String(path.split(separator: "/")[4]) : nil
             let body = request.body.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
@@ -917,13 +971,17 @@ final class FakeServer: HTTPTransport {
             return json(200, "{\"until\":\(until.map { "\"\($0)\"" } ?? "null")}")
         case ("GET", "/api/workspaces/\(Self.workspaceID)/saved/ids"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            if snapshot.savedIdsStatus != 200 {
+                return json(
+                    snapshot.savedIdsStatus, #"{"error":{"code":"\#(snapshot.savedIdsErrorCode)","message":"x"}}"#)
+            }
             let all = Array(snapshot.messages.values.joined()) + Array(snapshot.threads.values.joined())
             let items = snapshot.saved.compactMap { entry -> String? in
                 guard let found = all.first(where: { $0.id.value == entry.key }) else { return nil }
                 return
                     "{\"channelId\":\"\(found.channelId.value)\",\"messageId\":\"\(found.id.value)\",\"state\":\"\(entry.value)\"}"
             }
-            return json(snapshot.savedIdsStatus, "[\(items.joined(separator: ","))]")
+            return json(200, "[\(items.joined(separator: ","))]")
         case ("GET", "/api/workspaces/\(Self.workspaceID)/saved"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
             let query = URLComponents(url: request.url, resolvingAgainstBaseURL: false)?.queryItems ?? []
@@ -931,7 +989,8 @@ final class FakeServer: HTTPTransport {
             let before = query.first { $0.name == "before" }?.value
             if let delay = snapshot.savedDelays[wanted] { try? await Task.sleep(for: .milliseconds(delay)) }
             if snapshot.savedListStatus != 200 {
-                return json(snapshot.savedListStatus, #"{"error":{"code":"INTERNAL","message":"x"}}"#)
+                return json(
+                    snapshot.savedListStatus, #"{"error":{"code":"\#(snapshot.savedListErrorCode)","message":"x"}}"#)
             }
             let all = Array(snapshot.messages.values.joined()) + Array(snapshot.threads.values.joined())
             let found = all.filter {
@@ -969,6 +1028,10 @@ final class FakeServer: HTTPTransport {
             return HTTPResponse(status: 204)
         case ("GET", _) where path.hasPrefix("/api/channels/") && path.hasSuffix("/pins"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            await snapshot.beforePinsResponse?()
+            if let failure = snapshot.pinsReadError {
+                return json(failure.status, #"{"error":{"code":"\#(failure.code)","message":"x"}}"#)
+            }
             let id = String(path.dropFirst("/api/channels/".count).dropLast("/pins".count))
             let all = Array(snapshot.messages.values.joined())
             let pinned = (snapshot.pins[id] ?? []).compactMap { pin in all.first { $0.id.value == pin } }
@@ -979,6 +1042,7 @@ final class FakeServer: HTTPTransport {
         case ("PUT", _) where path.hasPrefix("/api/messages/") && path.hasSuffix("/pin"),
             ("DELETE", _) where path.hasPrefix("/api/messages/") && path.hasSuffix("/pin"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            await snapshot.beforePinWriteResponse?()
             if let failure = snapshot.pinError {
                 return json(failure.status, #"{"error":{"code":"\#(failure.code)","message":"x"}}"#)
             }
@@ -1002,6 +1066,7 @@ final class FakeServer: HTTPTransport {
             let items = URLComponents(url: request.url, resolvingAgainstBaseURL: false)?.queryItems ?? []
             let id = items.first { $0.name == "id" }?.value ?? ""
             let name = items.first { $0.name == "name" }?.value ?? ""
+            await snapshot.beforeUploadResponse?()
             if let wait = snapshot.uploadDelays[name] { try? await Task.sleep(for: .milliseconds(wait)) }
             if let failure = snapshot.uploadErrors[name] ?? snapshot.uploadError {
                 let details = failure.remaining.map { #","details":{"remainingBytes":\#($0)}"# } ?? ""
@@ -1137,6 +1202,7 @@ final class FakeServer: HTTPTransport {
             return HTTPResponse(status: 204)
         case (_, _) where path.hasPrefix("/api/channels/") && path.contains("/bookmarks"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            if request.method != "GET" { await snapshot.beforeBookmarkWriteResponse?() }
             return bookmarks(request, snapshot)
         case ("PUT", _) where path.hasPrefix("/api/channels/") && path.hasSuffix("/unread"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
@@ -1204,7 +1270,8 @@ final class FakeServer: HTTPTransport {
                 guard hasSession, snapshot.sessionValid else { return unauthenticated() }
                 let id = String(path.dropFirst("/api/channels/".count).dropLast("/messages".count))
                 if snapshot.messagesStatus != 200 {
-                    return json(snapshot.messagesStatus, #"{"error":{"code":"INTERNAL","message":"x"}}"#)
+                    return json(
+                        snapshot.messagesStatus, #"{"error":{"code":"\#(snapshot.messagesErrorCode)","message":"x"}}"#)
                 }
                 let items = URLComponents(url: request.url, resolvingAgainstBaseURL: false)?.queryItems ?? []
                 if let before = items.first(where: { $0.name == "before" })?.value {
@@ -1236,6 +1303,9 @@ final class FakeServer: HTTPTransport {
         let list = snapshot.bookmarks[id] ?? []
         switch request.method {
         case "GET":
+            if let failure = snapshot.bookmarkReadError {
+                return json(failure.status, #"{"error":{"code":"\#(failure.code)","message":"x"}}"#)
+            }
             return json(200, Self.encoded(list))
         case "POST":
             guard let body = request.body, let input = try? JSONDecoder().decode(AddBookmarkRequest.self, from: body)

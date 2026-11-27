@@ -322,6 +322,44 @@ struct UploadModelTests {
         #expect(!h.server.requests.contains { $0.method == "POST" && $0.url.path.hasSuffix("/messages") })
     }
 
+    @Test("a waiting send whose file lands while the account is being erased is not sent")
+    func erasureHoldsTheSend() async throws {
+        let h = await opened()
+        h.server.edit { $0.uploadDelays["slow.txt"] = 60 }
+        let slow = await inFlight(h, "slow.txt")
+        #expect(h.model.send("late"))
+        // The file lands while the erasure is at the server.
+        h.server.edit { $0.beforeEraseResponse = { await slow.value } }
+        #expect(await h.model.eraseAccount(confirmation: "ada") == .erased)
+        #expect(messageFrames(h).isEmpty, "\(messageFrames(h))")
+        #expect(!h.server.requests.contains { $0.method == "POST" && $0.url.path.hasSuffix("/messages") })
+    }
+
+    @Test("an erasure the server refuses lets the held send go once its file lands")
+    func refusedErasureReleasesTheSend() async throws {
+        let h = await opened()
+        h.server.edit { $0.uploadDelays["slow.txt"] = 60 }
+        let slow = await inFlight(h, "slow.txt")
+        #expect(h.model.send("late"))
+        h.server.edit {
+            $0.beforeEraseResponse = { await slow.value }
+            $0.eraseStatus = 409
+            $0.eraseError = #"{"error":{"code":"LAST_OWNER","message":"x","details":{"workspaceIds":[]}}}"#
+        }
+        let result = await h.model.eraseAccount(confirmation: "ada")
+        #expect(result != .erased && result != .possiblyErased)
+        #expect(h.model.phase == .ready)
+        #expect(!h.model.isWaiting(channel: one, parent: nil), "the held send went to the engine")
+        h.last.handlers.opened()
+        _ = await eventually {
+            !messageFrames(h).isEmpty || h.server.requests.contains { $0.url.path.hasSuffix("/messages") }
+        }
+        #expect(
+            messageFrames(h).count
+                + h.server.requests.count { $0.method == "POST" && $0.url.path.hasSuffix("/messages") }
+                >= 1, "the person's message was dropped by an erasure that did not happen")
+    }
+
     @Test("a message already in the outbox is not sent while the sign-out is telling the server")
     func outboxNotSentDuringLogout() async throws {
         let h = ModelHarness()
@@ -490,6 +528,77 @@ struct UploadModelTests {
         let h = await opened()
         h.model.fileNotWritten()
         #expect(h.model.notices.map(\.kind) == [.fileNotWritten])
+    }
+
+    @Test("a file that finishes before sign-out does not hold a send made while signed in")
+    func completedUploadMaySendBeforeSignOut() async {
+        let h = await opened()
+        await h.model.attach([file("ready.txt")], channel: one, parent: nil)
+        #expect(h.model.send("ready before logout"))
+        #expect(messageFrames(h).count == 1)
+        #expect(await h.model.signOut(.thisDevice) == .done)
+        #expect(messageFrames(h).count == 1)
+    }
+
+    @Test("an upload that finishes while sign-out is awaiting the server cannot send")
+    func signOutHoldsCompletedUpload() async {
+        let h = await opened()
+        let upload = Gate()
+        let logout = Gate()
+        h.server.edit {
+            $0.beforeUploadResponse = { await upload.wait() }
+            $0.beforeLogoutResponse = { await logout.wait() }
+        }
+        let slow = await inFlight(h, "slow.txt")
+        #expect(await eventually { !uploads(h).isEmpty })
+        #expect(h.model.send("waited for the file"))
+        let signingOut = Task { await h.model.signOut(.thisDevice) }
+        #expect(await eventually { h.server.requests.contains { $0.url.path == "/auth/logout" } })
+        await upload.open()
+        await slow.value
+        #expect(h.model.isWaiting(channel: one, parent: nil))
+        #expect(h.model.uploads(channel: one, parent: nil).first?.state.isDone == true)
+        #expect(messageFrames(h).isEmpty)
+        await logout.open()
+        #expect(await signingOut.value == .done)
+        #expect(h.model.uploads(channel: one, parent: nil).isEmpty)
+        #expect(messageFrames(h).isEmpty)
+    }
+
+    @Test("a refused sign-out leaves a conversation window's waiting send with the signed-in account")
+    func refusedSignOutResumesConversationSend() async throws {
+        let h = await opened()
+        let request = try #require(h.model.conversationWindowRequest(for: one))
+        let window = try #require(await h.model.makeConversationWindow(request))
+        let upload = Gate()
+        let logout = Gate()
+        h.server.edit {
+            $0.beforeUploadResponse = { await upload.wait() }
+            $0.beforeLogoutResponse = { await logout.wait() }
+            $0.logoutStatus = 500
+        }
+        let slow = Task { await window.attach([file("slow.txt")], channel: one, parent: nil) }
+        #expect(await eventually { !uploads(h).isEmpty })
+        #expect(window.send("waiting in the conversation window"))
+        let signingOut = Task { await window.signOut(.everywhere) }
+        #expect(await eventually { h.server.requests.contains { $0.url.path == "/auth/logout-all" } })
+        #expect(!h.model.send("a new send during sign-out"))
+        await upload.open()
+        await slow.value
+        #expect(window.isWaiting(channel: one, parent: nil))
+        #expect(messageFrames(h).isEmpty)
+        await logout.open()
+        guard case .notDone = await signingOut.value else {
+            Issue.record("Expected the server to refuse sign-out")
+            return
+        }
+        #expect(h.model.phase == .ready && window.phase == .ready)
+        // The held engine starts again on a new socket; the window's send goes on it once it opens.
+        h.last.handlers.opened()
+        #expect(await eventually { messageFrames(h).count == 1 })
+        #expect(messageFrames(h).first?.contains("waiting in the conversation window") == true)
+        #expect(!window.isWaiting(channel: one, parent: nil))
+        #expect(window.uploads(channel: one, parent: nil).isEmpty)
     }
 }
 

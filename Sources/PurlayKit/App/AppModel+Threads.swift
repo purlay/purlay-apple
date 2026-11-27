@@ -21,12 +21,13 @@ extension AppModel {
 
     /// Opens a thread in the panel, or reads the open one again. The answer of a thread that was left for another is not used.
     public func openThread(_ root: Message) async {
-        guard let api else { return }
+        guard !Task.isCancelled, let api else { return }
         threadGeneration += 1
         let generation = threadGeneration
         if thread?.root != root.id {
             thread = ThreadWindow(root: root.id, channel: root.channelId)
             threadFollow = .reading
+            threadFollowUnavailable = false
         }
         threadRootCopy = chat.personalProjection(root)
         threadLoadFailed = false
@@ -34,12 +35,14 @@ extension AppModel {
         do {
             var page = try await api.getThread(messageId: root.id.value, query: PageQuery(limit: size))
             guard generation == threadGeneration else { return }
+            try Task.checkCancellation()
             var replies = page.data
             var next = page.nextCursor
             var pages = 1
             while let cursor = next, pages < Self.threadPagesMax {
                 page = try await api.getThread(messageId: root.id.value, query: PageQuery(after: cursor, limit: size))
                 guard generation == threadGeneration else { return }
+                try Task.checkCancellation()
                 replies += page.data
                 next = page.nextCursor
                 pages += 1
@@ -47,11 +50,15 @@ extension AppModel {
             thread?.load(replies.map(chat.personalProjection), next: next)
             markThreadReadIfSeen()
         } catch {
-            guard generation == threadGeneration else { return }
+            guard generation == threadGeneration, !TransportError.isCancellation(error) else { return }
+            if (error as? APIError)?.isMissingRoute == true {
+                closeThread()
+                return
+            }
             if thread?.isLoaded != true { threadLoadFailed = true }
             say(.threadFailed)
         }
-        if case .known = threadFollow { return }
+        if case .known = threadFollow, !threadFollowUnavailable { return }
         await readFollow(root.id, generation: generation)
     }
 
@@ -61,17 +68,30 @@ extension AppModel {
         thread = nil
         threadRootCopy = nil
         threadFollow = .reading
+        threadFollowUnavailable = false
+    }
+
+    /// Checks the temporarily unavailable follow route without changing the follow setting or reloading replies.
+    public func refreshThreadFollow() async {
+        guard threadFollowUnavailable, let thread else { return }
+        await readFollow(thread.root, generation: threadGeneration)
     }
 
     private func readFollow(_ root: Uuid, generation: Int) async {
-        guard let api else { return }
+        guard let api, !Task.isCancelled, threadFollowReadGeneration != generation else { return }
+        threadFollowReadGeneration = generation
+        defer {
+            if threadFollowReadGeneration == generation { threadFollowReadGeneration = nil }
+        }
         do {
             let answer = try await api.getThreadFollow(messageId: root.value)
-            guard generation == threadGeneration else { return }
+            guard generation == threadGeneration, !Task.isCancelled else { return }
             threadFollow = .known(answer.following)
+            threadFollowUnavailable = false
         } catch {
-            guard generation == threadGeneration else { return }
-            threadFollow = .failed
+            guard generation == threadGeneration, !TransportError.isCancellation(error) else { return }
+            threadFollowUnavailable = (error as? APIError)?.isMissingRoute == true
+            if !threadFollowUnavailable { threadFollow = .failed }
         }
     }
 
@@ -126,37 +146,53 @@ extension AppModel {
     public func reopenThread() async -> Bool { await changeResolution(resolved: false) }
 
     private func changeResolution(resolved: Bool) async -> Bool {
-        guard let api, let thread else { return false }
+        guard !Task.isCancelled, let api, let thread else { return false }
+        let session = contextGeneration
+        let generation = threadGeneration
         do {
             let updated =
                 resolved
                 ? try await api.resolveThread(messageId: thread.root.value)
                 : try await api.reopenThread(messageId: thread.root.value)
+            guard session == contextGeneration, !Task.isCancelled else { return false }
             engine?.revise(thread.root, in: thread.channel) { $0.thread = updated.thread }
-            threadRootCopy?.thread = updated.thread
+            if generation == threadGeneration { threadRootCopy?.thread = updated.thread }
             sync()
             return true
         } catch {
-            say(.resolveFailed)
+            guard session == contextGeneration, generation == threadGeneration, !TransportError.isCancellation(error)
+            else { return false }
+            if (error as? APIError)?.isMissingRoute == true {
+                closeThread()
+            } else {
+                say(.resolveFailed)
+            }
             return false
         }
     }
 
     /// Follows or lets go of the open thread: painted at once, put back with a word if the server refuses.
     public func setFollowing(_ following: Bool) async {
-        guard let api, let thread else { return }
+        guard !Task.isCancelled, !threadFollowUnavailable, let api, let thread else { return }
+        let session = contextGeneration
         let generation = threadGeneration
         let before = threadFollow
         if case .known = before { threadFollow = .known(following) }
         do {
             let answer = try await api.setThreadFollow(
                 messageId: thread.root.value, body: SetThreadFollowRequest(following: following))
-            guard generation == threadGeneration else { return }
+            guard session == contextGeneration, generation == threadGeneration else { return }
+            try Task.checkCancellation()
             threadFollow = .known(answer.following)
         } catch {
-            guard generation == threadGeneration else { return }
+            guard session == contextGeneration, generation == threadGeneration else { return }
             threadFollow = before
-            say(.followFailed)
+            guard !TransportError.isCancellation(error) else { return }
+            if (error as? APIError)?.isMissingRoute == true {
+                threadFollowUnavailable = true
+            } else {
+                say(.followFailed)
+            }
         }
     }
 }

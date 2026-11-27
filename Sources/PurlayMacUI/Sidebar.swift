@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// The sidebar (§12.3): the workspace and what it holds for the person, then where they can go (Inbox, Saved, Search), then
@@ -564,7 +565,11 @@ private struct AccountFooter: View {
             }
             Section {
                 Button("Sign Out") { Task { await model.signOut(.thisDevice) } }
-                Button("Sign Out Everywhere…") { confirmingEverywhere = true }
+                Button {
+                    confirmingEverywhere = true
+                } label: {
+                    Text(SharedWords.signOutEverywhereMenu)
+                }
             }
         } label: {
             HStack(spacing: Spacing.space2) {
@@ -592,7 +597,11 @@ private struct AccountFooter: View {
         .menuIndicator(.hidden)
         .padding(Spacing.space3)
         .confirmationDialog("Sign out on every device?", isPresented: $confirmingEverywhere) {
-            Button("Sign Out Everywhere", role: .destructive) { Task { await model.signOut(.everywhere) } }
+            Button(role: .destructive) {
+                Task { await model.signOut(.everywhere) }
+            } label: {
+                Text(SharedWords.signOutEverywhere)
+            }
         } message: {
             Text("Every Mac, phone and browser signed in to this account will need to sign in again.")
         }
