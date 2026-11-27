@@ -16,6 +16,7 @@ decision gets the next number.
 | [0008](0008-ci-lanes-and-one-required-check.md) | CI: lanes side by side, each only when a change reaches it, and one required check |
 | [0009](0009-governance-as-code.md) | The repository's rules are files, reviewed like code |
 | [0010](0010-no-third-party-code-beyond-sparkle.md) | No third-party code beyond Sparkle |
+| [0011](0011-one-person-per-server.md) | One person per server in the app: a second workspace joins the session in use, and somebody else is refused |
 
 Format: a title that states the decision; `Status: accepted, <date>`; **Context**, **Decision**, **Rejected** (with why) and
 **Consequences**.

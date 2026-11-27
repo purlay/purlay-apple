@@ -272,4 +272,5 @@ private final class Preferences: PreferenceStore {
     private let values = Mutex<[String: String]>([:])
     func string(for key: String) -> String? { values.withLock { $0[key] } }
     func set(_ value: String?, for key: String) { values.withLock { $0[key] = value } }
+    func removeValues(withPrefix prefix: String) { values.withLock { $0 = $0.filter { !$0.key.hasPrefix(prefix) } } }
 }

@@ -24,6 +24,7 @@ final class MemoryPreferences: PreferenceStore {
     private let state = Mutex<[String: String]>([:])
     func string(for key: String) -> String? { state.withLock { $0[key] } }
     func set(_ value: String?, for key: String) { state.withLock { $0[key] = value } }
+    func removeValues(withPrefix prefix: String) { state.withLock { $0 = $0.filter { !$0.key.hasPrefix(prefix) } } }
 }
 
 final class MemoryOwnerStore: OwnerMemory {
@@ -89,11 +90,20 @@ final class FakeLoginItem: LoginItemControl {
     func openSystemSettings() { settingsOpened += 1 }
 }
 
+/// Time passed on a model's clock, set by a test.
+final class Elapsed: Sendable {
+    private let value = Mutex<TimeInterval>(0)
+    var seconds: TimeInterval { value.withLock { $0 } }
+    func set(_ seconds: TimeInterval) { value.withLock { $0 = seconds } }
+}
+
 @MainActor
 final class ModelHarness {
     let server = FakeServer()
     let loginItem = FakeLoginItem()
     let sessions = MemorySessions()
+    /// The Mac's pending sign-ins (ADR 0011), kept apart from the session in use.
+    let pendingSessions = MemorySessions()
     let preferences: MemoryPreferences
     let owner = MemoryOwnerStore()
     let attention = RecordingAttention()
@@ -102,21 +112,26 @@ final class ModelHarness {
     private var timers: [(due: Int, work: () -> Void, live: SendHarness.Flag)] = []
     private var now = 0
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent("model-" + UUID().uuidString)
+    /// How far the model's clock has moved on from the tests' epoch.
+    let elapsed = Elapsed()
     private(set) var model: AppModel!
 
     init(
         browser: ScriptedBrowser = .approving, allowsLocalHTTP: Bool = true,
         preferences: MemoryPreferences = MemoryPreferences(),
-        identity: AppIdentity = AppIdentity(bundleIdentifier: "dev.purlay.kit-tests", platform: .macOS)
+        identity: AppIdentity = AppIdentity(bundleIdentifier: "dev.purlay.kit-tests", platform: .macOS),
+        wipers: [any UserDataWiper] = []
     ) {
         self.preferences = preferences
         let server = server
         let sessions = sessions
+        let pendingSessions = pendingSessions
         let preferences = preferences
         let owner = owner
         let attention = attention
         let directory = directory
         let loginItem = loginItem
+        let elapsed = elapsed
         model = AppModel(
             AppEnvironment(
                 transport: server, sessions: sessions, preferences: preferences, authenticator: browser,
@@ -135,8 +150,10 @@ final class ModelHarness {
                     self?.timers.append(((self?.now ?? 0) + milliseconds, work, flag))
                     return { flag.live = false }
                 },
-                random: { 0 }, clock: { Date(timeIntervalSince1970: Double(epochMs) / 1_000) }, owner: owner,
-                sleep: { _ in }, attention: attention, loginItem: loginItem))
+                random: { 0 }, clock: { Date(timeIntervalSince1970: Double(epochMs) / 1_000 + elapsed.seconds) },
+                owner: owner,
+                sleep: { _ in }, attention: attention, loginItem: loginItem, wipers: wipers,
+                pendingSessions: pendingSessions))
     }
 
     func settle() async {

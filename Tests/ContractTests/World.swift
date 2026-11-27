@@ -80,7 +80,7 @@ struct World: Sendable {
             configuration: APIConfiguration(
                 baseURL: server.origin,
                 clientHeader: ClientHeader.value(appVersion: appVersion, platform: identity.platform),
-                sessionCookie: { persona.session }, onSessionRejected: onRejected),
+                sessionCookie: { persona.session }, onSessionRejected: { _ in await onRejected() }),
             transport: URLSessionTransport())
     }
 }

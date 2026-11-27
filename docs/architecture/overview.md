@@ -127,7 +127,7 @@ runtime, with Sparkle's nested helpers signed first (`scripts/sign-release`); li
 | Concern | Where it shows |
 |---|---|
 | Security | no password in the app; Keychain; PKCE; the Mac's sandbox allowlist; strict ATS in Release; signed and notarized Mac builds; a signed update feed; gitleaks over the history; signing secrets only in a protected environment |
-| Privacy | notices carry no message content; local state is scoped by server, account and workspace; signing out lets everything go; the iOS privacy manifest checked against the code |
+| Privacy | notices carry no message content; local state is scoped by server, account and workspace; signing out lets everything go, through the wipers the environment names; the account can be erased from the app; the iOS privacy manifest checked against the code |
 | Accessibility | labels on every control, Dynamic Type, Reduce Transparency, Increase Contrast and Reduce Motion followed; Liquid Glass can be turned off on the Mac |
 | Localization | English and Turkish, one catalogue per app, each checked by a script |
 | Offline | the durable outbox and replay from cursors |

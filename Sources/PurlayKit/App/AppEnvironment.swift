@@ -4,6 +4,8 @@ import Foundation
 public protocol PreferenceStore: Sendable {
     func string(for key: String) -> String?
     func set(_ value: String?, for key: String)
+    /// Removes every value whose key begins with `prefix`: what is kept per person under one name (their drafts) goes at once.
+    func removeValues(withPrefix prefix: String)
 }
 
 public struct UserDefaultsPreferences: PreferenceStore {
@@ -20,6 +22,13 @@ public struct UserDefaultsPreferences: PreferenceStore {
 
     public func set(_ value: String?, for key: String) {
         if let value { defaults.set(value, forKey: key) } else { defaults.removeObject(forKey: key) }
+    }
+
+    public func removeValues(withPrefix prefix: String) {
+        let defaults = defaults
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
+            defaults.removeObject(forKey: key)
+        }
     }
 }
 
@@ -82,6 +91,10 @@ public struct NoLoginItem: LoginItemControl {
 public struct AppEnvironment {
     public var transport: any HTTPTransport
     public var sessions: any SessionStore
+    /// Where the Mac keeps a browser sign-in's session until `/api/me` says whose it is (ADR 0011), apart from the session in
+    /// use, so a quit does not lose it or leave it alive on the server with nothing holding it. None on iOS, which keeps a
+    /// sign-in at once.
+    public var pendingSessions: (any SessionStore)?
     public var preferences: any PreferenceStore
     public var authenticator: any WebAuthenticator
     public var appVersion: SemanticVersion
@@ -95,8 +108,13 @@ public struct AppEnvironment {
     public var allowsLocalHTTP: Bool
     /// The one server this app signs in to: Purlay's own. Only a development build points it elsewhere.
     public var serverAddress: String
+    /// Preferences every session of the app shares, where the Mac scopes `preferences` per workspace: for what belongs to a
+    /// server's one credential and person rather than to a workspace (an unconfirmed erasure). `preferences` unless given.
+    public var sharedPreferences: any PreferenceStore
     /// Where per-person files are kept (`outbox/<userId>.json`).
     public var dataDirectory: URL
+    /// Where copies the app can make again are kept (the Mac's Quick Look copies, `Previews/`): the system may empty it.
+    public var cacheDirectory: URL
     /// An `OpenSocket` for this server's canonical address and this session.
     public var openSocket: (_ origin: ServerAddress, _ session: String) -> OpenSocket
     public var schedule: Schedule
@@ -107,24 +125,33 @@ public struct AppEnvironment {
     public var sleep: @Sendable (Duration) async throws -> Void
     public var attention: any AttentionPresenter
     public var loginItem: any LoginItemControl
+    /// What the app keeps of the person on this device beside what the engine keeps: each runs once when the person signs out
+    /// (here or everywhere) or erases their account, and when another person signs in where they were. A wiper of data kept per
+    /// session must be made for the environment it is given, since the Mac scopes each of its sessions' preferences and files.
+    public var wipers: [any UserDataWiper]
 
     public init(
         transport: any HTTPTransport, sessions: any SessionStore, preferences: any PreferenceStore,
         authenticator: any WebAuthenticator,
         appVersion: SemanticVersion, identity: AppIdentity, deviceName: String, allowsLocalHTTP: Bool,
-        serverAddress: String = ServerAddress.hosted, dataDirectory: URL,
+        serverAddress: String = ServerAddress.hosted, dataDirectory: URL, cacheDirectory: URL? = nil,
         openSocket: @escaping (ServerAddress, String) -> OpenSocket, schedule: @escaping Schedule,
         random: @escaping () -> Double = { Double.random(in: 0...1) },
         clock: @escaping @Sendable () -> Date = Date.init,
         owner: any OwnerMemory,
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
         attention: any AttentionPresenter = SilentAttention(),
-        loginItem: any LoginItemControl = NoLoginItem()
+        loginItem: any LoginItemControl = NoLoginItem(),
+        wipers: [any UserDataWiper] = [],
+        pendingSessions: (any SessionStore)? = nil
     ) {
         self.loginItem = loginItem
+        self.wipers = wipers
+        self.pendingSessions = pendingSessions
         self.transport = transport
         self.sessions = sessions
         self.preferences = preferences
+        self.sharedPreferences = preferences
         self.authenticator = authenticator
         self.appVersion = appVersion
         self.identity = identity
@@ -133,6 +160,8 @@ public struct AppEnvironment {
         self.allowsLocalHTTP = allowsLocalHTTP
         self.serverAddress = serverAddress
         self.dataDirectory = dataDirectory
+        // A test, or a build with no caches of its own, keeps them beside its data.
+        self.cacheDirectory = cacheDirectory ?? dataDirectory.appendingPathComponent("Caches", isDirectory: true)
         self.attention = attention
         self.openSocket = openSocket
         self.schedule = schedule

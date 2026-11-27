@@ -24,6 +24,13 @@ struct SessionManagerTests {
         func record(_ scope: SignOutScope) { scopes.withLock { $0.append(scope) } }
     }
 
+    /// How many wipes each telling of a failure counted, in order.
+    private final class Failures: Sendable {
+        private let counts = Mutex<[Int]>([])
+        var all: [Int] { counts.withLock { $0 } }
+        func record(_ count: Int) { counts.withLock { $0.append(count) } }
+    }
+
     private struct Parts {
         let manager: SessionManager
         let store: InMemorySessionStore
@@ -31,22 +38,28 @@ struct SessionManagerTests {
         let wiper: RecordingWiper
         let clock: Clock
         let calls: Calls
+        let failures: Failures
     }
 
     private func parts(
         fails: Bool = false, owner: String? = nil, wiper: RecordingWiper = RecordingWiper(),
-        store: InMemorySessionStore = InMemorySessionStore()
+        others: [RecordingWiper] = [], store: InMemorySessionStore = InMemorySessionStore()
     ) -> Parts {
         let clock = Clock(start)
         let calls = Calls()
         let memory = InMemoryOwnerMemory(owner)
+        let failures = Failures()
         let manager = SessionManager(
-            store: store, owner: memory, log: Log(subsystem: "dev.purlay.tests"), wipers: [wiper], now: { clock.now },
+            store: store, owner: memory, log: Log(subsystem: "dev.purlay.tests"), wipers: [wiper] + others,
+            now: { clock.now },
             endSession: { scope in
                 calls.record(scope)
                 if fails { throw TransportError.offline }
-            })
-        return Parts(manager: manager, store: store, owner: memory, wiper: wiper, clock: clock, calls: calls)
+            },
+            onWipeFailure: { count in failures.record(count) })
+        return Parts(
+            manager: manager, store: store, owner: memory, wiper: wiper, clock: clock, calls: calls,
+            failures: failures)
     }
 
     private func session(_ value: String = "v", ends: TimeInterval? = 3_600) -> StoredSession {
@@ -142,7 +155,8 @@ struct SessionManagerTests {
         let client = APIClient(
             configuration: APIConfiguration(
                 baseURL: URL(string: "https://chat.example.com")!, clientHeader: "macos/0.1.0 contract/1",
-                sessionCookie: { await manager.cookie }, onSessionRejected: { await manager.sessionEndedByServer() }),
+                sessionCookie: { await manager.cookie },
+                onSessionRejected: { await manager.sessionEndedByServer(rejecting: $0) }),
             transport: transport, sleep: { _ in })
         let route = try #require(Endpoints.all.first { $0.id == "getMe" })
         await #expect(throws: APIError.self) { _ = try await client.send(route, as: JSONValue.self) }
@@ -150,6 +164,34 @@ struct SessionManagerTests {
         // The next call has no session to send, and says so without going to the network.
         await #expect(throws: TransportError.noSession) { _ = try await client.send(route, as: JSONValue.self) }
         #expect(await transport.requests.count == 1)
+    }
+
+    @Test("a 401 for a session that is no longer the one in use does not end the one that is")
+    func staleRejection() async throws {
+        let p = parts()
+        try p.store.save(session("old"), for: server)
+        try await p.manager.restore(for: server)
+        await p.manager.adopt(session("new"), for: server)
+        await p.manager.sessionEndedByServer(rejecting: "old")
+        #expect(await p.manager.state == .signedIn(session("new"), server: server))
+        await p.manager.sessionEndedByServer(rejecting: "new")
+        #expect(await p.manager.state == .signedOut(.endedByServer))
+    }
+
+    @Test("a client tells which session the server refused, so a refusal of an older one is told as such")
+    func clientTellsRefusedSession() async throws {
+        let refused = Mutex<[String]>([])
+        let transport = ScriptedTransport([
+            ScriptedTransport.json(401, #"{"error":{"code":"UNAUTHENTICATED","message":"x"}}"#)
+        ])
+        let client = APIClient(
+            configuration: APIConfiguration(
+                baseURL: URL(string: "https://chat.example.com")!, clientHeader: "macos/0.1.0 contract/1",
+                sessionCookie: { "sent" }, onSessionRejected: { cookie in refused.withLock { $0.append(cookie) } }),
+            transport: transport, sleep: { _ in })
+        let route = try #require(Endpoints.all.first { $0.id == "getMe" })
+        await #expect(throws: APIError.self) { _ = try await client.send(route, as: JSONValue.self) }
+        #expect(refused.withLock { $0 } == ["sent"])
     }
 
     @Test(
@@ -168,7 +210,8 @@ struct SessionManagerTests {
         let client = APIClient(
             configuration: APIConfiguration(
                 baseURL: URL(string: "https://chat.example.com")!, clientHeader: "macos/0.1.0 contract/1",
-                sessionCookie: { await manager.cookie }, onSessionRejected: { await manager.sessionEndedByServer() }),
+                sessionCookie: { await manager.cookie },
+                onSessionRejected: { await manager.sessionEndedByServer(rejecting: $0) }),
             transport: transport, sleep: { _ in })
         let route = try #require(Endpoints.all.first { $0.id == id })
         let body: (any Encodable & Sendable)? =
@@ -274,6 +317,93 @@ struct SessionManagerTests {
         #expect(p.wiper.wipes == 0)
     }
 
+    @Test("every wiper runs once on sign-out though one fails, the failure is told, and the owner stays for a retry")
+    func wipeFailsOnSignOut() async throws {
+        let failing = RecordingWiper(fails: true)
+        let after = RecordingWiper()
+        let p = parts(owner: "u1", wiper: failing, others: [after])
+        try p.store.save(session(), for: server)
+        try await p.manager.restore(for: server)
+        #expect(await p.manager.signOut(.thisDevice) == .done)
+        #expect(failing.wipes == 1)
+        #expect(after.wipes == 1, "a wiper after one that failed still runs")
+        #expect(p.failures.all == [1])
+        #expect(p.owner.load() == "u1", "the next sign-in of another person, or the next sign-out, wipes again")
+        #expect(await p.manager.state == .signedOut(.signedOutByPerson))
+    }
+
+    @Test("a sign-out whose wipers all succeed tells no failure")
+    func wipeSucceedsQuietly() async throws {
+        let p = parts(owner: "u1", others: [RecordingWiper()])
+        try p.store.save(session(), for: server)
+        try await p.manager.restore(for: server)
+        _ = await p.manager.signOut(.everywhere)
+        #expect(p.failures.all.isEmpty)
+        #expect(p.owner.load() == nil)
+    }
+
+    // MARK: An erased account
+
+    @Test("an erased account removes the credential, runs every wiper once, forgets the owner and says why")
+    func accountErased() async throws {
+        let other = RecordingWiper()
+        let p = parts(owner: "u1", others: [other])
+        try p.store.save(session(), for: server)
+        try await p.manager.restore(for: server)
+        await p.manager.accountErased()
+        #expect(try p.store.load(for: server) == nil)
+        #expect(p.wiper.wipes == 1 && other.wipes == 1)
+        #expect(p.owner.load() == nil)
+        #expect(p.calls.all.isEmpty, "the server ended every session itself")
+        #expect(await p.manager.state == .signedOut(.accountErased))
+    }
+
+    @Test("an erased account whose socket was ended first is still wiped: the erasure is what ended it")
+    func accountErasedAfterSocket() async throws {
+        let p = parts(owner: "u1")
+        try p.store.save(session(), for: server)
+        try await p.manager.restore(for: server)
+        await p.manager.sessionEndedByServer()
+        await p.manager.accountErased()
+        #expect(p.wiper.wipes == 1)
+        #expect(p.owner.load() == nil)
+        #expect(await p.manager.state == .signedOut(.accountErased))
+    }
+
+    @Test("an erasure after a sign-out that removed everything does not remove it twice")
+    func accountErasedAfterSignOut() async throws {
+        let p = parts(owner: "u1")
+        try p.store.save(session(), for: server)
+        try await p.manager.restore(for: server)
+        #expect(await p.manager.signOut(.thisDevice) == .done)
+        await p.manager.accountErased()
+        #expect(p.wiper.wipes == 1)
+        #expect(await p.manager.state == .signedOut(.accountErased))
+    }
+
+    @Test("an erasure after a sign-out whose wipe failed tries again: what is left is still the person's")
+    func accountErasedAfterFailedSignOutWipe() async throws {
+        let p = parts(owner: "u1", wiper: RecordingWiper(fails: true))
+        try p.store.save(session(), for: server)
+        try await p.manager.restore(for: server)
+        _ = await p.manager.signOut(.thisDevice)
+        await p.manager.accountErased()
+        #expect(p.wiper.wipes == 2)
+    }
+
+    @Test("an erased account with a wiper that fails runs the rest and tells the failure")
+    func accountErasedWipeFails() async throws {
+        let after = RecordingWiper()
+        let p = parts(owner: "u1", wiper: RecordingWiper(fails: true), others: [after])
+        try p.store.save(session(), for: server)
+        try await p.manager.restore(for: server)
+        await p.manager.accountErased()
+        #expect(after.wipes == 1)
+        #expect(p.failures.all == [1])
+        #expect(p.owner.load() == "u1")
+        #expect(await p.manager.state == .signedOut(.accountErased))
+    }
+
     // MARK: Two people on one Mac
 
     @Test("what one person left is removed when another signs in, and kept when the same person comes back")
@@ -292,6 +422,15 @@ struct SessionManagerTests {
         await p.manager.identify(userID: "grace")
         #expect(p.wiper.wipes == 1)
         #expect(p.owner.load() == "grace")
+    }
+
+    @Test("what another person left that could not be removed is not handed to the next: the old owner stays")
+    func twoAccountsWipeFails() async throws {
+        let p = parts(owner: "ada", wiper: RecordingWiper(fails: true))
+        await p.manager.identify(userID: "grace")
+        #expect(p.wiper.wipes == 1)
+        #expect(p.failures.all == [1])
+        #expect(p.owner.load() == "ada", "the next identify tries again")
     }
 
     // MARK: Telling the rest of the app

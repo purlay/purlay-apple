@@ -10,9 +10,10 @@ public struct APIConfiguration: Sendable {
     /// The cookie's name on the wire: `__Host-` makes a browser refuse to send it anywhere else, which this app does
     /// not need and which does not change what the server expects.
     public var cookieName: String
-    /// Called when a route that needs the session is told there is none (`401`): the session ended or was revoked. The
-    /// error is still thrown; this is how the rest of the app learns of it once, from one place.
-    public var onSessionRejected: @Sendable () async -> Void
+    /// Called when a route that needs the session is told there is none (`401`), with the session value the request
+    /// carried: that session ended or was revoked, and it may no longer be the one in use (a sign-in again replaced it while
+    /// the request was out). The error is still thrown; this is how the rest of the app learns of it once, from one place.
+    public var onSessionRejected: @Sendable (_ refusedSession: String) async -> Void
     /// Told of each request that finally failed (not each try of a read that was tried again), by route id, never by address, so the
     /// app can offer an operator what to look for in the server's log.
     public var onProblem: @Sendable (ProblemRecord) async -> Void
@@ -20,7 +21,7 @@ public struct APIConfiguration: Sendable {
     public init(
         baseURL: URL, clientHeader: String, cookieName: String = "__Host-purlay_session",
         sessionCookie: @escaping @Sendable () async -> String?,
-        onSessionRejected: @escaping @Sendable () async -> Void = {},
+        onSessionRejected: @escaping @Sendable (_ refusedSession: String) async -> Void = { _ in },
         onProblem: @escaping @Sendable (ProblemRecord) async -> Void = { _ in }
     ) {
         self.onProblem = onProblem
@@ -182,13 +183,20 @@ public final class APIClient: Sendable {
                     attempt += 1
                     continue
                 }
-                if response.status == 401 && endpoint.auth == .session { await configuration.onSessionRejected() }
+                if response.status == 401 && endpoint.auth == .session {
+                    await configuration.onSessionRejected(sentSession(in: request))
+                }
                 throw APIError.from(response, requestID: requestID)
             } catch let error as TransportError where mayRetry && error.isTransient && attempt < Self.maximumAttempts {
                 try await wait(before: attempt)
                 attempt += 1
             }
         }
+    }
+
+    /// The session value a request carried in its `Cookie` header, as `build` wrote it.
+    private func sentSession(in request: HTTPRequest) -> String {
+        String(request.headers["Cookie"]?.dropFirst(configuration.cookieName.count + 1) ?? "")
     }
 
     private func wait(before attempt: Int) async throws {

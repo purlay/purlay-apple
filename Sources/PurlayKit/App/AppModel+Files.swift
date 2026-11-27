@@ -57,8 +57,10 @@ extension AppModel {
 
     /// A waiting send goes when its last file lands. If a file failed or was taken off it does not go: its words are handed back to the
     /// box, and a failure says where.
+    func settleWaitingSend(_ place: Place) { settle(place) }
+
     private func settle(_ place: Place) {
-        guard let words = waitingSends[place] else { return }
+        guard !sendsHeld, let words = waitingSends[place] else { return }
         let held = uploadsByPlace[place] ?? []
         guard !held.contains(where: \.isUploading) else { return }
         waitingSends[place] = nil

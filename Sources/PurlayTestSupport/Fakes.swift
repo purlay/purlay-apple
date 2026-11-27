@@ -76,20 +76,26 @@ public actor ScriptedAuthenticator: WebAuthenticator {
     }
 }
 
-/// Counts how often the data it stands for was removed, and can look at what the world was like at that moment.
+/// Counts how often the data it stands for was removed, and can look at what the world was like at that moment. One made with
+/// `fails` throws each time, as a store that cannot be removed does.
 public final class RecordingWiper: UserDataWiper {
+    public struct Refused: Error {}
+
     private let state = Mutex(0)
+    private let fails: Bool
     private let onWipe: @Sendable () async -> Void
 
-    public init(onWipe: @escaping @Sendable () async -> Void = {}) {
+    public init(fails: Bool = false, onWipe: @escaping @Sendable () async -> Void = {}) {
+        self.fails = fails
         self.onWipe = onWipe
     }
 
     public var wipes: Int { state.withLock { $0 } }
 
-    public func wipe() async {
+    public func wipe() async throws {
         state.withLock { $0 += 1 }
         await onWipe()
+        if fails { throw Refused() }
     }
 }
 

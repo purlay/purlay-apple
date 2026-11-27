@@ -29,6 +29,9 @@ public enum SignInError: Error, Sendable, Equatable {
     case unreachable(TransportError)
     /// The session could not be kept; signing in again will not help until it can be.
     case storage(KeychainError)
+    /// Somebody else is signed in to this server in this app (another of the Mac's workspaces): one person per server
+    /// (ADR 0011). The browser's session was ended and nothing changed; sign out of the server first to use another account.
+    case anotherPersonSignedIn(server: String)
 }
 
 /// The sign-in through the system browser, from the first redirect to the stored session (§7.2).

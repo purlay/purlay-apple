@@ -467,12 +467,42 @@
         }
       }
     },
+    "Purlay could not tell whether your account was deleted: the answer did not arrive. Check your connection and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesabının silinip silinmediği anlaşılamadı: yanıt gelmedi. Bağlantını kontrol edip yeniden dene."
+          }
+        }
+      }
+    },
     "Server Unavailable" : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sunucuya Ulaşılamıyor"
+          }
+        }
+      }
+    },
+    "Sign out of %@ first to use another account." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Başka bir hesap kullanmak için önce %@ sunucusundan çıkış yap."
+          }
+        }
+      }
+    },
+    "Some of your data on this device could not be removed. Purlay tries again when you next sign out, or when someone else signs in here." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu cihazdaki verilerinin bir kısmı silinemedi. Purlay bir sonraki çıkışında ya da burada başka biri giriş yaptığında yeniden dener."
           }
         }
       }
@@ -503,6 +533,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bu, bir tarayıcının açacağı bir adres değil."
+          }
+        }
+      }
+    },
+    "That is not your username. Type it exactly as it is shown." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu senin kullanıcı adın değil. Tam olarak gösterildiği gibi yaz."
           }
         }
       }
@@ -657,6 +697,16 @@
         }
       }
     },
+    "This account cannot be deleted from here. Open Purlay on the web to see why." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu hesap buradan silinemez. Nedenini görmek için Purlay'i web'de aç."
+          }
+        }
+      }
+    },
     "This channel has as many pinned messages as it can hold. Unpin one first." : {
       "localizations" : {
         "tr" : {
@@ -743,6 +793,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bu sunucu daha yeni bir Purlay gerektiriyor"
+          }
+        }
+      }
+    },
+    "To delete your account, sign in again first." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesabını silmek için önce yeniden giriş yap."
           }
         }
       }
@@ -847,12 +907,66 @@
         }
       }
     },
+    "You are signed out." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oturumun kapalı."
+          }
+        }
+      }
+    },
     "You are the last member of this private channel, so you can't leave it." : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bu özel kanalın son üyesisin, bu yüzden ayrılamazsın."
+          }
+        }
+      }
+    },
+    "You are the last owner of %lld workspaces with other people in them. Make someone else an owner first." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "You are the last owner of %lld workspace with other people in it. Make someone else an owner first."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "You are the last owner of %lld workspaces with other people in them. Make someone else an owner first."
+                }
+              }
+            }
+          }
+        },
+        "tr" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Başka kişilerin de olduğu %lld çalışma alanının son sahibisin. Önce başka birini sahip yap."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "You are the last owner of a workspace with other people in it. Make someone else an owner first." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Başka kişilerin de olduğu bir çalışma alanının son sahibisin. Önce başka birini sahip yap."
           }
         }
       }
@@ -905,6 +1019,26 @@
         }
       }
     },
+    "You signed in with a different account. Sign in again with this one." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Farklı bir hesapla giriş yaptın. Bu hesapla yeniden giriş yap."
+          }
+        }
+      }
+    },
+    "You were signed out before your account was deleted. Sign in and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesabın silinmeden önce oturumun kapandı. Giriş yapıp yeniden dene."
+          }
+        }
+      }
+    },
     "You were signed out by the server. Sign in again." : {
       "localizations" : {
         "tr" : {
@@ -921,6 +1055,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Oturumun kapatıldı."
+          }
+        }
+      }
+    },
+    "Your account could not be deleted. Check your connection and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesabın silinemedi. Bağlantını kontrol edip yeniden dene."
+          }
+        }
+      }
+    },
+    "Your account was deleted." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesabın silindi."
+          }
+        }
+      }
+    },
+    "Your account was probably deleted: you were signed out before the server could confirm it. What Purlay kept on this device was removed." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesabın büyük olasılıkla silindi: sunucu bunu doğrulayamadan oturumun kapandı. Purlay'in bu cihazda tuttukları kaldırıldı."
           }
         }
       }
