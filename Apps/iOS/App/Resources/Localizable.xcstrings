@@ -1,6 +1,26 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Back to %@" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Çalışma Alanına Dön"
+          }
+        }
+      }
+    },
+    "Chat" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sohbet"
+          }
+        }
+      }
+    },
     "New to Purlay? Create an account when you sign in." : {
       "localizations" : {
         "tr" : {
@@ -11,12 +31,32 @@
         }
       }
     },
-    "Nothing to show here yet." : {
+    "No Modules Available" : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Burada henüz gösterilecek bir şey yok."
+            "value" : "Kullanılabilir Modül Yok"
+          }
+        }
+      }
+    },
+    "No Workspaces Yet" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Henüz Çalışma Alanı Yok"
+          }
+        }
+      }
+    },
+    "Open Chat in Browser" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sohbeti Tarayıcıda Aç"
           }
         }
       }
@@ -31,12 +71,52 @@
         }
       }
     },
+    "Set Up Two-Factor Authentication" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İki Faktörlü Kimlik Doğrulamayı Kur"
+          }
+        }
+      }
+    },
     "Sign In" : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Giriş Yap"
+          }
+        }
+      }
+    },
+    "Switch Workspace, %@" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çalışma Alanını Değiştir, %@"
+          }
+        }
+      }
+    },
+    "Two-Factor Authentication Required" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İki Faktörlü Kimlik Doğrulama Gerekli"
+          }
+        }
+      }
+    },
+    "Workspace" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çalışma Alanı"
           }
         }
       }
@@ -57,16 +137,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tarayıcında devam edeceksin."
-          }
-        }
-      }
-    },
-    "You're Signed In" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Oturum Açtın"
           }
         }
       }

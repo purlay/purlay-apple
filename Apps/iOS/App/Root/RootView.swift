@@ -6,9 +6,11 @@ import SwiftUI
 /// One screen per phase of the app's model, with what the model said to the person above it. Only system components: navigation
 /// chrome and materials are the system's, and any OS-version branching would live in `PurlayDesign`, never here.
 struct RootView: View {
-    let model: AppModel
+    let sessions: WorkspaceSessions
     /// The mark the entry screens share, drawn once over them: it travels from the launch screen's place to Welcome and back.
     @Namespace private var brand
+
+    private var model: AppModel { sessions.active }
 
     var body: some View {
         let screen = RootScreen(model)
@@ -23,15 +25,14 @@ struct RootView: View {
     private func content(_ screen: RootScreen) -> some View {
         switch screen {
         case .busy(let busy): ConnectingView(busy: busy, brand: brand)
-        case .problem(let problem): ProblemView(problem: problem, retry: { await RootActions.retry(model) })
+        case .problem(let problem):
+            ProblemView(
+                problem: problem, retry: { await RootActions.retry(model) },
+                returnWorkspace: sessions.returnWorkspace?.name,
+                returnToWorkspace: { await sessions.returnToPreviousWorkspace() })
         case .signIn:
             WelcomeView(server: model.server?.origin.host(), brand: brand, signIn: { await RootActions.signIn(model) })
-        case .ready, .twoFactorRequired, .noWorkspace:
-            ContentUnavailableView {
-                Label(Words.signedInTitle, systemImage: "checkmark.circle")
-            } description: {
-                Text(Words.signedInDetail)
-            }
+        case .ready, .twoFactorRequired, .noWorkspace: WorkspaceShell(sessions: sessions)
         }
     }
 }
@@ -40,6 +41,8 @@ struct RootView: View {
 private struct ProblemView: View {
     let problem: ServerProblem
     let retry: () async -> Void
+    let returnWorkspace: String?
+    let returnToWorkspace: () async -> Void
 
     var body: some View {
         let words = EngineWords.problem(problem)
@@ -56,6 +59,13 @@ private struct ProblemView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
+                if let returnWorkspace {
+                    Button {
+                        Task { await returnToWorkspace() }
+                    } label: {
+                        Text(Words.backToWorkspace(returnWorkspace))
+                    }
+                }
             }
         }
     }

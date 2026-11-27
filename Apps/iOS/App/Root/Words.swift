@@ -8,15 +8,28 @@ enum Words {
     /// Said under Sign In when the server's host is not known.
     static let continuesInBrowserNoHost = LocalizedStringResource("You'll continue in your browser.")
     static let newAccount = LocalizedStringResource("New to Purlay? Create an account when you sign in.")
-    static let signedInTitle = LocalizedStringResource("You're Signed In")
-    static let signedInDetail = LocalizedStringResource("Nothing to show here yet.")
     /// Under a notice too long to show whole at a large text size; it opens the whole sentence. Not "Show More": the Mac says
     /// that, and a sentence lives in one catalogue.
     static let readMore = LocalizedStringResource("Read More")
+    static let workspace = LocalizedStringResource("Workspace")
+    static let chat = LocalizedStringResource("Chat")
+    static let openChatInBrowser = LocalizedStringResource("Open Chat in Browser")
+    static let noWorkspaceModules = LocalizedStringResource("No Modules Available")
+    static let noWorkspaces = LocalizedStringResource("No Workspaces Yet")
+    static let twoFactorRequired = LocalizedStringResource("Two-Factor Authentication Required")
+    static let setUpTwoFactor = LocalizedStringResource("Set Up Two-Factor Authentication")
+    static func switchWorkspace(_ current: String) -> LocalizedStringResource {
+        LocalizedStringResource("Switch Workspace, \(current)")
+    }
+
+    static func backToWorkspace(_ name: String) -> LocalizedStringResource {
+        LocalizedStringResource("Back to \(name)")
+    }
 
     /// The fixed sentences of the screens, so a test can look at each in every language.
     static let fixed: [LocalizedStringResource] = [
-        tagline, signInButton, continuesInBrowserNoHost, newAccount, signedInTitle, signedInDetail, readMore,
+        tagline, signInButton, continuesInBrowserNoHost, newAccount, readMore,
+        workspace, chat, openChatInBrowser, noWorkspaceModules, noWorkspaces, twoFactorRequired, setUpTwoFactor,
     ]
 
     /// Where the sign-in goes on: the person's browser, on the server's host.
