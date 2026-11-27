@@ -148,7 +148,9 @@ struct ErasureFifthGapTests {
         await studio.open(place)
         for socket in h.sockets { socket.handlers.opened() }
         await h.settle()
-        h.server.edit { $0.uploadDelays["slow.txt"] = 60 }
+        // The file lands while the server is told of the sign-out, whatever the load: held until then.
+        let landing = Gate()
+        h.server.edit { $0.beforeUploadResponse = { await landing.wait() } }
         let upload = Task {
             await studio.attach(
                 [PickedFile(name: "slow.txt", data: Data(repeating: 7, count: 4))], channel: place, parent: nil)
@@ -157,7 +159,12 @@ struct ErasureFifthGapTests {
         #expect(studio.send("late"))
         #expect(studio.isWaiting(channel: place, parent: nil), "the precondition: the send waits for its file")
         let before = messageFrames(h)
-        h.server.edit { $0.beforeLogoutResponse = { await upload.value } }
+        h.server.edit {
+            $0.beforeLogoutResponse = {
+                await landing.open()
+                await upload.value
+            }
+        }
         _ = await first.signOut(.thisDevice)
         await h.settle()
         #expect(messageFrames(h) == before, "Studio sent a message the person had accepted would be removed")
