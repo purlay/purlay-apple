@@ -48,7 +48,7 @@ build with `PURLAY_DEV_SERVER=http://localhost:<port>` in the scheme's environme
 Release builds talk to purlay.app only.
 
 **The iOS app on a simulator, signed ad hoc.** `scripts/verify` builds with `CODE_SIGNING_ALLOWED=NO`, and an unsigned app cannot
-use the Keychain on a simulator: it starts signed out and says its storage failed (TD-009). To look at the app:
+use the Keychain on a simulator: it starts signed out and says it could not read the saved sign-in. To look at the app:
 
 ```sh
 xcodebuild -project Apps/Purlay.xcodeproj -scheme Purlay-iOS -destination 'id=<simulator>' CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES build

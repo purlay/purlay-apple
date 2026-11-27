@@ -45,6 +45,9 @@ extension EngineWords {
         case .storageProblem:
             LocalizedStringResource(
                 "Unsent messages can't be saved on this device right now. Sending still works.", bundle: .module)
+        case .storedSessionUnreadable:
+            LocalizedStringResource(
+                "Purlay could not read your saved sign-in on this device. Sign in again.", bundle: .module)
         case .originMismatch:
             LocalizedStringResource(
                 "The server refused this app's connection. Check the server's address.", bundle: .module)
