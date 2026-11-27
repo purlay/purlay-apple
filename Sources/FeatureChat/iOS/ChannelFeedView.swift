@@ -60,7 +60,7 @@ struct ChannelFeedView: View {
                         pendingRows(pending)
                     }
                     .padding()
-                    .frame(maxWidth: 680)
+                    .frame(maxWidth: ChatLayout.readableWidth)
                     .frame(maxWidth: .infinity)
                 }
                 .defaultScrollAnchor(.center, for: .alignment)
@@ -84,7 +84,7 @@ struct ChannelFeedView: View {
         }
         .navigationTitle(Text(verbatim: channel?.title ?? ""))
         #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.inline)
         #endif
         .task { await open() }
         .onChange(of: scenePhase) { _, _ in updateReadVisibility() }
@@ -124,7 +124,7 @@ struct ChannelFeedView: View {
                 .scrollTargetLayout()
                 .padding(.horizontal)
                 .padding(.vertical, 12)
-                .frame(maxWidth: 680)
+                .frame(maxWidth: ChatLayout.readableWidth)
                 .frame(maxWidth: .infinity)
             }
             .defaultScrollAnchor(.bottom, for: .initialOffset)

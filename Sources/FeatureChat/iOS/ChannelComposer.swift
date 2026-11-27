@@ -53,7 +53,7 @@ struct ChannelComposer: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
-                .frame(maxWidth: 680)
+                .frame(maxWidth: ChatLayout.readableWidth)
             } else {
                 Text(words.channelReadOnly)
                     .font(.footnote)

@@ -94,10 +94,13 @@ struct WorkspaceShell: View {
         }
     }
 
+    /// With no destination to show, what stands in its place is the screen `RootScreen` decides for the account: two-step
+    /// verification to set up, no workspace at all, or a workspace whose server runs no module this build draws.
     private func empty(_ model: AppModel) -> some View {
         NavigationStack {
             Group {
-                if model.me?.mustEnrolTwoFactor == true {
+                switch RootScreen(model) {
+                case .twoFactorRequired:
                     ContentUnavailableView {
                         Label {
                             Text(Words.twoFactorRequired)
@@ -109,17 +112,7 @@ struct WorkspaceShell: View {
                             Link(destination: destination) { Text(Words.setUpTwoFactor) }
                         }
                     }
-                } else if model.workspace != nil {
-                    ContentUnavailableView {
-                        Label {
-                            Text(Words.noWorkspaceModules)
-                        } icon: {
-                            Image(systemName: "square.grid.2x2")
-                        }
-                    }
-                    .accessibilityIdentifier("workspace.emptyModules")
-                    .navigationTitle(Text(SharedWords.workspace))
-                } else {
+                case .noWorkspace:
                     ContentUnavailableView {
                         Label {
                             Text(Words.noWorkspaces)
@@ -128,6 +121,16 @@ struct WorkspaceShell: View {
                         }
                     }
                     .accessibilityIdentifier("workspace.emptyMemberships")
+                    .navigationTitle(Text(SharedWords.workspace))
+                case .busy, .problem, .signIn, .ready:
+                    ContentUnavailableView {
+                        Label {
+                            Text(Words.noWorkspaceModules)
+                        } icon: {
+                            Image(systemName: "square.grid.2x2")
+                        }
+                    }
+                    .accessibilityIdentifier("workspace.emptyModules")
                     .navigationTitle(Text(SharedWords.workspace))
                 }
             }

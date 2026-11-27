@@ -83,10 +83,17 @@ struct NoticeList: View {
         verticalSizeClass == .compact ? 8 : 0
     }
 
+    /// What a notice says in this app. The chat feed shows its own Try Again where messages did not load, so the engine's notice
+    /// of it would say the same thing twice; the Mac, whose feed has no such place, says it.
+    nonisolated static func words(_ kind: Notice.Kind) -> LocalizedStringResource? {
+        if case .loadFailed = kind { return nil }
+        return EngineWords.notice(kind)
+    }
+
     var body: some View {
         PurlayNoticeStack {
             ForEach(model.notices) { notice in
-                if let words = EngineWords.notice(notice.kind) {
+                if let words = Self.words(notice.kind) {
                     NoticeBanner(words: words) { model.dismiss(notice) }
                         .purlayNoticeTransition()
                 }
@@ -96,7 +103,7 @@ struct NoticeList: View {
         .padding(.top, Self.topMargin(verticalSizeClass))
         .purlayAnimation(.smooth, value: model.notices)
         .onChange(of: model.notices) { old, new in
-            let sentences = Self.arrivals(from: old, to: new).compactMap { EngineWords.notice($0.kind) }
+            let sentences = Self.arrivals(from: old, to: new).compactMap { Self.words($0.kind) }
             guard !sentences.isEmpty else { return }
             AccessibilityNotification.Announcement(sentences.map { String(localized: $0) }.joined(separator: "\n"))
                 .post()
