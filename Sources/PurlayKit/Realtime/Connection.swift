@@ -110,6 +110,8 @@ public final class Connection {
     private let options: Options
     private var cursors = Cursors()
     private var watched = Set<String>()
+    /// This process can serve the core while a different node still serves chat during a rollout.
+    private(set) var chatOperationsUnavailable = false
     /// Channel → the `nextCursor` of a replay whose HTTP continuation is still owed.
     private var pending: [String: String] = [:]
     /// The order channels were first watched in, so a chunk is the same on every connection.
@@ -166,6 +168,12 @@ public final class Connection {
 
     private func write(_ frame: ClientFrame) -> Bool {
         guard status == .open, let socket else { return false }
+        if chatOperationsUnavailable {
+            switch frame {
+            case .subscribe, .unsubscribe, .messageSend, .typing: return false
+            default: break
+            }
+        }
         guard let data = try? JSONEncoder().encode(frame), data.count <= ContractConstants.maxFrameBytes,
             let text = String(data: data, encoding: .utf8)
         else { return false }
@@ -190,7 +198,7 @@ public final class Connection {
     /// The numbers are the server's to own; waiting for the answer needs none of them. Cursors are read when a chunk leaves,
     /// not when it was queued (D-82).
     private func pump() {
-        guard inFlight == nil, status == .open else { return }
+        guard inFlight == nil, status == .open, !chatOperationsUnavailable else { return }
         let chunk = Array(queue.prefix(ContractConstants.subscribeMaxChannels))
         queue.removeFirst(chunk.count)
         if !chunk.isEmpty { sendChunk(chunk) }
@@ -221,6 +229,10 @@ public final class Connection {
             limitedTimes = 0
             pump()
         case .error(let error):
+            if error.refusesOperation {
+                pauseChatOperations()
+                return
+            }
             let code = error.data.code
             if code == .rateLimited || code == .databaseUnavailable {
                 let again = flight.channelIDs
@@ -239,6 +251,15 @@ public final class Connection {
         default:
             break
         }
+    }
+
+    /// Stop asking a known-closed socket without losing the watches another node may honour on reconnect.
+    func pauseChatOperations() {
+        chatOperationsUnavailable = true
+        inFlight = nil
+        queue.removeAll()
+        cancelResend?()
+        cancelResend = nil
     }
 
     private static func milliseconds(_ duration: Duration) -> Int {
@@ -349,6 +370,7 @@ public final class Connection {
         let handlers = SocketHandlers(
             opened: { [weak self] in
                 guard let self, mine == generation else { return }
+                chatOperationsUnavailable = false
                 setStatus(.open)
                 neverOpened = 0
                 checkEpoch += 1
