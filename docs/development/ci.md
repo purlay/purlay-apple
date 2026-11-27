@@ -6,10 +6,11 @@ What CI checks, how it stays inside its targets, and what to do when it does not
 ## The targets
 
 - **A pull request is mergeable within 3 minutes** of its last push: `verify`, the only required check, is green. That is the target,
-  not a guarantee: the lanes themselves fit it only just (the slowest, `packages`, takes 114–172 s warm), and the wait for a
-  runner does not, and the organisation's other repositories decide that wait ([below](#where-a-pull-requests-time-goes)). `verify` does not
-  wait for the simulator lane, and on a pull request the simulator starts only after `verify` has passed, so it never takes a
-  runner a required lane is waiting for.
+  not a guarantee: the lanes themselves fit it only just (the slowest takes 111–172 s warm), and the wait for a runner does not;
+  the organisation's other repositories decide that wait ([below](#where-a-pull-requests-time-goes)). `verify` does not wait for
+  the simulator lane, and on a pull request the simulator starts only after `verify` has passed, so it never runs beside its own
+  run's required lanes. Once started it holds a macOS runner for 6–10 minutes, which another pull request's lanes, or main's run
+  after a merge, may wait for; merging or closing the pull request cancels it.
 - **A documents-only pull request is green in under 30 seconds** (expected from its jobs' times; no such run measured yet).
 - **A release ships within 10 minutes** of its tag (not counting the owner's approval of the `release` environment).
 
@@ -41,15 +42,15 @@ Every run shows the target and where the time went, on the run's summary page an
 |---|---|---|---|---|
 | `changes` | Linux | always | each app's version has its changelog section (`scripts/ci/changelog-versions`); the branch name (`scripts/check-branch`); the pull request's title as a conventional commit, because it becomes the squash commit (`scripts/ci/check-pr-title`, judged again when the title is edited); which lanes the change needs (`scripts/ci/changes`) | 5–10 s |
 | `security` | Linux | always, a documents-only pull request included | gitleaks over the whole history (`scripts/verify security`) | 5–8 s |
-| `rules` | Linux | any code change | `scripts/verify rules`: the architecture rules and their demonstration, actionlint and shellcheck at the versions `scripts/install-lint-tools` pins (digests checked), the strings | 19–22 s, plus the tools' download |
-| `packages` | `xcode-27` | any code change but the scripts and `Design/` alone | the layer rule, format, and every package test on macOS (`TestPlans/macOS.xctestplan`, targets side by side), the Mac screens drawn | 127–179 s |
-| `ios` | `xcode-27` | the package, `Config/`, the project or `Apps/iOS` change | the package and the iOS app built for the simulator | 99–143 s |
-| `macos` | `xcode-27` | the package, `Config/`, the project or `Apps/macOS` change | the Mac app built (Debug; Debug and Release on main), its ATS and entitlements checked | 90–121 s (main: more, unmeasured) |
+| `rules` | Linux | any code change | `scripts/verify rules`: the architecture rules and their demonstration, actionlint and shellcheck at the versions `scripts/install-lint-tools` pins (digests checked), the strings, and the tests of CI's own scripts: the lanes (`changes-test`), the title (`check-pr-title-test`), the release gate (`release-gate-test`) and every job's condition (`job-conditions-test`) | 19–22 s, plus the tools' download |
+| `packages` | `xcode-27` | any code change but the scripts and `Design/` alone | the layer rule, format, and every package test on macOS (`TestPlans/macOS.xctestplan`, targets side by side), the Mac screens drawn | 111–179 s |
+| `ios` | `xcode-27` | the package, `Config/`, the project or `Apps/iOS` change | the package and the iOS app built for the simulator | 75–143 s |
+| `macos` | `xcode-27` | the package, `Config/`, the project or `Apps/macOS` change | the Mac app built (Debug; Debug and Release on main), its ATS and entitlements checked | 68–122 s (main: more, unmeasured) |
 | `generated` | `xcode-27` | `Contract/`, `Tools/`, `Sources/*/Generated` or their scripts change | the pinned bundle, `scripts/generate --check`, the generator's tests | 57–100 s |
 | `simulator` | `xcode-27` | every push to main, nightly, by hand: beside the other lanes | the tests that need iOS (`TestPlans/iOS.xctestplan`: `PurlayTests`, `PurlayUITests`, `PurlayDesignTests`), built for testing, then the simulator booted, then tested without building. A release requires it on main | 369–594 s: over the target (below) |
-| `simulator (pull request)` (`simulator-pr`) | `xcode-27` | a pull request that changes `Apps/iOS`, `Sources/PurlayDesign`, `Tests/PurlayDesignTests`, `TestPlans/iOS.xctestplan` or the simulator's scripts, **once `verify` has passed** | the same steps as `simulator` (one YAML anchor, `simulator-steps`). **Not required** | as `simulator`, after `verify` |
+| `simulator (pull request)` (`simulator-pr`) | `xcode-27` | a pull request that changes `Apps/iOS`, `Sources/PurlayDesign`, `Tests/PurlayDesignTests`, `TestPlans/iOS.xctestplan` or the simulator's scripts, **once `verify` has passed** | the same steps as `simulator` (one YAML anchor, `simulator-steps`; `scripts/ci/job-conditions-test` holds the two jobs' runner, timeout and permissions equal). **Not required**; cancelled when the pull request is merged or closed | as `simulator`, after `verify` |
 | `simulator-red-on-main` | Linux | the simulator failed on main | opens the one issue labelled `ci-red-main`, or brings the open one up to date (`scripts/ci/red-main-issue`) | 5–10 s |
-| `verify` | Linux | always, after every lane but the simulator | the timing summary; every lane passed or was not needed (`scripts/ci/verify-needs`) | 5–10 s |
+| `verify` | Linux | every event but a closed pull request, after every lane but the simulator | the timing summary; every lane passed or was not needed (`scripts/ci/verify-needs`) | 5–10 s |
 
 The exact mapping from paths to lanes is `scripts/ci/changes`, which a person can run: `git diff --name-only main | scripts/ci/changes
 pull_request`. A path it does not know runs every lane; a workflow, the `Makefile`, `scripts/verify` or `scripts/ci` runs every lane;
@@ -57,16 +58,18 @@ any event but a pull request runs every lane, so main always checks and caches e
 `scripts/verify` or `scripts/ci` alone runs every lane but the simulator; `scripts/ci/changes-test`, run by `rules`, holds the
 mapping to the cases that matter.
 
-**A pull request's time** is its slowest needed lane plus the wait for a runner, plus about 10 s for `verify`. Measured warm with
-every lane but the simulator needed (runs 45890766300, 45892203168, 45893442148): 2 min 25 s to 3 min 11 s to the last lane, the
-slowest being `packages` (127–179 s) or `ios` (up to 143 s); the variance is the shared runners'. **A documents-only pull
+**A pull request's time** is its slowest needed lane plus the wait for a runner, plus about 10 s for `changes` and 8 s for
+`verify`; the lane times above cover both measurement sets ([below](#where-a-pull-requests-time-goes) and
+[PR #2's](#what-the-times-rest-on)); the variance is the shared runners'. **A documents-only pull
 request** runs `changes` and `security` side by side and then `verify`: about 25 seconds. A pull request that changes the iOS
 app or the design system also runs the simulator, which takes 6 to 10 minutes; it starts when `verify` has passed, so its result
 arrives some 6 to 10 minutes after the merge button turns green.
 
-**The trade-off.** The simulator gives a pull request a signal without holding its merge to 6–10 minutes, and without taking one
-of the organisation's five macOS runners while a required lane waits: on a pull request it runs after `verify`, never beside the
-lanes. (Beside them it is one more macOS job, for 6 to 10 minutes, in a run whose required lanes already take four of the five.) A person who wants its result before merging waits for it; nothing makes them. A change can
+**The trade-off.** The simulator gives a pull request a signal without holding its merge to 6–10 minutes, and never beside its
+own run's required lanes, which already take four of the five macOS runners. Once it starts it holds a runner that another pull
+request, or main's run after a merge, may wait for; a merge or a close cancels it (the `closed` trigger: that event's run
+cancels the pull request's run in flight through the concurrency group, and every job refuses to do anything else, so it runs
+nothing and no job with a write permission). A person who wants its result before merging waits for it; nothing makes them. A change can
 therefore merge with the iOS tests red; main's run catches it on the push, `simulator-red-on-main` opens (or updates) one
 `ci-red-main` issue, and no release ships from a commit whose main run, simulator included, did not pass
 ([releasing.md](releasing.md#what-every-release-workflow-does-first-the-gate)). Whoever reads that issue fixes main first.
@@ -204,6 +207,9 @@ release resolves the same code; Dependabot proposes its updates. The runner labe
 - A pull request from a fork needs approval before its workflows run (`.github/settings.md`).
 - `scripts/ci/retry-infra` runs a step once more only when the log shows the machine failed (a simulator that would not boot, a
   download that did not arrive), never when a test failed, and says so as a warning on the run.
+- A job that needs `verify` (or any job whose `if` is `always()`) states its own status function: otherwise GitHub judges its
+  implicit `success()` over every ancestor, and a lane `changes` skipped would skip it (actions/runner#2205). A pull request's
+  `closed` event runs nothing: every job's `if` refuses it. `scripts/ci/job-conditions-test`, in `rules`, holds both.
 - Dependabot's branches are recognised by the pull request's author (`dependabot[bot]`), which a branch name cannot fake.
 - No bot comments on pull requests: results are the checks and the run's summary page.
 

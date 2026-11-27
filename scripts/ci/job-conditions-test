@@ -2,7 +2,14 @@
 """A job that needs a fan-in job (one whose `if` runs it after skipped lanes: `always()` or `!cancelled()`) states its own status
 function. Without one its `if` gets the implicit `success()`, which GitHub evaluates over every ancestor, not only the jobs it
 names: a lane that `changes` skipped makes it false, and the job is skipped although the fan-in passed (actions/runner#2205).
-The rules lane is meant to run it.
+
+Two more rules of the same workflow:
+- When the workflow runs on a pull request's `closed` event (only to cancel that pull request's run in flight), every job's `if`
+  refuses it (`github.event.action != 'closed'`), so a closed pull request runs nothing and no job with a write permission.
+- A job that takes its steps from another's anchor (`steps: *name`) has that job's runs-on, timeout and permissions: GitHub has
+  no merge keys, so they are written twice and held equal here.
+
+The rules lane runs it (scripts/verify rules).
 
 Usage: scripts/ci/job-conditions-test [WORKFLOW]      (default .github/workflows/ci.yml)
 """
@@ -13,8 +20,12 @@ FAN_IN = re.compile(r"always\(\)|!\s*cancelled\(\)")
 STATUS = re.compile(r"always\(\)|cancelled\(\)|failure\(\)")
 
 
+CLOSED_GUARD = "github.event.action != 'closed'"
+TWIN_KEYS = ("runs-on", "timeout-minutes", "permissions")
+
+
 def jobs_of(text: str) -> dict:
-    jobs, current, inside = {}, None, False
+    jobs, current, key, inside = {}, None, None, False
     for line in text.splitlines():
         if line.startswith("jobs:"):
             inside = True
@@ -22,12 +33,44 @@ def jobs_of(text: str) -> dict:
         if not inside:
             continue
         if match := re.match(r"^  ([A-Za-z0-9_-]+):\s*$", line):
-            current = jobs.setdefault(match.group(1), {"needs": [], "if": ""})
-        elif current is not None and (match := re.match(r"^    needs:\s*(.+)$", line)):
-            current["needs"] = [n.strip() for n in match.group(1).strip("[] ").split(",") if n.strip()]
-        elif current is not None and (match := re.match(r"^    if:\s*(.+)$", line)):
-            current["if"] = match.group(1)
+            current = jobs.setdefault(match.group(1), {"needs": [], "if": "", "keys": {}, "anchor": None, "alias": None})
+            key = None
+        elif current is None:
+            continue
+        elif match := re.match(r"^    ([A-Za-z0-9_-]+):\s*(.*)$", line):
+            key, value = match.groups()
+            current["keys"][key] = value
+            if key == "needs":
+                current["needs"] = [n.strip() for n in value.strip("[] ").split(",") if n.strip()]
+            elif key == "if":
+                current["if"] = value
+            elif key == "steps" and (anchor := re.match(r"^([&*])([A-Za-z0-9_-]+)$", value.strip())):
+                current["anchor" if anchor.group(1) == "&" else "alias"] = anchor.group(2)
+        elif key is not None and key != "steps" and line.startswith("      "):
+            current["keys"][key] += "\n" + line.strip()
     return jobs
+
+
+def closed_problems(text: str, jobs: dict) -> list[str]:
+    if not re.search(r"^\s*types:\s*\[[^\]]*\bclosed\b", text, re.MULTILINE):
+        return []
+    return [f"{name} runs on a pull request's closed event: its if ({job['if'] or 'none'!r}) does not refuse it"
+            for name, job in sorted(jobs.items()) if CLOSED_GUARD not in job["if"]]
+
+
+def twin_problems(jobs: dict) -> list[str]:
+    owners = {job["anchor"]: name for name, job in jobs.items() if job["anchor"]}
+    found = []
+    for name, job in sorted(jobs.items()):
+        owner = owners.get(job["alias"])
+        if job["alias"] and owner is None:
+            found.append(f"{name} takes its steps from *{job['alias']}, which no job anchors")
+            continue
+        for key in TWIN_KEYS if owner else ():
+            if job["keys"].get(key) != jobs[owner]["keys"].get(key):
+                found.append(f"{name} shares {owner}'s steps but not its {key}: {job['keys'].get(key)!r} against "
+                             f"{jobs[owner]['keys'].get(key)!r}")
+    return found
 
 
 def problems(jobs: dict) -> list[str]:
@@ -45,12 +88,24 @@ def main() -> None:
     if not problems(jobs_of(sample)):
         sys.exit("FAIL  the check does not refuse a job that needs a fan-in with an implicit success()")
     print("ok    refuses a job that needs a fan-in with an implicit success()")
+    closed = "on:\n  pull_request:\n    types: [opened, closed]\njobs:\n  lane:\n    if: x\n    runs-on: a\n"
+    if not closed_problems(closed, jobs_of(closed)):
+        sys.exit("FAIL  the check does not refuse a job that runs on a closed pull request")
+    print("ok    refuses a job that runs on a closed pull request")
+    twins = ("jobs:\n  a:\n    runs-on: x\n    permissions:\n      contents: read\n    steps: &s\n      - run: true\n"
+             "  b:\n    runs-on: x\n    permissions:\n      contents: write\n    steps: *s\n")
+    if not twin_problems(jobs_of(twins)):
+        sys.exit("FAIL  the check does not refuse a job that shares steps but not permissions")
+    print("ok    refuses a job that shares another's steps but not its permissions")
     path = sys.argv[1] if len(sys.argv) > 1 else ".github/workflows/ci.yml"
     with open(path, encoding="utf-8") as handle:
-        found = problems(jobs_of(handle.read()))
+        text = handle.read()
+    jobs = jobs_of(text)
+    found = problems(jobs) + closed_problems(text, jobs) + twin_problems(jobs)
     if found:
         sys.exit("FAIL  " + "\nFAIL  ".join(found))
-    print(f"ok    {path}: every job after a fan-in states its own status function")
+    print(f"ok    {path}: every job after a fan-in states its own status function; every job refuses a closed pull request;"
+          " jobs that share steps share their runner, timeout and permissions")
 
 
 if __name__ == "__main__":
