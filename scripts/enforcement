@@ -529,29 +529,48 @@ PY
       | grep -vE "^$root/Sources/PurlayTokens/PurlayTokens.swift:|^$root/Sources/PurlayDesign/HexColor.swift:"; then
     echo "FAIL: a second hex colour decoder; use Color(hex:) or RGBA(hex:)" >&2; failed=1
   fi
-  # A colour is a token. A colour written as a literal (a hex value, with or without its alpha, or components given as numbers, in
-  # any colour space and through `.init` as well) is allowed only where its value is stated: the tokens (generated from the
-  # server's tokens.json), the logo (Logo.swift, written from Design/purlay.svg), and NativePalette.swift, the allowlist of the
-  # Mac's neutral greys and status colours, which no token states yet. Each file is read whole, so an initialiser wrapped across
-  # lines (as swift-format wraps a long one) is read as one; a line that is only a comment is not code.
-  if ! python3 - "$root" <<'PY'
+  # A colour is a token. A colour written as a literal (a hex value, with or without its alpha, in either case and with
+  # separators, or components given as numbers, in any colour space and through `.init` or CGColor as well) is allowed only
+  # where its value is stated: the tokens (generated from the server's tokens.json), the logo (Logo.swift, written from
+  # Design/purlay.svg), and NativePalette.swift, the allowlist of the Mac's neutral greys and status colours, which no token
+  # states yet. Each file is read whole and without its comments, so an initialiser wrapped across lines (as swift-format wraps
+  # a long one) is read as one and a colour named in a comment is not code. An asset catalogue's colour is a literal too: the
+  # only colour set is each app's AccentColor, which the rule below holds to the accent token.
+  if ! PYTHONPATH=scripts/lib python3 - "$root" <<'PY'
 import pathlib, re, sys
+from swift_source import code
 root = pathlib.Path(sys.argv[1])
 allowed = {root / "Sources/PurlayDesign/Logo.swift", root / "Sources/PurlayMacUI/NativePalette.swift"}
+# What scripts/generate writes, from the server's contract and tokens.
+generated = [root / f"Sources/{module}/Generated" for module in ("PurlayContract", "PurlayKit", "PurlayTokens")]
+components = (r"red|srgbRed|white|hue|gray|displayP3Red|calibratedRed|deviceRed|calibratedWhite|deviceWhite|calibratedHue"
+              r"|deviceHue|genericGamma22White|genericGamma22Gray|genericCMYKCyan|cyan")
 literal = re.compile(
-    r"0x[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?\b|#colorLiteral"
-    r"|(?:Color|NSColor|UIColor|\.init)\(\s*(?:\.(?:sRGB|sRGBLinear|displayP3)\s*,\s*)?"
-    r"(?:red|srgbRed|white|hue|displayP3Red|calibratedRed|deviceRed|calibratedWhite|deviceWhite)\s*:\s*[0-9.]")
+    r"\b0[xX](?P<hex>[0-9A-Fa-f_]+)\b|#colorLiteral"
+    r"|(?:\bColor|\bNSColor|\bUIColor|\bCGColor|\.init)\(\s*"
+    r"(?:(?:Color\.RGBColorSpace)?\.(?:sRGB|sRGBLinear|displayP3)\s*,\s*)?"
+    rf"(?:{components})\s*:\s*[-+]?(?:\w+\(\s*)?\.?[0-9]")
 found = False
 for folder in [root / "Sources", *sorted((root / "Apps").glob("*/App"))]:
     for path in sorted(folder.rglob("*.swift")):
-        if path in allowed or "Generated" in path.relative_to(root).parts:
+        if path in allowed or any(path.is_relative_to(folder) for folder in generated):
             continue
-        text = re.sub(r"(?m)^[ \t]*//.*$", "", path.read_text())
+        text = code(path.read_text())
         for match in literal.finditer(text):
+            # A colour's hex is six or eight digits, its separators (if any) between pairs: 0x25_63_EB. A mask grouped by
+            # fours (0x7fff_ffff) is not a colour.
+            groups = (match.group("hex") or "").split("_")
+            if match.group("hex") is not None and (
+                    len("".join(groups)) not in (6, 8) or (len(groups) > 1 and any(len(group) != 2 for group in groups))):
+                continue
             line = text.count("\n", 0, match.start()) + 1
             print(f"{path}:{line}: {' '.join(match.group(0).split())}", file=sys.stderr)
             found = True
+accents = {root / f"Apps/{app}/App/Resources/Assets.xcassets/AccentColor.colorset" for app in ("iOS", "macOS")}
+for colours in sorted([*(root / "Apps").rglob("*.colorset"), *(root / "Sources").rglob("*.colorset")]):
+    if colours not in accents:
+        print(f"{colours}: a colour set other than an app's AccentColor", file=sys.stderr)
+        found = True
 sys.exit(1 if found else 0)
 PY
   then
@@ -881,7 +900,7 @@ plant "a colour by components through .init" Apps/iOS/App/Entry/WelcomeView.swif
 plant "a colour by components wrapped after its parenthesis" Apps/iOS/App/Entry/WelcomeView.swift \
   'let leakedWrapped = Color(
     .displayP3, red: 0.1, green: 0.2, blue: 0.3)'
-# QA (PR #6): colour literals the rule does not read yet.
+# Colours spelt other ways.
 plant "a colour by components with its colour space spelt in full" Apps/iOS/App/Entry/WelcomeView.swift \
   'let leakedSpace = Color(Color.RGBColorSpace.sRGB, red: 0.1, green: 0.2, blue: 0.3)'
 plant "a Mac colour by calibrated hue" Sources/PurlayMacUI/Strings.swift \
@@ -890,6 +909,11 @@ plant "a grey as a CGColor" Apps/iOS/App/Entry/WelcomeView.swift 'let leakedGrey
 plant "a hex colour with an upper-case prefix" Apps/iOS/App/Entry/WelcomeView.swift 'let leakedUpper: UInt32 = 0X2563EB'
 plant_in "a colour set in the iOS asset catalogue beside the accent" Apps/iOS/App/Resources/Assets.xcassets \
   'mkdir Leaked.colorset && printf "%s" "{\"colors\":[{\"color\":{\"color-space\":\"srgb\",\"components\":{\"red\":\"0.1\",\"green\":\"0.2\",\"blue\":\"0.3\",\"alpha\":\"1\"}},\"idiom\":\"universal\"}],\"info\":{\"author\":\"xcode\",\"version\":1}}" > Leaked.colorset/Contents.json'
+plant "a hex colour with separators between its pairs" Apps/iOS/App/Entry/WelcomeView.swift 'let leakedPairs: UInt32 = 0x25_63_EB'
+plant "a colour in a hand-written folder named Generated" Sources/PurlayMacUI/Generated/Leaked.swift 'let leakedGrey = Color(white: 0.5)'
+accept_in "a colour named in comments, and a mask grouped by fours" Apps/iOS/App/Entry \
+  "printf '%s\\n' 'let qaNote = 1 // the accent, 0x2563EB, is a token' '/* Color(red: 0.1, green: 0.2, blue: 0.3) was the old ink */' \
+    'let qaMask = 0x7fff_ffff' >> WelcomeView.swift"
 plant_in "the accent not named by the build" Config \
   'sed -i.bak "/^ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME/d" Shared.xcconfig && rm Shared.xcconfig.bak'
 plant_in "the Mac's accent asset missing" Apps/macOS/App/Resources/Assets.xcassets 'rm -r AccentColor.colorset'
