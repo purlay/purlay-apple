@@ -18,7 +18,7 @@ replacing the code under test. The conventions are in [conventions.md](../archit
 | The generator | `Tools/PurlayGen/Tests` | its own package | `generated` |
 | What both apps say about the engine, in each language | `Tests/PurlayWordsTests` | `macOS` | `packages` |
 | The real client against a real server of the pinned version | `Tests/ContractTests` | `macOS` (compiled, and skipped without a server) | `packages`; against a server by hand: `scripts/contract-test` (TD-017) |
-| The rules, each with its violation planted (refused) and, where a rule could refuse good code, valid code written (accepted) | `scripts/enforcement`, `--demo` | — | `rules` |
+| The rules, each with its violation planted (refused) and, where a rule could refuse good code, valid code written (accepted); each on its own copy, in parallel | `scripts/enforcement`, `--demo` | — | `rules` |
 | The strings: the three catalogues, one checker | `scripts/enforcement` | — | `rules` |
 | The built apps: build number, App Transport Security, the Mac's entitlements declared and signed | `scripts/verify ios`, `scripts/verify macos` | — | `ios`, `macos` |
 | Secrets | `scripts/verify security` | — | `security` |
