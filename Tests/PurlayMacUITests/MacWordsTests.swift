@@ -1,5 +1,6 @@
 import PurlayContract
 import PurlayKit
+import PurlayTokens
 import SwiftUI
 import Testing
 
@@ -8,11 +9,11 @@ import Testing
 @MainActor
 @Suite("the Mac's words")
 struct MacWordsTests {
-    @Test("an incident is named by its level and state, and the worst levels are red")
+    @Test("an incident is named by its level and state, and the worst levels take the danger colour")
     func incidentWords() {
         let urgent = ChannelIncident(severity: .v1, status: .investigating)
-        #expect(urgent.severityName == "SEV1" && urgent.tint == .red)
-        #expect(ChannelIncident(severity: .v3, status: .mitigating).tint == .orange)
+        #expect(urgent.severityName == "SEV1" && urgent.tint.token == Colors.dangerText)
+        #expect(ChannelIncident(severity: .v3, status: .mitigating).tint.token == Colors.warningText)
         #expect(ChannelIncident(severity: .unknown(7), status: .unknown("x")).severityName == "SEV7")
     }
 

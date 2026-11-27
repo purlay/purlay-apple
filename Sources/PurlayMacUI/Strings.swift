@@ -30,6 +30,8 @@ enum Words {
     static func scheduling(_ error: any Error) -> String {
         switch (error as? SchedulingFailure) ?? .failed {
         case .unavailable: return String(localized: "This server does not support scheduled messages yet.")
+        case .temporarilyUnavailable:
+            return String(localized: "Scheduled messages are temporarily unavailable. Try again.")
         case .files: return String(localized: "Wait for every attachment to finish uploading before scheduling.")
         case .content: return String(localized: "Add a message or an attachment, within the message length limit.")
         case .time: return String(localized: "Choose a time at least a minute from now and within the next year.")
@@ -49,6 +51,8 @@ enum Words {
     static func reminder(_ error: any Error) -> String {
         switch (error as? ReminderFailure) ?? .failed {
         case .unavailable: return String(localized: "This server does not support message reminders yet.")
+        case .temporarilyUnavailable:
+            return String(localized: "Message reminders are temporarily unavailable. Try again.")
         case .time: return String(localized: "Choose a time at least a minute from now and within the next year.")
         case .validation:
             return String(

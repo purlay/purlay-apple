@@ -2068,6 +2068,24 @@
             "state": "translated",
             "value": "Hatırlatma zamanını kontrol edin. Her çalışma alanında en fazla %lld bekleyen hatırlatıcı tutabilirsiniz."
           }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Check the reminder time. You can keep up to %lld pending reminder per workspace."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Check the reminder time. You can keep up to %lld pending reminders per workspace."
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -7543,32 +7561,22 @@
         }
       }
     },
-    "Send ${text} to ${conversation}": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "${text} mesajını ${conversation} konuşmasına gönder"
-          }
-        }
-      }
-    },
-    "Send Message": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mesaj Gönder"
-          }
-        }
-      }
-    },
     "Send Now": {
       "localizations": {
         "tr": {
           "stringUnit": {
             "state": "translated",
             "value": "Şimdi Gönder"
+          }
+        }
+      }
+    },
+    "Send a Message": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mesaj Gönder"
           }
         }
       }

@@ -36,16 +36,10 @@ struct NotificationPermissionSection: View {
                 // macOS lists an app under Notifications only once it has asked, so this is the way to get on that list.
                 Button("Allow Notifications") {
                     Task {
-                        do {
-                            _ = try await UNUserNotificationCenter.current().requestAuthorization(options: [
-                                .alert, .badge,
-                            ])
-                        } catch {
-                            // The page says what the system decided once it is read again below; the cause is for the log.
-                            Log.attention.error(
-                                "the system refused to ask for notifications: \(error.localizedDescription, privacy: .public)"
-                            )
-                        }
+                        // What the system decided is read again below and said on the page.
+                        _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [
+                            .alert, .badge,
+                        ])
                         await refresh()
                     }
                 }

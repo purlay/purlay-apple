@@ -84,7 +84,7 @@ APPS = {"iOS": "Apps/iOS", "macOS": "Apps/macOS"}
 # The counts that change no English word: a number shown as a label, a position, a limit in minutes. Every other count says its
 # number in English plural forms whose `one` differs from `other`. A new entry here is a review point.
 ONE_FORM = {
-    "%@ %@ number %lld, %@: %@", "%@ and %lld more", "%@#%lld · %@", "%@, %lld", "%lld", "%lld min left", "%lld unread",
+    "%@ %@ number %lld, %@: %@", "%@ and %lld more", "%@#%lld · %@", "%@, %lld", "%lld", "%lld min left", "%lld selected", "%lld unread",
     "%lld waiting", "%lld.", "Channel members, %lld", "End Deep Work (%lld min left)", "Filters (%lld)", "Inbox (%lld)",
     "Updates (%lld)",
 }

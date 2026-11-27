@@ -645,4 +645,18 @@ private struct SwitcherSurface: ViewModifier {
 extension View {
     fileprivate func switcherSurface() -> some View { modifier(SwitcherSurface()) }
 }
+
+/// Signing this Mac out asks first, from the menu bar and from the account menu alike: it is undone only in the browser.
+struct SignOutConfirmation: ViewModifier {
+    let model: AppModel
+    @Binding var isPresented: Bool
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog("Sign out of Purlay on this Mac?", isPresented: $isPresented) {
+            Button("Sign Out", role: .destructive) { Task { await model.signOut(.thisDevice) } }
+        } message: {
+            Text("You will sign in again in your browser. Other devices stay signed in.")
+        }
+    }
+}
 #endif

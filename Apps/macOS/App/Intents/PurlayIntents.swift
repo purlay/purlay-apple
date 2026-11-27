@@ -1,7 +1,7 @@
 import AppIntents
 import PurlayContract
 import PurlayKit
-import PurlayUI
+import PurlayMacUI
 
 // What Shortcuts, Spotlight and Siri can ask of Purlay. Each intent calls the model, as a menu item does; nothing here decides
 // what the app does. The identifiers below (type names, the entity's id, the enum's raw values, the phrases) are kept by people's
@@ -98,7 +98,7 @@ struct OpenConversationIntent: AppIntent {
 }
 
 struct SendMessageIntent: AppIntent {
-    static let title: LocalizedStringResource = "Send Message"
+    static let title: LocalizedStringResource = "Send a Message"
     static let description = IntentDescription(
         "Sends a message to a channel or direct conversation. It waits in the outbox while you are offline.")
     static let supportedModes: IntentModes = .background
@@ -146,7 +146,9 @@ enum DeepWorkLengthOption: String, AppEnum {
 
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Length"
     static let caseDisplayRepresentations: [Self: DisplayRepresentation] = [
-        .halfHour: "30 Minutes", .hour: "1 Hour", .twoHours: "2 Hours", .untilTomorrow: "Until Tomorrow",
+        .halfHour: DisplayRepresentation(title: "30 Minutes"), .hour: DisplayRepresentation(title: "1 Hour"),
+        .twoHours: DisplayRepresentation(title: "2 Hours"),
+        .untilTomorrow: DisplayRepresentation(title: "Until Tomorrow"),
     ]
 
     var length: DeepWork.Length {
@@ -199,7 +201,7 @@ struct PurlayShortcuts: AppShortcutsProvider {
             shortTitle: "Open Conversation", systemImageName: "bubble.left.and.bubble.right")
         AppShortcut(
             intent: SendMessageIntent(), phrases: ["Send a message with \(.applicationName)"],
-            shortTitle: "Send Message", systemImageName: "paperplane")
+            shortTitle: "Send a Message", systemImageName: "paperplane")
         AppShortcut(
             intent: StartDeepWorkIntent(), phrases: ["Start Deep Work in \(.applicationName)"],
             shortTitle: "Start Deep Work", systemImageName: "moon")

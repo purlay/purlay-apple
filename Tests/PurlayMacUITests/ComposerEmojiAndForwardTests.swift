@@ -2,7 +2,7 @@ import Foundation
 import PurlayContract
 import Testing
 
-@testable import PurlayUI
+@testable import PurlayMacUI
 
 @Suite("emoji by name in the message box")
 struct EmojiShortcodeTests {
