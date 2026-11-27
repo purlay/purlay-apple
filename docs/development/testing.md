@@ -69,7 +69,7 @@ Checked by hand on a signed build, and said so in the pull request:
 
 `scripts/verify` and CI build unsigned (`CODE_SIGNING_ALLOWED=NO`). On macOS the package tests use `PurlayTestSupport`'s in-memory
 session store, and `KeychainSessionStoreTests` uses the real Keychain of the test process. On a simulator, an unsigned app cannot
-read the Keychain, so it starts signed out with the wrong notice (TD-009). A test that fails only for that reason is not a flaky
+read the Keychain, so it starts signed out and says it could not read the saved sign-in. A test that fails only for that reason is not a flaky
 test: [runbook](../runbooks/keychain-in-tests.md).
 
 ## Flaky tests

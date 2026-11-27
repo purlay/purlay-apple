@@ -30,7 +30,7 @@ struct WordsTests {
                 .sessionExpired, .sessionEndedByServer, .signedOutElsewhere,
                 .serverNotTold, .signOutEverywhereFailed, .signOutFailed,
                 .sessionEndsSoon(Date(timeIntervalSince1970: 0)),
-                .storageProblem, .originMismatch, .loadFailed, .readFailed,
+                .storageProblem, .storedSessionUnreadable, .originMismatch, .loadFailed, .readFailed,
             ]
         return Words.fixed + EngineWords.fixed + [Words.continuesInBrowser("purlay.app")]
             + [Words.backToWorkspace("Acme"), Words.switchWorkspace("Acme"), Words.unsentWillBeDeleted(2)]
