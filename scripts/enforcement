@@ -466,12 +466,29 @@ PY
   # A colour is a token. A colour written as a literal (a hex value, with or without its alpha, or components given as numbers, in
   # any colour space and through `.init` as well) is allowed only where its value is stated: the tokens (generated from the
   # server's tokens.json), the logo (Logo.swift, written from Design/purlay.svg), and NativePalette.swift, the allowlist of the
-  # Mac's neutral greys and status colours, which no token states yet.
-  if grep -rnE --include='*.swift' \
-      '0x[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?\b|(Color|NSColor|UIColor|\.init)\((\.(sRGB|sRGBLinear|displayP3), *)?(red|srgbRed|white|hue|displayP3Red|calibratedRed|deviceRed|calibratedWhite|deviceWhite): *[0-9.]|#colorLiteral' \
-      "$root/Sources" "$root"/Apps/*/App | grep -v '/Generated/' \
-      | grep -vE "^$root/Sources/PurlayDesign/Logo.swift:|^$root/Sources/PurlayMacUI/NativePalette.swift:" \
-      | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
+  # Mac's neutral greys and status colours, which no token states yet. Each file is read whole, so an initialiser wrapped across
+  # lines (as swift-format wraps a long one) is read as one; a line that is only a comment is not code.
+  if ! python3 - "$root" <<'PY'
+import pathlib, re, sys
+root = pathlib.Path(sys.argv[1])
+allowed = {root / "Sources/PurlayDesign/Logo.swift", root / "Sources/PurlayMacUI/NativePalette.swift"}
+literal = re.compile(
+    r"0x[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?\b|#colorLiteral"
+    r"|(?:Color|NSColor|UIColor|\.init)\(\s*(?:\.(?:sRGB|sRGBLinear|displayP3)\s*,\s*)?"
+    r"(?:red|srgbRed|white|hue|displayP3Red|calibratedRed|deviceRed|calibratedWhite|deviceWhite)\s*:\s*[0-9.]")
+found = False
+for folder in [root / "Sources", *sorted((root / "Apps").glob("*/App"))]:
+    for path in sorted(folder.rglob("*.swift")):
+        if path in allowed or "Generated" in path.relative_to(root).parts:
+            continue
+        text = re.sub(r"(?m)^[ \t]*//.*$", "", path.read_text())
+        for match in literal.finditer(text):
+            line = text.count("\n", 0, match.start()) + 1
+            print(f"{path}:{line}: {' '.join(match.group(0).split())}", file=sys.stderr)
+            found = True
+sys.exit(1 if found else 0)
+PY
+  then
     echo "FAIL: a colour literal outside the tokens, the logo and NativePalette.swift; name a token" >&2; failed=1
   fi
   # Both apps' controls are tinted with the accent token: the build names the AccentColor asset as the app's accent, and each
@@ -759,7 +776,7 @@ plant "a Display P3 colour by components in an iOS view" Apps/iOS/App/Entry/Welc
 plant "a hex colour with its alpha in an iOS view" Apps/iOS/App/Entry/WelcomeView.swift 'let leakedRGBA: UInt32 = 0x2563EBFF'
 plant "a colour by components through .init" Apps/iOS/App/Entry/WelcomeView.swift \
   'let leakedInit: Color = .init(red: 0.1, green: 0.2, blue: 0.3)'
-# qa/pr4-recheck: swift-format wraps a long initialiser after its parenthesis; the rule reads one line at a time.
+# swift-format wraps a long initialiser after its parenthesis.
 plant "a colour by components wrapped after its parenthesis" Apps/iOS/App/Entry/WelcomeView.swift \
   'let leakedWrapped = Color(
     .displayP3, red: 0.1, green: 0.2, blue: 0.3)'
