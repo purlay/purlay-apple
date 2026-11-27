@@ -1,5 +1,6 @@
 import Foundation
 import PurlayContract
+import PurlayTestSupport
 import Synchronization
 import Testing
 
@@ -306,6 +307,21 @@ struct UploadModelTests {
         try? await Task.sleep(for: .milliseconds(50))
         #expect(!h.model.isWaiting(channel: one, parent: nil))
         #expect(messageFrames(h).isEmpty)
+    }
+
+    @Test("a waiting send whose file lands while signing out removes the person's data is not sent")
+    func signOutWipeHoldsTheSend() async {
+        // A wipe as slow as a loaded machine's: the file lands while it runs, before the session is torn down.
+        let h = ModelHarness(wipers: [RecordingWiper(onWipe: { try? await Task.sleep(for: .milliseconds(300)) })])
+        await h.signedIn()
+        await h.model.open(one)
+        h.server.edit { $0.uploadDelays["slow.txt"] = 60 }
+        let slow = await inFlight(h, "slow.txt")
+        #expect(h.model.send("late"))
+        _ = await h.model.signOut(.thisDevice)
+        await slow.value
+        #expect(messageFrames(h).isEmpty, "\(messageFrames(h))")
+        #expect(!h.server.requests.contains { $0.method == "POST" && $0.url.path.hasSuffix("/messages") })
     }
 
     @Test(

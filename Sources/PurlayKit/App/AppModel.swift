@@ -653,9 +653,17 @@ public final class AppModel {
             DraftsWiper(preferences: environment.preferences),
             FolderWiper(
                 FileOutboxStore.directory(in: environment.dataDirectory),
-                stopWriting: { [weak self] in await self?.engine?.forgetOutbox() }),
+                stopWriting: { [weak self] in await self?.stopSendingForWipe() }),
             FolderWiper(previewsDirectory),
         ]
+    }
+
+    /// The person's data is being removed, so the session is ending: nothing more is sent (a send waiting for its files is
+    /// let go, the engine stops) and nothing more is written to the outbox, before the outbox goes.
+    private func stopSendingForWipe() {
+        waitingSends = [:]
+        engine?.forgetOutbox()
+        engine?.stop()
     }
 
     private func endServerSession(
