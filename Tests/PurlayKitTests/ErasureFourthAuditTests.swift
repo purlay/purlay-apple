@@ -6,44 +6,11 @@ import Testing
 
 @testable import PurlayKit
 
-/// QA (PR #7 fourth audit, d8bb5cb): a door that holds requests while it is shut, and counts who reached it.
-private final class CountingDoor: Sendable {
-    private let state = Mutex<(open: Bool, reached: Int, waiting: [CheckedContinuation<Void, Never>])>((true, 0, []))
-
-    func shut() { state.withLock { $0.open = false } }
-    var reached: Int { state.withLock { $0.reached } }
-
-    func pass() async {
-        await withCheckedContinuation { continuation in
-            let through = state.withLock { door -> Bool in
-                door.reached += 1
-                if door.open { return true }
-                door.waiting.append(continuation)
-                return false
-            }
-            if through { continuation.resume() }
-        }
-    }
-
-    func open() {
-        let waiting = state.withLock { door -> [CheckedContinuation<Void, Never>] in
-            door.open = true
-            defer { door.waiting = [] }
-            return door.waiting
-        }
-        for continuation in waiting { continuation.resume() }
-    }
-
-    func awaitReached(_ count: Int) async {
-        for _ in 0..<100_000 where reached < count { await Task.yield() }
-    }
-}
-
 /// Three workspaces of one server (Acme, Studio, Third), with `/api/me` sent with `held` kept at a door while it is shut.
 private struct ThreeWorkspaces: HTTPTransport {
     static let third = "0199155c-6200-7b7f-8c11-0000000000cc"
     let inner: DesktopTransport
-    let door: CountingDoor
+    let door: HeldDoor
     let held: String
 
     func send(_ request: HTTPRequest) async throws -> HTTPResponse {
@@ -124,7 +91,7 @@ struct ErasureFourthGapTests {
         "on the Mac, a workspace's sign-in joins only a session known to be the server's person, never one a browser just brought back"
     )
     func joinsOnlyAKeptSession() async throws {
-        let door = CountingDoor()
+        let door = HeldDoor()
         let opened = Mutex(0)
         let hook = Mutex<(@MainActor @Sendable () async -> Void)?>(nil)
         let browser = ScriptedBrowser { page in
@@ -190,7 +157,7 @@ struct ErasureFourthGuardTests {
         "on the Mac, a sign-out of another workspace that starts while the browser is open stops the sign-in again when it returns"
     )
     func signOutStartedWhileBrowserOpen() async throws {
-        let door = CountingDoor()
+        let door = HeldDoor()
         let hook = Mutex<(@MainActor @Sendable () async -> Void)?>(nil)
         let browser = ScriptedBrowser { page in
             if let run = hook.withLock({ $0 }) { await run() }

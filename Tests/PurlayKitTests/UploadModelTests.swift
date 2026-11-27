@@ -299,12 +299,15 @@ struct UploadModelTests {
     @Test("signing out lets go of a waiting send and of the files: nothing goes afterwards")
     func signOutClears() async {
         let h = await opened()
-        h.server.edit { $0.uploadDelays["slow.txt"] = 120 }
+        // The file lands after the sign-out, whatever the load: held until then, not timed.
+        let upload = Gate()
+        h.server.edit { $0.beforeUploadResponse = { await upload.wait() } }
         let slow = await inFlight(h, "slow.txt")
         #expect(h.model.send("late"))
         _ = await h.model.signOut(.thisDevice)
+        await upload.open()
         await slow.value
-        try? await Task.sleep(for: .milliseconds(50))
+        await h.settle()
         #expect(!h.model.isWaiting(channel: one, parent: nil))
         #expect(messageFrames(h).isEmpty)
     }
@@ -312,11 +315,17 @@ struct UploadModelTests {
     @Test("a waiting send whose file lands while the sign-out is telling the server is not sent")
     func signOutWipeHoldsTheSend() async throws {
         let h = await opened()
-        h.server.edit { $0.uploadDelays["slow.txt"] = 60 }
+        // The file lands while the server is being told, whatever the load: held until the logout is at the server.
+        let upload = Gate()
+        h.server.edit { $0.beforeUploadResponse = { await upload.wait() } }
         let slow = await inFlight(h, "slow.txt")
         #expect(h.model.send("late"))
-        // The file lands while the server is being told: the logout answers only once the upload is done.
-        h.server.edit { $0.beforeLogoutResponse = { await slow.value } }
+        h.server.edit {
+            $0.beforeLogoutResponse = {
+                await upload.open()
+                await slow.value
+            }
+        }
         _ = await h.model.signOut(.thisDevice)
         #expect(messageFrames(h).isEmpty, "\(messageFrames(h))")
         #expect(!h.server.requests.contains { $0.method == "POST" && $0.url.path.hasSuffix("/messages") })
@@ -325,11 +334,17 @@ struct UploadModelTests {
     @Test("a waiting send whose file lands while the account is being erased is not sent")
     func erasureHoldsTheSend() async throws {
         let h = await opened()
-        h.server.edit { $0.uploadDelays["slow.txt"] = 60 }
+        // The file lands while the erasure is at the server, whatever the load: held until then.
+        let upload = Gate()
+        h.server.edit { $0.beforeUploadResponse = { await upload.wait() } }
         let slow = await inFlight(h, "slow.txt")
         #expect(h.model.send("late"))
-        // The file lands while the erasure is at the server.
-        h.server.edit { $0.beforeEraseResponse = { await slow.value } }
+        h.server.edit {
+            $0.beforeEraseResponse = {
+                await upload.open()
+                await slow.value
+            }
+        }
         #expect(await h.model.eraseAccount(confirmation: "ada") == .erased)
         #expect(messageFrames(h).isEmpty, "\(messageFrames(h))")
         #expect(!h.server.requests.contains { $0.method == "POST" && $0.url.path.hasSuffix("/messages") })

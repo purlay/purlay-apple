@@ -6,45 +6,10 @@ import Testing
 
 @testable import PurlayKit
 
-/// QA (PR #7 third audit, 1174b05): a door a test holds shut until it says so, and reports when somebody reaches it.
-private final class Door: Sendable {
-    private let state = Mutex<(open: Bool, reached: Bool, waiting: [CheckedContinuation<Void, Never>])>(
-        (true, false, []))
-
-    func shut() { state.withLock { $0.open = false } }
-    var reached: Bool { state.withLock { $0.reached } }
-
-    func pass() async {
-        await withCheckedContinuation { continuation in
-            let through = state.withLock { door -> Bool in
-                door.reached = true
-                if door.open { return true }
-                door.waiting.append(continuation)
-                return false
-            }
-            if through { continuation.resume() }
-        }
-    }
-
-    func open() {
-        let waiting = state.withLock { door -> [CheckedContinuation<Void, Never>] in
-            door.open = true
-            defer { door.waiting = [] }
-            return door.waiting
-        }
-        for continuation in waiting { continuation.resume() }
-    }
-
-    /// Waits, a bounded while, for somebody to reach the door.
-    func awaitReached() async {
-        for _ in 0..<100_000 where !reached { await Task.yield() }
-    }
-}
-
 /// The two-workspace transport, with `/api/me` sent with `cookie` held at a door while it is shut.
 private struct HeldTransport: HTTPTransport {
     let inner: DesktopTransport
-    let door: Door
+    let door: HeldDoor
     let cookie: String
 
     func send(_ request: HTTPRequest) async throws -> HTTPResponse {
@@ -61,7 +26,7 @@ private let stranger = "0199155c-6200-7b7f-8c11-0000000000e9"
 private let address = try! ServerAddress.parse("localhost:4390", allowsLocalHTTP: true)
 
 @MainActor
-private func desktop(_ h: ModelHarness, holding door: Door? = nil) -> DesktopSessions {
+private func desktop(_ h: ModelHarness, holding door: HeldDoor? = nil) -> DesktopSessions {
     var environment = h.model.environment
     let inner = DesktopTransport(first: h.server, second: FakeServer())
     environment.transport =
@@ -98,7 +63,7 @@ struct ErasureThirdGapTests {
     @Test(
         "on the Mac, a workspace still reading who the person is when they sign in again moves to the new session too")
     func loadingWorkspaceMovesToo() async throws {
-        let door = Door()
+        let door = HeldDoor()
         let target = Mutex<(DesktopSessions, AppModel)?>(nil)
         let browser = ScriptedBrowser { page in
             // While the browser is open the person opens another workspace; its first read is still out when they return.
@@ -123,7 +88,7 @@ struct ErasureThirdGapTests {
         let studio = try #require(desktop.sessions.last?.model)
         // The precondition: its first read, on the old session, is still held. (It may already have read again on the new
         // session, which is the fix: what the old read finds must not undo that.)
-        #expect(studio !== first && door.reached, "the precondition: still reading")
+        #expect(studio !== first && door.reached > 0, "the precondition: still reading")
         door.open()
         await h.settle()
         #expect(first.phase == .ready, "the workspace that signed in again was signed out by one still loading")
@@ -200,7 +165,7 @@ struct ErasureThirdGapTests {
         "on the Mac, signing in again while another workspace's sign-out is removing data does not put a live session back"
     )
     func signInAgainDuringAnotherWorkspacesSignOut() async throws {
-        let door = Door()
+        let door = HeldDoor()
         let wiper = RecordingWiper(onWipe: { await door.pass() })
         let h = ModelHarness(wipers: [wiper])
         try h.rememberedSession()
