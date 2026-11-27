@@ -16,14 +16,14 @@ need. Which module may depend on which is a table in `scripts/enforcement`, read
 | `PurlayTestSupport` | fakes of the network, the Keychain and the browser, `ScriptedTransport`, for package tests | `PurlayKit`, `PurlayContract` |
 | `PurlayDesign` | the design system and the only place an OS version is asked about: `purlaySurface`, `purlayButton`, `purlayBottomBar`, `purlayNoticeTransition`, `purlayAnimation`, `PurlayMark`, `Brand`, `Motion` | `PurlayTokens` |
 | `PurlayModuleAPI` | `FeatureModule`, `ModuleID` (a string, so an unknown id survives decoding), `ModuleRegistry` | nothing |
-| `Feature<Module>` (none yet) | one server module's screens and models, in `Model/`, `Shared/`, `iOS/` and `macOS/` folders | `PurlayKit`, `PurlayContract`, `PurlayTokens`, `PurlayDesign`, `PurlayModuleAPI`, `PurlayWords`; never another feature |
+| `Feature<Module>` (`FeatureChat` today) | one server module's screens and models, in `Model/`, `Shared/`, `iOS/` and `macOS/` folders | `PurlayKit`, `PurlayContract`, `PurlayTokens`, `PurlayDesign`, `PurlayModuleAPI`, `PurlayWords`; never another feature |
 | `PurlayMacUI` | the Mac's screens and controls, until they move onto `PurlayDesign` and into features; whole files are wrapped for macOS so the package builds for iOS | `PurlayKit`, `PurlayContract`, `PurlayTokens`, `PurlayDesign`, `PurlayWords` (it uses all but `PurlayDesign` today) |
 | App targets | the composition roots: scenes, the real environment, system adapters | everything above |
 
 `PurlayKit` is grouped by concern: `App`, `Attention`, `Auth`, `Code`, `Composer`, `DeepWork`, `Diagnostics`, `Handshake`,
 `Markdown`, `Networking`, `Outbox`, `Palette`, `Realtime`, `State`, `Uploads`.
 
-What the apps link (`Apps/Purlay.xcodeproj`): the iOS app takes Contract, Design, Kit, ModuleAPI, Tokens and Words; its unit tests take
+What the apps link (`Apps/Purlay.xcodeproj`): the iOS app takes Contract, Design, FeatureChat, Kit, ModuleAPI, Tokens and Words; its unit tests take
 Contract and Kit, and not TestSupport ([ADR 0006](../decisions/0006-app-tests-use-their-own-fakes.md)); the Mac app takes
 Contract, Kit, MacUI (which brings Words), Tokens and Sparkle.
 

@@ -11,6 +11,7 @@ replacing the code under test. The conventions are in [conventions.md](../archit
 | The engine: state, transport, sign-in, realtime, outbox, markdown | `Tests/PurlayKitTests` | `TestPlans/macOS.xctestplan` | `packages` |
 | The contract, the tokens, the test support | `Tests/PurlayContractTests`, `Tests/PurlayTokensTests`, `Tests/PurlayTestSupportTests` | `macOS` | `packages` |
 | The module registry | `Tests/PurlayModuleAPITests` | `macOS` | `packages` |
+| The chat feature's decisions (what a message row may show) | `Tests/FeatureChatTests` | `macOS` | `packages` |
 | The design system, whose colours take a UIKit path on iOS and an AppKit path on macOS | `Tests/PurlayDesignTests` | `macOS`, `iOS` | `packages`, `simulator` |
 | The Mac's screens and controls, and the Mac screens drawn from state, light and dark | `Tests/PurlayMacUITests` (`SnapshotTests` among them) | `macOS` | `packages` |
 | The iOS app's wiring and screen decisions (`RootScreenTests`, `WordsTests`, `EnvironmentTests`, `PrivacyManifestTests`) | `Apps/iOS/Tests/PurlayTests` | `iOS` | `simulator` |
