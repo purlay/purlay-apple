@@ -16,21 +16,9 @@
     "%@ %@ number %lld, %@: %@": {
       "localizations": {
         "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%1$@ %2$@ number %3$lld, %4$@: %5$@"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%1$@ %2$@ number %3$lld, %4$@: %5$@"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ %2$@ number %3$lld, %4$@: %5$@"
           }
         },
         "tr": {
@@ -60,21 +48,9 @@
     "%@ and %lld more": {
       "localizations": {
         "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%1$@ and %2$lld more"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%1$@ and %2$lld more"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ and %2$lld more"
           }
         },
         "tr": {
@@ -292,21 +268,9 @@
     "%@#%lld · %@": {
       "localizations": {
         "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%1$@#%2$lld · %3$@"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%1$@#%2$lld · %3$@"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@#%2$lld · %3$@"
           }
         },
         "tr": {
@@ -392,21 +356,9 @@
     "%@, %lld": {
       "localizations": {
         "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%1$@, %2$lld"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%1$@, %2$lld"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@, %2$lld"
           }
         },
         "tr": {
@@ -429,24 +381,6 @@
     },
     "%lld": {
       "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld"
-                }
-              }
-            }
-          }
-        },
         "tr": {
           "stringUnit": {
             "state": "translated",
@@ -633,24 +567,6 @@
     },
     "%lld min left": {
       "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld min left"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld min left"
-                }
-              }
-            }
-          }
-        },
         "tr": {
           "stringUnit": {
             "state": "translated",
@@ -825,24 +741,6 @@
     },
     "%lld unread": {
       "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld unread"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld unread"
-                }
-              }
-            }
-          }
-        },
         "tr": {
           "stringUnit": {
             "state": "translated",
@@ -853,24 +751,6 @@
     },
     "%lld waiting": {
       "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld waiting"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld waiting"
-                }
-              }
-            }
-          }
-        },
         "tr": {
           "stringUnit": {
             "state": "translated",
@@ -881,24 +761,6 @@
     },
     "%lld.": {
       "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld."
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld."
-                }
-              }
-            }
-          }
-        },
         "tr": {
           "stringUnit": {
             "state": "translated",
@@ -1976,24 +1838,6 @@
     },
     "Channel members, %lld": {
       "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Channel members, %lld"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Channel members, %lld"
-                }
-              }
-            }
-          }
-        },
         "tr": {
           "stringUnit": {
             "state": "translated",
@@ -3304,24 +3148,6 @@
     },
     "End Deep Work (%lld min left)": {
       "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "End Deep Work (%lld min left)"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "End Deep Work (%lld min left)"
-                }
-              }
-            }
-          }
-        },
         "tr": {
           "stringUnit": {
             "state": "translated",
@@ -3452,24 +3278,6 @@
     },
     "Filters (%lld)": {
       "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Filters (%lld)"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Filters (%lld)"
-                }
-              }
-            }
-          }
-        },
         "tr": {
           "stringUnit": {
             "state": "translated",
@@ -3840,24 +3648,6 @@
     },
     "Inbox (%lld)": {
       "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Inbox (%lld)"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Inbox (%lld)"
-                }
-              }
-            }
-          }
-        },
         "tr": {
           "stringUnit": {
             "state": "translated",
@@ -8564,24 +8354,6 @@
     },
     "Updates (%lld)": {
       "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Updates (%lld)"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Updates (%lld)"
-                }
-              }
-            }
-          }
-        },
         "tr": {
           "stringUnit": {
             "state": "translated",

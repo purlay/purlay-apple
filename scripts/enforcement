@@ -262,8 +262,16 @@ APIS
 import json, plistlib, re, sys
 root = sys.argv[1]
 apps = {"iOS": "Apps/iOS", "macOS": "Apps/macOS"}
-spec = re.compile(r"%(?:\d+\$)?(?:lld|ld|lu|llu|@|d|u|f)")
-count = re.compile(r"%(?:\d+\$)?(?:lld|ld|lu|llu|d|u)")
+# A format specifier, positional or not, with any length modifier; a count is an integer one.
+spec = re.compile(r"%(?:\d+\$)?(?:hh|h|ll|l|z|t|j|q)?[diouxX@feEgG]")
+count = re.compile(r"%(?:\d+\$)?(?:hh|h|ll|l|z|t|j|q)?[diu]")
+# The counts that change no English word: a number shown as a label, a position, a limit in minutes. Every other count says
+# its number in English plural forms whose `one` differs from `other`. A new entry here is a review point.
+one_form = {
+    "%@ %@ number %lld, %@: %@", "%@ and %lld more", "%@#%lld · %@", "%@, %lld", "%lld", "%lld min left", "%lld unread",
+    "%lld waiting", "%lld.", "Channel members, %lld", "End Deep Work (%lld min left)", "Filters (%lld)", "Inbox (%lld)",
+    "Updates (%lld)",
+}
 # Nothing to translate: only symbols, digits and format specifiers, or a code-like address.
 inert = re.compile(r"^[^A-Za-z]*$|^[a-z0-9.\-/]+$")
 plural_forms = {"zero", "one", "two", "few", "many", "other"}
@@ -322,17 +330,23 @@ for path, wanted in catalogues.items():
                     problems.append(f"{path}: {key!r} has no final {language} value ({unit.get('state')})")
                 elif norm(unit["value"]) != norm(key):
                     problems.append(f"{path}: {key!r} -> {unit['value']!r}: the format specifiers differ")
-        # A sentence with a count says it in English by plural forms, so that 1 is never "1 new replies". Turkish says a count
-        # with one form (the noun does not follow the number), so its value may be a single one.
-        if count.search(key):
+        # A sentence with a count says it in English by plural forms, `one` not the same as `other`, so that 1 is never
+        # "1 new replies". Turkish says a count with one form (the noun does not follow the number), so its value may be a
+        # single one, or forms that are the same.
+        if count.search(key) and key not in one_form:
             plural = localizations.get("en", {}).get("variations", {}).get("plural", {})
+            value = {form: plural.get(form, {}).get("stringUnit", {}).get("value") for form in ("one", "other")}
             if not {"one", "other"} <= set(plural):
                 problems.append(f"{path}: {key!r} has a count but no English plural forms (one and other)")
+            elif value["one"] == value["other"]:
+                problems.append(f"{path}: {key!r} says one as it says other in English: {value['one']!r}")
         # The English forms are held to the same rule, so that a plural cannot drop an argument.
         if "en" in localizations:
             for unit in units(path, key, "en", localizations["en"]):
                 if norm(unit.get("value", key)) != norm(key):
                     problems.append(f"{path}: an English form of {key!r} changes its arguments")
+for key in sorted(one_form - set(homes)):
+    problems.append(f"{key!r} is listed as a count that changes no English word, and no catalogue has it; remove it")
 for key, paths in homes.items():
     if len(paths) > 1:
         problems.append(f"{key!r} is in {len(paths)} catalogues ({', '.join(paths)}); a sentence has one home")
@@ -849,6 +863,12 @@ accept_in "sentences said by the SDK's calls, an array of sentences and the code
   "python3 -c '$(recatalogue $MAC_STRINGS 'strings.update({f"Said {n}": {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": f"Söylendi {n}"}}}} for n in range(1, 12)})')' && printf '%s\\n' \"\$SAID_BY_CALLS\" >> Sources/PurlayMacUI/Strings.swift"
 # A count said in English with one form reads "1 new replies".
 plant_in "a Mac count with no English plural forms" . "python3 -c '$(recatalogue $MAC_STRINGS 'del strings["%lld people"]["localizations"]["en"]')'"
+plant_in "an English count whose one is its other" . \
+  "python3 -c '$(recatalogue $MAC_STRINGS 'forms = strings["%lld people"]["localizations"]["en"]["variations"]["plural"]; forms["one"] = forms["other"]')'"
+plant_in "a count by %i with no English plural forms" . \
+  "python3 -c '$(recatalogue $MAC_STRINGS 'strings["%i drafts waiting"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "%i taslak bekliyor"}}}}')' && printf '%s\\n' 'let qaCount = Text(\"\\(1) drafts waiting\")' >> Sources/PurlayMacUI/Strings.swift"
+accept_in "an English count with its singular, and Turkish with one value" . \
+  "python3 -c '$(recatalogue $MAC_STRINGS 'strings["%lld drafts waiting"] = {"localizations": {"en": {"variations": {"plural": {"one": {"stringUnit": {"state": "translated", "value": "%lld draft waiting"}}, "other": {"stringUnit": {"state": "translated", "value": "%lld drafts waiting"}}}}}, "tr": {"stringUnit": {"state": "translated", "value": "%lld taslak bekliyor"}}}}')' && printf '%s\\n' 'let qaCount = Text(\"\\(1) drafts waiting\")' >> Sources/PurlayMacUI/Strings.swift"
 plant_in "an engine count with English plural forms but no one" . \
   "python3 -c '$(recatalogue $WORDS 'del strings["%lld unsent messages could not be restored."]["localizations"]["en"]["variations"]["plural"]["one"]')'"
 plant_in "the Mac declaring no languages" Apps/macOS 'python3 -c "
