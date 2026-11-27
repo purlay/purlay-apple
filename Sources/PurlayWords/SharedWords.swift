@@ -16,6 +16,9 @@ public enum SharedWords {
     public static let signOutEverywhere = LocalizedStringResource("Sign Out Everywhere", bundle: .module)
     /// The menu item that asks before it signs out everywhere.
     public static let signOutEverywhereMenu = LocalizedStringResource("Sign Out Everywhere…", bundle: .module)
+    /// The account is held back until it turns two-step verification on. The web's name for it, in both languages.
+    public static let twoStepVerificationRequired = LocalizedStringResource(
+        "Two-Step Verification Required", bundle: .module)
 
     /// How many messages of a place are unread.
     public static func unread(_ count: Int) -> LocalizedStringResource {
@@ -25,6 +28,6 @@ public enum SharedWords {
     /// The fixed sentences, so a test can look at each in every language.
     public static let fixed: [LocalizedStringResource] = [
         cancel, refresh, workspace, starred, channels, jumpToLatest, loadEarlier, sending, sent, signOutEverywhere,
-        signOutEverywhereMenu,
+        signOutEverywhereMenu, twoStepVerificationRequired,
     ]
 }

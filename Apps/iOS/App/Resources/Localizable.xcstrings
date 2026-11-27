@@ -180,7 +180,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Purlay'de yeni misin? Oturum açarken hesap oluşturabilirsin."
+            "value" : "Purlay'de yeni misiniz? Oturum açarken hesap oluşturabilirsiniz."
           }
         }
       }
@@ -190,7 +190,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Katıldığın Kanal Yok"
+            "value" : "Katıldığınız Kanal Yok"
           }
         }
       }
@@ -265,12 +265,12 @@
         }
       }
     },
-    "Set Up Two-Factor Authentication" : {
+    "Set Up Two-Step Verification" : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "İki Faktörlü Kimlik Doğrulamayı Kur"
+            "value" : "İki Adımlı Doğrulamayı Kur"
           }
         }
       }
@@ -320,17 +320,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu işlem tüm cihazlarındaki Purlay oturumlarını kapatır."
-          }
-        }
-      }
-    },
-    "Two-Factor Authentication Required" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "İki Faktörlü Kimlik Doğrulama Gerekli"
+            "value" : "Bu işlem tüm cihazlarınızdaki Purlay oturumlarınızı kapatır."
           }
         }
       }
@@ -360,7 +350,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tarayıcında %@ üzerinden devam edeceksin."
+            "value" : "Tarayıcınızda %@ üzerinden devam edeceksiniz."
           }
         }
       }
@@ -370,7 +360,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tarayıcında devam edeceksin."
+            "value" : "Tarayıcınızda devam edeceksiniz."
           }
         }
       }
@@ -380,7 +370,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ekibinin sohbetleri, cebinde."
+            "value" : "Ekibinizin sohbetleri, cebinizde."
           }
         }
       }

@@ -3,6 +3,7 @@ import AppKit
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// What the server says of the account itself (`GET /api/me`), as bars above the conversation that stay until it is no longer
@@ -67,7 +68,11 @@ struct TwoFactorRequiredView: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label("Two-Step Verification Required", systemImage: "lock.shield")
+            Label {
+                Text(SharedWords.twoStepVerificationRequired)
+            } icon: {
+                Image(systemName: "lock.shield")
+            }
         } description: {
             Text(
                 "This server asks everyone who signs in with a password to turn on two-step verification. Set it up in your browser, then come back."

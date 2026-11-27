@@ -87,8 +87,8 @@ RealEnvironment.swift`, `Apps/macOS/App/Environment.swift`).
    Transport Security strict. Debug builds read `PURLAY_DEV_SERVER` and may use plain HTTP to a local server: the exception is
    written into `Info.plist` by the Debug configuration alone. Entering a self-hosted address is FR-025 (iOS) and Q-007 (Mac).
 
-Not built, and needed before an iOS release: closed-app delivery (APNs: the server speaks Web Push only), a local store for
-cold start (A-003), and an `ios` minimum-client gate on the server (Q-003).
+Not built, and needed before an iOS release: closed-app delivery (APNs: the server registers devices and sends, D-342; the app
+does not register its token yet, FR-030) and a local store for cold start (A-003).
 
 ## The apps
 

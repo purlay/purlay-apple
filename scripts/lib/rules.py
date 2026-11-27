@@ -91,6 +91,16 @@ ONE_FORM = {
 # Nothing to translate: only symbols, digits and format specifiers, or a code-like address.
 INERT = re.compile(r"^[^A-Za-z]*$|^[a-z0-9.\-/]+$")
 PLURAL_FORMS = {"zero", "one", "two", "few", "many", "other"}
+# Turkish addresses the person as siz (the server's D-350): the forms of sen a pattern can see, as the web's i18n test refuses
+# them: the pronoun, -misin, -ebilirsin, -emezsin, -iyorsun. Sen's past tense (-dın), its "your" (-ın) and its bare verb in a
+# sentence are spelled like siz's imperative (edin), a genitive or a control's verb, so no pattern tells them apart: a review
+# point.
+LETTER = r"[^\W\d_]"
+SEN = re.compile(
+    rf"(?<!{LETTER})(?:sen|seni|sana|senin|sende|senden|seninki|seninkini)(?!{LETTER})"
+    rf"|{LETTER}(?:misin|mısın|musun|müsün|[ae]bilirsin|[ae]mezsin|[ıiuü]yorsun)(?!{LETTER})",
+    re.IGNORECASE,
+)
 CATALOGUES = {
     "Apps/iOS/App/Resources/Localizable.xcstrings": ("iOS",),
     "Apps/macOS/App/Resources/Localizable.xcstrings": ("macOS",),
@@ -158,6 +168,8 @@ def catalogues(root):
                         problems.append(f"{path}: {key!r} has no final {language} value ({unit.get('state')})")
                     elif arguments(unit["value"], substitutions) != arguments(key):
                         problems.append(f"{path}: {key!r} -> {unit['value']!r}: the format specifiers differ")
+                    elif language == "tr" and SEN.search(unit["value"]):
+                        problems.append(f"{path}: {key!r} -> {unit['value']!r}: Turkish addresses the person as siz, not sen")
             english = localizations.get("en", {})
             # A sentence with a count says it in English by plural forms, `one` not the same as `other`, so that 1 is never
             # "1 new replies": the forms of the whole sentence, or, for a sentence with more than one count, those of each

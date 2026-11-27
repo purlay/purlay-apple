@@ -1,23 +1,25 @@
 # Purlay — Individual Contributor Licence Agreement, version 1.0
 
 Purlay is distributed under the GNU AGPL-3.0, and its copyright holder also offers it under a
-commercial licence to teams whose policies do not permit the AGPL (`docs/DECISIONS.md` D-24). That
-is only possible while the copyright holder may license every part of it. This agreement is what
-keeps it so: **you keep the copyright in your contribution** and grant the licence below, which
-includes the right to sublicense your contribution under other terms. It does not change your
-rights to use your own contributions for any other purpose.
+commercial licence to teams whose policies do not permit the AGPL (D-24, in the server repository's
+`docs/decisions`, purlay/purlay). That is only possible while the copyright holder may license every
+part of it. This agreement is what keeps it so: **you keep the copyright in your contribution** and
+grant the licence below, which includes the right to sublicense your contribution under other terms.
+It does not change your rights to use your own contributions for any other purpose.
 
-**How to sign.** In your first pull request — or one of its own, before it — add yourself to
-`.github/cla-signatures.json`:
+**How to sign.** The agreement covers every product of the Maintainer (section 1), so it is signed
+once, in one list: the server repository's `.github/cla-signatures.json` (purlay/purlay). In a pull
+request there — before your first contribution here, or with it — add yourself:
 
 ```json
 { "github": "your-login", "name": "Your Full Name", "version": "1.0", "date": "YYYY-MM-DD" }
 ```
 
 Adding that entry, under your own GitHub account, is your agreement to the terms below for your
-contributions, present and future. A pull request whose author has not signed cannot be merged, and
-nobody can sign for anybody else (`bun run check:cla`, D-145). If you contribute on behalf of your
-employer, or your employer has rights in what you create, see section 4 first.
+contributions, present and future, in this repository too. A pull request whose author has not signed
+cannot be merged, and nobody can sign for anybody else (D-145; the server repository checks the list
+with `bun run check:cla`, and here the maintainer checks it before merging). If you contribute on
+behalf of your employer, or your employer has rights in what you create, see section 4 first.
 
 This text is the Apache Software Foundation's Individual Contributor License Agreement, version 2.2,
 changed only where the Foundation is not a party here: "the Foundation" is the Maintainer named below;
@@ -107,4 +109,4 @@ and interest in and to Your Contributions.
 
 Adapted from the Apache Software Foundation's Individual Contributor License Agreement v2.2
 (<https://www.apache.org/licenses/icla.pdf>). Your signature entry — your GitHub login, the name you
-give and the date — is public in this repository, as every commit is.
+give and the date — is public in the server repository, as every commit is.

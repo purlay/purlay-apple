@@ -83,6 +83,19 @@ struct WordsTests {
         #expect(text(Words.unsentWillBeDeleted(3), in: "tr") == "3 gönderilmemiş mesaj silinecek.")
     }
 
+    @Test("two-step verification is named as the web names it, never two-factor authentication")
+    func twoStepVerification() {
+        #expect(text(Words.setUpTwoStepVerification, in: "en") == "Set Up Two-Step Verification")
+        #expect(text(Words.setUpTwoStepVerification, in: "tr") == "İki Adımlı Doğrulamayı Kur")
+    }
+
+    @Test("Turkish addresses the person as siz")
+    func siz() {
+        #expect(
+            text(Words.continuesInBrowser("purlay.app"), in: "tr")
+                == "Tarayıcınızda purlay.app üzerinden devam edeceksiniz.")
+    }
+
     @Test("a sign-out asks first only when it would delete unsent messages")
     func asksOnlyWithUnsent() {
         #expect(!WorkspaceShell.asksBeforeSigningOut(unsent: 0))

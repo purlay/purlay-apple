@@ -28,6 +28,12 @@ struct SharedWordsTests {
         #expect(text(SharedWords.signOutEverywhere, in: "tr") == "Her Yerde Oturumu Kapat")
     }
 
+    @Test("two-step verification has the web's name in both apps")
+    func twoStepVerification() {
+        #expect(text(SharedWords.twoStepVerificationRequired, in: "en") == "Two-Step Verification Required")
+        #expect(text(SharedWords.twoStepVerificationRequired, in: "tr") == "İki Adımlı Doğrulama Gerekli")
+    }
+
     @Test("an unread count says its number, in each language")
     func unread() {
         #expect(text(SharedWords.unread(1), in: "en") == "1 unread")

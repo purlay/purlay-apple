@@ -156,7 +156,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ dahil olduğun bir konuda yanıtladı"
+            "value": "%@ dahil olduğunuz bir konuda yanıtladı"
           }
         }
       }
@@ -166,7 +166,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ konunda yanıtladı"
+            "value": "%@ konunuzda yanıtladı"
           }
         }
       }
@@ -378,7 +378,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@: önizlemek için tıkla"
+            "value": "%@: önizlemek için tıklayın"
           }
         }
       }
@@ -811,7 +811,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "1. Tarayıcıda Davetler’i aç ve bir davet bağlantısı oluştur."
+            "value": "1. Tarayıcıda Davetler’i açın ve bir davet bağlantısı oluşturun."
           }
         }
       }
@@ -821,7 +821,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "2. Bağlantıyı davet etmek istediğin kişiyle paylaş."
+            "value": "2. Bağlantıyı davet etmek istediğiniz kişiyle paylaşın."
           }
         }
       }
@@ -951,7 +951,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ekibinin konuşmaları, fikirleri ve kararları için daha sakin bir yer."
+            "value": "Ekibinizin konuşmaları, fikirleri ve kararları için daha sakin bir yer."
           }
         }
       }
@@ -1107,7 +1107,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mesajına omuz silkme ekle"
+            "value": "Mesajınıza omuz silkme ekle"
           }
         }
       }
@@ -1217,7 +1217,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tüm Kanallara Katıldın"
+            "value": "Tüm Kanallara Katıldınız"
           }
         }
       }
@@ -1417,7 +1417,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bunu etkinleştirmeyi tamamlamak için Sistem Ayarları’nda Purlay’i onayla."
+            "value": "Bunu etkinleştirmeyi tamamlamak için Sistem Ayarları’nda Purlay’i onaylayın."
           }
         }
       }
@@ -1437,7 +1437,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kaydedilen mesajları sonrası için arşivle."
+            "value": "Kaydedilen mesajları sonrası için arşivleyin."
           }
         }
       }
@@ -1677,7 +1677,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Çalışma alanındaki kanallara göz at ya da bir konuşma başlat."
+            "value": "Çalışma alanındaki kanallara göz atın ya da bir konuşma başlatın."
           }
         }
       }
@@ -1927,7 +1927,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Adresi ve adı denetleyip yeniden dene."
+            "value": "Adresi ve adı denetleyip yeniden deneyin."
           }
         }
       }
@@ -1937,7 +1937,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bağlantını denetleyip yeniden dene."
+            "value": "Bağlantınızı denetleyip yeniden deneyin."
           }
         }
       }
@@ -2217,7 +2217,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "GitHub’ı bağla ve çalışma alanı entegrasyonlarını yönet."
+            "value": "GitHub’ı bağlayın ve çalışma alanı entegrasyonlarını yönetin."
           }
         }
       }
@@ -2247,7 +2247,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Güvenle oturum açmak için tarayıcıda devam et."
+            "value": "Güvenle oturum açmak için tarayıcınızda devam edin."
           }
         }
       }
@@ -2477,7 +2477,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yer imi eklenemedi. Bağlantını denetleyip yeniden dene."
+            "value": "Yer imi eklenemedi. Bağlantınızı denetleyip yeniden deneyin."
           }
         }
       }
@@ -2487,7 +2487,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kanal oluşturulamadı. Bağlantını denetleyip yeniden dene."
+            "value": "Kanal oluşturulamadı. Bağlantınızı denetleyip yeniden deneyin."
           }
         }
       }
@@ -2497,7 +2497,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sorun oluşturulamadı. Başlığı denetleyip yeniden dene."
+            "value": "Sorun oluşturulamadı. Başlığı denetleyip yeniden deneyin."
           }
         }
       }
@@ -2507,7 +2507,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu konuyu takip edip etmediğin okunamadı"
+            "value": "Bu konuyu takip edip etmediğiniz okunamadı"
           }
         }
       }
@@ -2517,7 +2517,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu konuyu takip edip etmediğin okunamadı. Takip etmek için bas."
+            "value": "Bu konuyu takip edip etmediğiniz okunamadı. Takip etmek için basın."
           }
         }
       }
@@ -2537,7 +2537,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gönderilemedi. Erişimi ve ekleri denetle, ardından yeniden denemek için düzenle."
+            "value": "Gönderilemedi. Erişimi ve ekleri denetleyin, ardından yeniden denemek için düzenleyin."
           }
         }
       }
@@ -2547,7 +2547,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konuşma başlatılamadı. Bağlantını denetleyip yeniden dene."
+            "value": "Konuşma başlatılamadı. Bağlantınızı denetleyip yeniden deneyin."
           }
         }
       }
@@ -2597,7 +2597,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bildirimler değiştirilemedi. Yeniden dene."
+            "value": "Bildirimler değiştirilemedi. Yeniden deneyin."
           }
         }
       }
@@ -2607,7 +2607,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Daha fazla dosya yüklenemedi. Yeniden dene."
+            "value": "Daha fazla dosya yüklenemedi. Yeniden deneyin."
           }
         }
       }
@@ -2617,7 +2617,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Daha fazla mesaj yüklenemedi. Yeniden dene."
+            "value": "Daha fazla mesaj yüklenemedi. Yeniden deneyin."
           }
         }
       }
@@ -2627,7 +2627,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu mesaj güncellenemedi. Yeniden dene."
+            "value": "Bu mesaj güncellenemedi. Yeniden deneyin."
           }
         }
       }
@@ -2687,7 +2687,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Günler senin saat dilimine göredir; bitiş tarihi dahil değildir."
+            "value": "Günler sizin saat diliminize göredir; bitiş tarihi dahil değildir."
           }
         }
       }
@@ -2867,7 +2867,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Benden Sil, mesajı tüm cihazlarda hesabından kaldırır. Herkesten Sil, tüm katılımcılardan kaldırır. Bu işlem geri alınamaz."
+            "value": "Benden Sil, mesajı tüm cihazlarda hesabınızdan kaldırır. Herkesten Sil, tüm katılımcılardan kaldırır. Bu işlem geri alınamaz."
           }
         }
       }
@@ -3027,7 +3027,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sıralamak için konuşmaları bölüm içinde sürükle. Bir gruba taşımak için konuşmanın menüsünü kullan."
+            "value": "Sıralamak için konuşmaları bölüm içinde sürükleyin. Bir gruba taşımak için konuşmanın menüsünü kullanın."
           }
         }
       }
@@ -3077,7 +3077,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Boş kutuda son mesajını düzenle"
+            "value": "Boş kutuda son mesajınızı düzenle"
           }
         }
       }
@@ -3147,7 +3147,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Geçerli bir Purlay kanal ya da mesaj bağlantısı gir."
+            "value": "Geçerli bir Purlay kanal ya da mesaj bağlantısı girin."
           }
         }
       }
@@ -3287,7 +3287,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Senin için önemli konuşmaları bul."
+            "value": "Sizin için önemli konuşmaları bulun."
           }
         }
       }
@@ -3437,7 +3437,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aramaya bir ad ver; aranacak sözcükler ya da bir filtre ekle."
+            "value": "Aramaya bir ad verin; aranacak sözcükler ya da bir filtre ekleyin."
           }
         }
       }
@@ -3447,7 +3447,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bir sonraki konuşmana bir yuva ver."
+            "value": "Bir sonraki konuşmanıza bir yuva verin."
           }
         }
       }
@@ -3537,7 +3537,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Birini Nasıl Eklersin"
+            "value": "Birini Nasıl Eklersiniz"
           }
         }
       }
@@ -3733,7 +3733,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kişileri davet et ve bekleyen davetleri yönet."
+            "value": "Kişileri davet edin ve bekleyen davetleri yönetin."
           }
         }
       }
@@ -3763,7 +3763,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bitirdiğin sorunlar burada tutulur."
+            "value": "Bitirdiğiniz sorunlar burada tutulur."
           }
         }
       }
@@ -3773,7 +3773,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mesaj gönderilmedi ve yazdıkların geri getirilemez."
+            "value": "Mesaj gönderilmedi ve yazdıklarınız geri getirilemez."
           }
         }
       }
@@ -3813,7 +3813,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yazmak için bu kanala katıl."
+            "value": "Yazmak için bu kanala katılın."
           }
         }
       }
@@ -3873,7 +3873,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "İlgili konuşmaları kullandığın her cihazda bir arada tut."
+            "value": "İlgili konuşmaları kullandığınız her cihazda bir arada tutun."
           }
         }
       }
@@ -3989,7 +3989,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Elinin altında tutulan bağlantılar kanal başlığının altında görünür."
+            "value": "El altında tutulan bağlantılar kanal başlığının altında görünür."
           }
         }
       }
@@ -3999,7 +3999,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bağlantılar yedi gün geçerlidir ve birden fazla kişi kullanabilir. Artık gerekmediğinde bağlantıyı iptal et."
+            "value": "Bağlantılar yedi gün geçerlidir ve birden fazla kişi kullanabilir. Artık gerekmediğinde bağlantıyı iptal edin."
           }
         }
       }
@@ -4139,7 +4139,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Purlay'i kendi evin gibi yap."
+            "value": "Purlay'i kendi eviniz gibi yapın."
           }
         }
       }
@@ -4149,7 +4149,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yapılması gereken bir şeyi takip etmek için sorun oluştur."
+            "value": "Yapılması gereken bir şeyi takip etmek için sorun oluşturun."
           }
         }
       }
@@ -4229,7 +4229,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Saklama süresini ve çalışma alanı dışa aktarımlarını yönet. Çalışma alanı sahiplerine açıktır."
+            "value": "Saklama süresini ve çalışma alanı dışa aktarımlarını yönetin. Çalışma alanı sahiplerine açıktır."
           }
         }
       }
@@ -4249,7 +4249,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sunucu yapılandırmasını, oturum açma yöntemlerini ve bağlı hizmetleri yönet."
+            "value": "Sunucu yapılandırmasını, oturum açma yöntemlerini ve bağlı hizmetleri yönetin."
           }
         }
       }
@@ -4259,7 +4259,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Oturum açma yöntemlerini, parolaları ve etkin cihaz oturumlarını yönet."
+            "value": "Oturum açma yöntemlerini, parolaları ve etkin cihaz oturumlarını yönetin."
           }
         }
       }
@@ -4269,7 +4269,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Çalışma alanı adını ve ortak yapılandırmayı yönet."
+            "value": "Çalışma alanı adını ve ortak yapılandırmayı yönetin."
           }
         }
       }
@@ -4279,7 +4279,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Çalışma alanı üyelerini ve rollerini yönet."
+            "value": "Çalışma alanı üyelerini ve rollerini yönetin."
           }
         }
       }
@@ -4359,7 +4359,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "İşin bitince kaydedilen mesajı tamamlandı olarak işaretle."
+            "value": "İşiniz bitince kaydedilen mesajı tamamlandı olarak işaretleyin."
           }
         }
       }
@@ -4449,7 +4449,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Üyeler yüklenemedi. Yeniden dene."
+            "value": "Üyeler yüklenemedi. Yeniden deneyin."
           }
         }
       }
@@ -4579,7 +4579,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Geri dönmek istediğin mesajlar."
+            "value": "Geri dönmek istediğiniz mesajlar."
           }
         }
       }
@@ -4669,7 +4669,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konuşmaları menülerini kullanarak buraya taşı."
+            "value": "Konuşmaları menülerini kullanarak buraya taşıyın."
           }
         }
       }
@@ -4759,7 +4759,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Depoyu sahip/ad biçiminde yaz ve bitiş tarihini başlangıç tarihinden sonraya ayarla."
+            "value": "Depoyu sahip/ad biçiminde yazın ve bitiş tarihini başlangıç tarihinden sonraya ayarlayın."
           }
         }
       }
@@ -4769,7 +4769,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Seni bekliyor: bir bahsetme ya da yanıt"
+            "value": "Sizi bekliyor: bir bahsetme ya da yanıt"
           }
         }
       }
@@ -5159,7 +5159,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "“%@” için eşleşme yok. Başka bir arama dene."
+            "value": "“%@” için eşleşme yok. Başka bir arama deneyin."
           }
         }
       }
@@ -5349,7 +5349,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu görünümde seni bekleyen bir şey yok."
+            "value": "Bu görünümde sizi bekleyen bir şey yok."
           }
         }
       }
@@ -5389,7 +5389,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bildirimler mesaj içeriğini göstermeden nerede gerekli olduğunu belirtir. Dock rozetin her durumda güncel kalır."
+            "value": "Bildirimler mesaj içeriğini göstermeden nerede gerekli olduğunu belirtir. Dock rozetiniz her durumda güncel kalır."
           }
         }
       }
@@ -5449,7 +5449,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Daha eski bildirimler bu filtreyle eşleşebilir. Aramaya devam etmek için daha fazla yükle."
+            "value": "Daha eski bildirimler bu filtreyle eşleşebilir. Aramaya devam etmek için daha fazla yükleyin."
           }
         }
       }
@@ -5469,7 +5469,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bir kişi, birkaç kişi ya da kendine bir not."
+            "value": "Bir kişi, birkaç kişi ya da kendinize bir not."
           }
         }
       }
@@ -5519,7 +5519,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu kanalda yalnızca sahipler ve yöneticiler yazar. Yine de konuda yanıt verebilirsin."
+            "value": "Bu kanalda yalnızca sahipler ve yöneticiler yazar. Yine de konuda yanıt verebilirsiniz."
           }
         }
       }
@@ -5529,7 +5529,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yalnızca sana hatırlatılır. Uygulama kapalıyken hatırlatıcı almak için Purlay bildirimlerine izin ver."
+            "value": "Yalnızca size hatırlatılır. Uygulama kapalıyken hatırlatıcı almak için Purlay bildirimlerine izin verin."
           }
         }
       }
@@ -5549,7 +5549,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tüm mesajlar, bahsetmeler ve yanıtlar arasında seçim yapmak ya da kanalı sessize almak için Kanal Ayrıntıları'nı aç."
+            "value": "Tüm mesajlar, bahsetmeler ve yanıtlar arasında seçim yapmak ya da kanalı sessize almak için Kanal Ayrıntıları'nı açın."
           }
         }
       }
@@ -5619,7 +5619,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Purlay'i aç ve bu konuşmanın ait olduğu çalışma alanında oturum aç."
+            "value": "Purlay'i açın ve bu konuşmanın ait olduğu çalışma alanında oturum açın."
           }
         }
       }
@@ -5679,7 +5679,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bir kanal aç ya da ekibinle konuşma başlat."
+            "value": "Bir kanal açın ya da ekibinizle konuşma başlatın."
           }
         }
       }
@@ -5749,7 +5749,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ öğesini tarayıcında açar"
+            "value": "%@ öğesini tarayıcınızda açar"
           }
         }
       }
@@ -5769,7 +5769,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tarayıcında açılır. Orada oturum açman istenebilir."
+            "value": "Tarayıcınızda açılır. Orada oturum açmanız istenebilir."
           }
         }
       }
@@ -5859,7 +5859,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konuşmasını açmak için bir kanal ya da mesaj bağlantısı yapıştır."
+            "value": "Konuşmasını açmak için bir kanal ya da mesaj bağlantısı yapıştırın."
           }
         }
       }
@@ -5869,7 +5869,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kod bloğu olarak yapıştırıldı. Geri almak için ⌘Z'ye bas."
+            "value": "Kod bloğu olarak yapıştırıldı. Geri almak için ⌘Z'ye basın."
           }
         }
       }
@@ -5889,7 +5889,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kaldığın yerden devam et."
+            "value": "Kaldığınız yerden devam edin."
           }
         }
       }
@@ -5909,7 +5909,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bir mesajı, kanalın bulabileceği yerde tutmak için sabitle."
+            "value": "Bir mesajı, kanalın bulabileceği yerde tutmak için sabitleyin."
           }
         }
       }
@@ -6199,7 +6199,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu konuyu takip edip etmediğin okunuyor"
+            "value": "Bu konuyu takip edip etmediğiniz okunuyor"
           }
         }
       }
@@ -6229,7 +6229,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yeniden bağlanılıyor… Gönderdiğin mesajlar bağlantı geri geldiğinde iletilecek."
+            "value": "Yeniden bağlanılıyor… Gönderdiğiniz mesajlar bağlantı geri geldiğinde iletilecek."
           }
         }
       }
@@ -6599,7 +6599,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ içindeki mesajına dön."
+            "value": "%@ içindeki mesajınıza dönün."
           }
         }
       }
@@ -6619,7 +6619,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yönetim değişikliklerini ve kimin yaptığını incele."
+            "value": "Yönetim değişikliklerini ve kimin yaptığını inceleyin."
           }
         }
       }
@@ -6629,7 +6629,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sıradaki fikrin için yer var"
+            "value": "Sıradaki fikriniz için yer var"
           }
         }
       }
@@ -6709,7 +6709,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Herhangi bir konuşmadan bir mesajı kaydet; buradan ona geri dön."
+            "value": "Herhangi bir konuşmadan bir mesajı kaydedin; buradan ona geri dönün."
           }
         }
       }
@@ -6789,7 +6789,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Neyi arayacağını yaz: /search sözcükler"
+            "value": "Neyi arayacağınızı yazın: /search sözcükler"
           }
         }
       }
@@ -6799,7 +6799,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ne yaptığını yaz: /me el sallıyor"
+            "value": "Ne yaptığınızı yazın: /me el sallıyor"
           }
         }
       }
@@ -6809,7 +6809,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kimi ekleyeceğini yaz: /invite @kullanıcıadı"
+            "value": "Kimi ekleyeceğinizi yazın: /invite @kullanıcıadı"
           }
         }
       }
@@ -7089,7 +7089,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Purlay kapalıyken de gönderilir. Zamanlanmış bölümünden düzenleyebilir veya iptal edebilirsin."
+            "value": "Purlay kapalıyken de gönderilir. Zamanlanmış bölümünden düzenleyebilir veya iptal edebilirsiniz."
           }
         }
       }
@@ -7139,7 +7139,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kendini Uzakta Yap"
+            "value": "Uzakta Görün"
           }
         }
       }
@@ -7457,7 +7457,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bunu önce başka biri değiştirdi. Onun değişikliği konuda gösteriliyor; seninkini uygulamak için yeniden kaydet."
+            "value": "Bunu önce başka biri değiştirdi. Onun değişikliği konuda gösteriliyor; sizinkini uygulamak için yeniden kaydedin."
           }
         }
       }
@@ -7547,7 +7547,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Araç çubuğundan bir odak oturumu başlat veya Shift-Command-D tuşlarına bas. Hazır olduğunda mesajların seni bekliyor olacak."
+            "value": "Araç çubuğundan bir odak oturumu başlatın veya Shift-Command-D tuşlarına basın. Hazır olduğunuzda mesajlarınız sizi bekliyor olacak."
           }
         }
       }
@@ -7625,7 +7625,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Klavyeden çıkmadan akışta kal."
+            "value": "Klavyeden çıkmadan akışta kalın."
           }
         }
       }
@@ -7635,7 +7635,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu Mac'te oturumun açık kalsın"
+            "value": "Bu Mac'te oturumunuz açık kalsın"
           }
         }
       }
@@ -7725,7 +7725,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Olmadı. Tekrar dene."
+            "value": "Olmadı. Tekrar deneyin."
           }
         }
       }
@@ -7745,7 +7745,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu ad kullanılıyor. Başka bir ad seç."
+            "value": "Bu ad kullanılıyor. Başka bir ad seçin."
           }
         }
       }
@@ -7775,7 +7775,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hesap değişti. Geçerli hesapta yeniden dene."
+            "value": "Hesap değişti. Geçerli hesapta yeniden deneyin."
           }
         }
       }
@@ -7785,7 +7785,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Değişiklik kaydedilemedi. Bağlantını kontrol edip yeniden dene."
+            "value": "Değişiklik kaydedilemedi. Bağlantınızı kontrol edip yeniden deneyin."
           }
         }
       }
@@ -7795,7 +7795,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konuşma veya mesaj kullanılamıyor. Kanala erişimini kontrol edip yeniden dene."
+            "value": "Konuşma veya mesaj kullanılamıyor. Kanala erişiminizi kontrol edip yeniden deneyin."
           }
         }
       }
@@ -7845,7 +7845,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu kanal alabileceği en fazla yer imine sahip. Önce birini kaldır."
+            "value": "Bu kanal alabileceği en fazla yer imine sahip. Önce birini kaldırın."
           }
         }
       }
@@ -7895,7 +7895,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu, mesajı tüm cihazlardaki hesabından kaldırır. Diğer katılımcılar yine de görmeye devam eder. Bu işlem geri alınamaz."
+            "value": "Bu, mesajı tüm cihazlardaki hesabınızdan kaldırır. Diğer katılımcılar yine de görmeye devam eder. Bu işlem geri alınamaz."
           }
         }
       }
@@ -7905,7 +7905,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu sunucu, parolayla oturum açan herkesten iki adımlı doğrulamayı açmasını istiyor. Tarayıcında kur, sonra geri dön."
+            "value": "Bu sunucu, parolayla oturum açan herkesten iki adımlı doğrulamayı açmasını istiyor. Tarayıcınızda kurun, sonra geri dönün."
           }
         }
       }
@@ -7915,7 +7915,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu sunucu iki adımlı doğrulama gerektiriyor. Purlay'ı kullanmaya devam etmek için tarayıcında aç."
+            "value": "Bu sunucu iki adımlı doğrulama gerektiriyor. Purlay'ı kullanmaya devam etmek için tarayıcınızda açın."
           }
         }
       }
@@ -7935,7 +7935,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu çalışma alanında sohbet yok. Sunucuyu yöneten kişiden açmasını iste veya çalışma alanını tarayıcında aç."
+            "value": "Bu çalışma alanında sohbet yok. Sunucuyu yöneten kişiden açmasını isteyin veya çalışma alanını tarayıcınızda açın."
           }
         }
       }
@@ -8123,7 +8123,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Başka bir kanal veya kişi adı dene."
+            "value": "Başka bir kanal veya kişi adı deneyin."
           }
         }
       }
@@ -8133,7 +8133,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Başka bir dosya adı dene."
+            "value": "Başka bir dosya adı deneyin."
           }
         }
       }
@@ -8143,7 +8143,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Başka bir ad dene veya Tüm Emoji'yi seç."
+            "value": "Başka bir ad deneyin veya Tüm Emoji'yi seçin."
           }
         }
       }
@@ -8158,22 +8158,12 @@
         }
       }
     },
-    "Two-Step Verification Required": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "İki Adımlı Doğrulama Gerekli"
-          }
-        }
-      }
-    },
     "Type at least three letters to search messages.": {
       "localizations": {
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mesajlarda aramak için en az üç harf yaz."
+            "value": "Mesajlarda aramak için en az üç harf yazın."
           }
         }
       }
@@ -8183,7 +8173,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "En az üç harf yaz veya bir filtre seç. Sonuçlar en yeniden eskiye sıralanır."
+            "value": "En az üç harf yazın veya bir filtre seçin. Sonuçlar en yeniden eskiye sıralanır."
           }
         }
       }
@@ -8333,7 +8323,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bir Purlay kanalı veya mesaj bağlantısı kullan."
+            "value": "Bir Purlay kanalı veya mesaj bağlantısı kullanın."
           }
         }
       }
@@ -8343,7 +8333,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "1–64 karakterlik benzersiz bir grup adı kullan."
+            "value": "1–64 karakterlik benzersiz bir grup adı kullanın."
           }
         }
       }
@@ -8353,7 +8343,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "https:// veya http:// ile başlayan bir web adresi kullan."
+            "value": "https:// veya http:// ile başlayan bir web adresi kullanın."
           }
         }
       }
@@ -8363,7 +8353,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "https://docs.example.com gibi bir web adresi kullan."
+            "value": "https://docs.example.com gibi bir web adresi kullanın."
           }
         }
       }
@@ -8373,7 +8363,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Harf veya rakam kullan."
+            "value": "Harf veya rakam kullanın."
           }
         }
       }
@@ -8413,7 +8403,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Neyle meşgulsün?"
+            "value": "Neyle meşgulsünüz?"
           }
         }
       }
@@ -8433,7 +8423,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Çalışma alanının diğer bölümlerinin sana bildirdikleri burada listelenir."
+            "value": "Çalışma alanının diğer bölümlerinin size bildirdikleri burada listelenir."
           }
         }
       }
@@ -8453,7 +8443,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Burada ne yapıyorsun"
+            "value": "Burada ne yapıyorsunuz"
           }
         }
       }
@@ -8563,7 +8553,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sen"
+            "value": "Siz"
           }
         }
       }
@@ -8573,7 +8563,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tüm herkese açık kanallardasın."
+            "value": "Tüm herkese açık kanallardasınız."
           }
         }
       }
@@ -8583,7 +8573,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu kanalın üyesi değilsin."
+            "value": "Bu kanalın üyesi değilsiniz."
           }
         }
       }
@@ -8593,7 +8583,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ kanalına Kanallara Göz At bölümünden yeniden katılabilirsin."
+            "value": "%@ kanalına Kanallara Göz At bölümünden yeniden katılabilirsiniz."
           }
         }
       }
@@ -8603,7 +8593,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu mesajı sen sildin."
+            "value": "Bu mesajı siz sildiniz."
           }
         }
       }
@@ -8613,7 +8603,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Burada gönderilmemiş bir taslağın var"
+            "value": "Burada gönderilmemiş bir taslağınız var"
           }
         }
       }
@@ -8623,7 +8613,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sunucunun tutabileceği en fazla aramayı kaydettin. Önce birini sil."
+            "value": "Sunucunun tutabileceği en fazla aramayı kaydettiniz. Önce birini silin."
           }
         }
       }
@@ -8633,7 +8623,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kanaldan ayrıldın."
+            "value": "Kanaldan ayrıldınız."
           }
         }
       }
@@ -8643,7 +8633,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Oturumu kapatana kadar bu Mac'te oturumun açık kalır."
+            "value": "Oturumu kapatana kadar bu Mac'te oturumunuz açık kalır."
           }
         }
       }
@@ -8653,7 +8643,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ kanalına geri dönmek için bir davetiyeye ihtiyacın olacak."
+            "value": "%@ kanalına geri dönmek için bir davetiyeye ihtiyacınız olacak."
           }
         }
       }
@@ -8663,7 +8653,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hepsini okudun"
+            "value": "Hepsini okudunuz"
           }
         }
       }
@@ -8673,7 +8663,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Çok hızlı gönderiyorsun. Biraz sonra yeniden dene."
+            "value": "Çok hızlı gönderiyorsunuz. Biraz sonra yeniden deneyin."
           }
         }
       }
@@ -8683,7 +8673,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hesabın"
+            "value": "Hesabınız"
           }
         }
       }
@@ -8693,7 +8683,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rolün"
+            "value": "Rolünüz"
           }
         }
       }
@@ -8703,7 +8693,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu çalışma alanındaki kimliğin, unvanın, durumun ve saat diliminin."
+            "value": "Bu çalışma alanındaki kimliğiniz, unvanınız, durumunuz ve saat diliminiz."
           }
         }
       }
@@ -8713,7 +8703,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mesaj hatırlatıcının zamanı geldi"
+            "value": "Mesaj hatırlatıcınızın zamanı geldi"
           }
         }
       }
@@ -8723,7 +8713,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Adın GitHub hesabından geliyor. GitHub'da değiştirirsen burada da güncellenir."
+            "value": "Adınız GitHub hesabınızdan geliyor. GitHub'da değiştirirseniz burada da güncellenir."
           }
         }
       }
@@ -8733,7 +8723,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Önemli olanları takip etmen için sana ait alan."
+            "value": "Önemli olanları takip etmeniz için size ait alan."
           }
         }
       }
@@ -8863,7 +8853,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "“/%@” bir komut değil. Sözcük olarak göndermek için // ile başla."
+            "value": "“/%@” bir komut değil. Sözcük olarak göndermek için // ile başlayın."
           }
         }
       }

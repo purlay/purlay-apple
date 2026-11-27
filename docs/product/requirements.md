@@ -29,7 +29,7 @@ apps use. Where a test is named: *engine* tests are in `Tests/PurlayKitTests` (o
 | FR-023 | Sign out | Given a signed-in person, when they sign out on this device or everywhere, then the server's session ends, the socket closes, the credential is removed and the sign-in screen shows; with no network this device still signs out and says the server was not told; Sign Out Everywhere asks first; a refused sign-out keeps the person signed in and holds what was waiting to send. Tests: app `SignOutOnceTests`; engine `DesktopSessionsTests`, `UploadModelTests`; UI `NativeSignOutUITests` (needs a server) | MVP | Built (an account menu, not the designed Account sheet, TD-027); end to end unverified: its UI test runs in no lane (TD-028) |
 | FR-024 | Turkish and English | Given a device set to Turkish or English, then every sentence on the app's screens is in that language, and the date and the version in a sentence are written for it. Tests: `WordsTests`; `scripts/enforcement` refuses a catalogue entry with no translation | MVP | Done for the screens that exist |
 | FR-025 | Choose the server | Given the signed-out screen in a Release build, when the person enters their own server's address, then the app accepts only an HTTPS address that answers as a Purlay server, remembers it, and signs in there; a plain-HTTP, malformed or non-Purlay address is refused with a message | Next | Draft |
-| FR-030 | Closed-app notifications (APNs) | Given a registered device, when a message arrives that the person's Deep Work and quiet hours allow, then the device is notified. Needs a server endpoint and sender first | Next | Draft |
+| FR-030 | Closed-app notifications (APNs) | Given a registered device, when a message arrives that the person's Deep Work and quiet hours allow, then the device is notified. The server side exists (D-342: `POST /api/push/apns/subscriptions` and `…/remove`, capability `apnsNotifications`, and the sender); the app registers its token | Next | Draft |
 | FR-031 | Issues module | Given a workspace with issues enabled, then an Issues section appears through the registry with no change to Chat | Next | Draft |
 | FR-032 | Inbox, search, profile and settings | Given a signed-in person, then they can read their inbox, search, and edit their profile and settings, as the web client can | Next | Draft |
 
@@ -125,14 +125,14 @@ apps use. Where a test is named: *engine* tests are in `Tests/PurlayKitTests` (o
 |----|----------|-------|-------------|-------------------|
 | Q-001 | On what licensing basis may an iOS build be released (App Store terms against the AGPL; the CLA relicensing route)? Blocks TD-005 | Owner | Before the first TestFlight | Open (server D-338) |
 | Q-002 | What adoption and retention targets (weekly active people) and dates should the vision carry, per platform? | Owner | Before the first iOS release | Open |
-| Q-003 | Does the server get a minimum-client gate for `ios` (`MIN_CLIENT_*` names macOS only)? Until it does, `Handshake.evaluate` reads the macOS minimum for an iOS app too, so a server that raises the macOS minimum above the iOS app's version refuses it (P-10) | Owner | Before the first iOS release | Open |
+| Q-003 | Does the server get a minimum-client gate for `ios` (`MIN_CLIENT_*` named macOS only)? | Owner | Before the first iOS release | Answered by the server's D-340: `minClient.ios`, `MIN_CLIENT_IOS_*`, `IOS_DOWNLOAD_URL`, first released in 0.9.1; the app reads it with the pin (P-10) |
 | Q-004 | Is a white background right for the iOS icon (A-005), and should there be a dark and a tinted icon (TD-010)? | Owner | Before the first TestFlight | Open |
 | Q-005 | Why Apple silicon only on the Mac, and why the macOS 26 floor rather than lower? ADR 0002 records the decision; the weighing of the alternatives was not recorded | Owner | — | Open |
 | Q-006 | Comments in the Mac code cite sections and milestones of a plan that is not in the repository. Should its rules become ADRs, or the citations simply go? | Owner | — | The citations went, and `scripts/enforcement` refuses new ones; its rules become ADRs only where a decision needs one |
 | Q-007 | Is sign-in at purlay.app only permanent on the Mac, or will self-hosted servers return? It decides whether the Mac keeps the server-address code, and whether FR-025 is shared | Owner | — | Open |
 | Q-008 | Should the live contract tests run in CI (TD-017), and who pays the macOS minutes? Proposed: in the release workflows only | Owner | Before the next contract pin | Open |
 
-The proposals P-1 to P-11 (account deletion, App Review requirements, the wipe on sign-out, the `ios` gate, legal addresses per
+The proposals P-1 to P-13 (account deletion, App Review requirements, the wipe on sign-out, the `ios` gate, legal addresses per
 server) are in [the entry design](../design/entry-shell-account.md#proposals-and-open-questions-for-the-owner-do-not-block-slice-1).
 
 ## Out of scope

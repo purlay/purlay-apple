@@ -134,7 +134,7 @@ struct EngineWordsTests {
             let words = EngineWords.erasure(result).map { text($0, in: "en") }
             #expect(words?.isEmpty == false, "\(result)")
         }
-        #expect(EngineWords.notice(.accountErased).map { text($0, in: "tr") } == "Hesabın silindi.")
+        #expect(EngineWords.notice(.accountErased).map { text($0, in: "tr") } == "Hesabınız silindi.")
         let probable = EngineWords.notice(.accountPossiblyErased).map { text($0, in: "en") } ?? ""
         #expect(!probable.contains("Sign in"), "an erased account that signs in again is a new account: not invited")
     }
@@ -164,6 +164,6 @@ struct EngineWordsTests {
         let two = try #require(EngineWords.erasure(.lastOwner(workspaceIDs: ids)))
         #expect(text(one, in: "en").hasPrefix("You are the last owner of 1 workspace with other people in it."))
         #expect(text(two, in: "en").hasPrefix("You are the last owner of 2 workspaces with other people in them."))
-        #expect(text(two, in: "tr").contains("2 çalışma alanının son sahibisin"))
+        #expect(text(two, in: "tr").contains("2 çalışma alanının son sahibisiniz"))
     }
 }

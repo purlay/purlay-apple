@@ -139,13 +139,13 @@ struct WorkspaceShell: View {
                 case .twoFactorRequired:
                     ContentUnavailableView {
                         Label {
-                            Text(Words.twoFactorRequired)
+                            Text(SharedWords.twoStepVerificationRequired)
                         } icon: {
                             Image(systemName: "lock.shield")
                         }
                     } actions: {
                         if let destination = model.twoFactorSetupURL {
-                            Link(destination: destination) { Text(Words.setUpTwoFactor) }
+                            Link(destination: destination) { Text(Words.setUpTwoStepVerification) }
                         }
                         // After setting it up in the browser, the account is read again.
                         Button {

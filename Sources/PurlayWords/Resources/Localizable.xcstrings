@@ -95,7 +95,7 @@
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Kanala erişimin kalmadığı için %lld gönderilmemiş mesaj kaldırıldı."
+                  "value" : "Kanala erişiminiz kalmadığı için %lld gönderilmemiş mesaj kaldırıldı."
                 }
               }
             }
@@ -136,7 +136,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sunucuyu yönetene güncellemesini söyle."
+            "value" : "Sunucuyu yönetene güncellemesini söyleyin."
           }
         }
       }
@@ -146,7 +146,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sunucuyu yönetene adres ayarlarını kontrol etmesini söyle."
+            "value" : "Sunucuyu yönetene adres ayarlarını kontrol etmesini söyleyin."
           }
         }
       }
@@ -176,7 +176,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bağlantını kontrol et, sonra yeniden dene."
+            "value" : "Bağlantınızı kontrol edin, sonra yeniden deneyin."
           }
         }
       }
@@ -196,7 +196,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Derin Çalışma değiştirilemedi. Yeniden dene."
+            "value" : "Derin Çalışma değiştirilemedi. Yeniden deneyin."
           }
         }
       }
@@ -206,7 +206,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu sorun değiştirilemedi. Yeniden dene."
+            "value" : "Bu sorun değiştirilemedi. Yeniden deneyin."
           }
         }
       }
@@ -216,7 +216,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mesaj değiştirilemedi. Bağlantını denetleyip yeniden dene."
+            "value" : "Mesaj değiştirilemedi. Bağlantınızı denetleyip yeniden deneyin."
           }
         }
       }
@@ -226,7 +226,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sabitleme değiştirilemedi. Yeniden dene."
+            "value" : "Sabitleme değiştirilemedi. Yeniden deneyin."
           }
         }
       }
@@ -236,7 +236,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Soru veya karar değiştirilemedi. Bağlantını denetleyip yeniden dene."
+            "value" : "Soru veya karar değiştirilemedi. Bağlantınızı denetleyip yeniden deneyin."
           }
         }
       }
@@ -246,7 +246,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kaydetme değiştirilemedi. Yeniden dene."
+            "value" : "Kaydetme değiştirilemedi. Yeniden deneyin."
           }
         }
       }
@@ -256,7 +256,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Yıldız değiştirilemedi. Yeniden dene."
+            "value" : "Yıldız değiştirilemedi. Yeniden deneyin."
           }
         }
       }
@@ -266,7 +266,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Purlay’in girişte açılma ayarı değiştirilemedi. Sistem Ayarları > Genel > Giriş Öğeleri’ni denetle."
+            "value" : "Purlay’in girişte açılma ayarı değiştirilemedi. Sistem Ayarları > Genel > Giriş Öğeleri’ni denetleyin."
           }
         }
       }
@@ -276,7 +276,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu konunun çözüldü durumu değiştirilemedi. Yeniden dene."
+            "value" : "Bu konunun çözüldü durumu değiştirilemedi. Yeniden deneyin."
           }
         }
       }
@@ -286,7 +286,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu konuyu takip etme durumun değiştirilemedi. Yeniden dene."
+            "value" : "Bu konuyu takip etme durumunuz değiştirilemedi. Yeniden deneyin."
           }
         }
       }
@@ -296,7 +296,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Uzakta durumun değiştirilemedi. Yeniden dene."
+            "value" : "Uzakta durumunuz değiştirilemedi. Yeniden deneyin."
           }
         }
       }
@@ -306,7 +306,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Grupların değiştirilemedi. Yeniden dene."
+            "value" : "Gruplarınız değiştirilemedi. Yeniden deneyin."
           }
         }
       }
@@ -316,7 +316,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mesaj silinemedi. Bağlantını denetleyip yeniden dene."
+            "value" : "Mesaj silinemedi. Bağlantınızı denetleyip yeniden deneyin."
           }
         }
       }
@@ -326,7 +326,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kanaldan ayrılınamadı. Bağlantını denetleyip yeniden dene."
+            "value" : "Kanaldan ayrılınamadı. Bağlantınızı denetleyip yeniden deneyin."
           }
         }
       }
@@ -336,7 +336,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mesajlar yüklenemedi. Bağlantını denetle."
+            "value" : "Mesajlar yüklenemedi. Bağlantınızı denetleyin."
           }
         }
       }
@@ -346,7 +346,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Konu yüklenemedi. Bağlantını denetleyip yeniden dene."
+            "value" : "Konu yüklenemedi. Bağlantınızı denetleyip yeniden deneyin."
           }
         }
       }
@@ -356,7 +356,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Okundu olarak işaretlenemedi. Bağlantını denetleyip yeniden dene."
+            "value" : "Okundu olarak işaretlenemedi. Bağlantınızı denetleyip yeniden deneyin."
           }
         }
       }
@@ -366,7 +366,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Okunmadı olarak işaretlenemedi. Bağlantını denetleyip yeniden dene."
+            "value" : "Okunmadı olarak işaretlenemedi. Bağlantınızı denetleyip yeniden deneyin."
           }
         }
       }
@@ -376,7 +376,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Açılamadı. Bağlantını denetleyip yeniden dene."
+            "value" : "Açılamadı. Bağlantınızı denetleyip yeniden deneyin."
           }
         }
       }
@@ -386,7 +386,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mesaja tepki verilemedi. Bağlantını denetleyip yeniden dene."
+            "value" : "Mesaja tepki verilemedi. Bağlantınızı denetleyip yeniden deneyin."
           }
         }
       }
@@ -396,7 +396,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ okunamadı. Hâlâ yerinde olup olmadığını denetle ve yeniden ekle."
+            "value" : "%@ okunamadı. Hâlâ yerinde olup olmadığını denetleyip yeniden ekleyin."
           }
         }
       }
@@ -406,7 +406,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Yer imi kaldırılamadı. Yeniden dene."
+            "value" : "Yer imi kaldırılamadı. Yeniden deneyin."
           }
         }
       }
@@ -416,7 +416,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dosya oraya kaydedilemedi. Başka bir yer seçip yeniden dene."
+            "value" : "Dosya oraya kaydedilemedi. Başka bir yer seçip yeniden deneyin."
           }
         }
       }
@@ -426,7 +426,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Profilin kaydedilemedi. Bağlantını kontrol edip yeniden dene."
+            "value" : "Profiliniz kaydedilemedi. Bağlantınızı kontrol edip yeniden deneyin."
           }
         }
       }
@@ -436,7 +436,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Her yerde oturum kapatılamadı. Oturumun hâlâ açık."
+            "value" : "Her yerde oturum kapatılamadı. Oturumunuz hâlâ açık."
           }
         }
       }
@@ -446,7 +446,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Oturum kapatılamadı: sunucuya ulaşılamadı ve bu cihaz oturum bilgisini silemedi. Oturumun hâlâ açık."
+            "value" : "Oturum kapatılamadı: sunucuya ulaşılamadı ve bu cihaz oturum bilgisini silemedi. Oturumunuz hâlâ açık."
           }
         }
       }
@@ -476,7 +476,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Yalnızca sunucu adresini yaz, yol eklemeden."
+            "value" : "Yalnızca sunucu adresini yazın, yol eklemeden."
           }
         }
       }
@@ -506,7 +506,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kullanıcı adı ve parolayı adrese ekleme."
+            "value" : "Kullanıcı adını ve parolayı adrese eklemeyin."
           }
         }
       }
@@ -526,7 +526,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Çalışma alanın yükleniyor…"
+            "value" : "Çalışma alanınız yükleniyor…"
           }
         }
       }
@@ -546,7 +546,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Purlay bu cihazdaki kayıtlı oturumunu okuyamadı. Yeniden oturum aç."
+            "value" : "Purlay bu cihazdaki kayıtlı oturumunuzu okuyamadı. Yeniden oturum açın."
           }
         }
       }
@@ -556,7 +556,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hesabının silinip silinmediği anlaşılamadı: yanıt gelmedi. Bağlantını kontrol edip yeniden dene."
+            "value" : "Hesabınızın silinip silinmediği anlaşılamadı: yanıt gelmedi. Bağlantınızı kontrol edip yeniden deneyin."
           }
         }
       }
@@ -626,7 +626,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Başka bir hesap kullanmak için önce %@ sunucusunda oturumu kapat."
+            "value" : "Başka bir hesap kullanmak için önce %@ sunucusunda oturumu kapatın."
           }
         }
       }
@@ -636,7 +636,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu cihazdaki verilerinin bir kısmı silinemedi. Purlay bir sonraki oturum kapatışında ya da burada başka biri oturum açtığında yeniden dener."
+            "value" : "Bu cihazdaki verilerinizin bir kısmı silinemedi. Purlay bir sonraki oturum kapatışında ya da burada başka biri oturum açtığında yeniden dener."
           }
         }
       }
@@ -646,7 +646,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu soruyu veya kararı önce başka biri değiştirdi. Şimdi onun değişikliği görünüyor; incele ve yeniden dene."
+            "value" : "Bu soruyu veya kararı önce başka biri değiştirdi. Şimdi onun değişikliği görünüyor; inceleyip yeniden deneyin."
           }
         }
       }
@@ -686,7 +686,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu senin kullanıcı adın değil. Tam olarak gösterildiği gibi yaz."
+            "value" : "Bu sizin kullanıcı adınız değil. Tam olarak gösterildiği gibi yazın."
           }
         }
       }
@@ -706,7 +706,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu oturum açma isteğinin süresi doldu veya zaten kullanıldı. Yeniden dene."
+            "value" : "Bu oturum açma isteğinin süresi doldu veya zaten kullanıldı. Yeniden deneyin."
           }
         }
       }
@@ -746,7 +746,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sunucu biraz beklemeni istiyor."
+            "value" : "Sunucu biraz beklemenizi istiyor."
           }
         }
       }
@@ -776,7 +776,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sunucu bir oturum başlatmadı. Yeniden dene."
+            "value" : "Sunucu bir oturum başlatmadı. Yeniden deneyin."
           }
         }
       }
@@ -806,7 +806,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sunucu bu uygulamanın bağlantısını reddetti. Sunucu adresini kontrol et."
+            "value" : "Sunucu bu uygulamanın bağlantısını reddetti. Sunucu adresini kontrol edin."
           }
         }
       }
@@ -826,7 +826,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Oturum açma olması gerektiği gibi geri dönmedi. Yeniden dene."
+            "value" : "Oturum açma olması gerektiği gibi geri dönmedi. Yeniden deneyin."
           }
         }
       }
@@ -846,7 +846,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu hesap buradan silinemez. Nedenini görmek için Purlay'i web'de aç."
+            "value" : "Bu hesap buradan silinemez. Nedenini görmek için Purlay'i web'de açın."
           }
         }
       }
@@ -856,7 +856,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu kanal alabileceği en fazla sabitlenmiş mesaja sahip. Önce birinin sabitlemesini kaldır."
+            "value" : "Bu kanal alabileceği en fazla sabitlenmiş mesaja sahip. Önce birinin sabitlemesini kaldırın."
           }
         }
       }
@@ -946,7 +946,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hesabını silmek için önce yeniden oturum aç."
+            "value" : "Hesabınızı silmek için önce yeniden oturum açın."
           }
         }
       }
@@ -956,7 +956,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Çok fazla deneme yapıldı. Biraz bekleyip yeniden dene."
+            "value" : "Çok fazla deneme yapıldı. Biraz bekleyip yeniden deneyin."
           }
         }
       }
@@ -966,7 +966,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Çok fazla dosya bekliyor. Önce bazılarını gönder veya kaldır."
+            "value" : "Çok fazla dosya bekliyor. Önce bazılarını gönderin veya kaldırın."
           }
         }
       }
@@ -991,12 +991,22 @@
         }
       }
     },
+    "Two-Step Verification Required" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İki Adımlı Doğrulama Gerekli"
+          }
+        }
+      }
+    },
     "Type the address of your Purlay server." : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Purlay sunucunun adresini yaz."
+            "value" : "Purlay sunucunuzun adresini yazın."
           }
         }
       }
@@ -1016,7 +1026,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Purlay'i güncelle, sonra yeniden dene."
+            "value" : "Purlay'i güncelleyin, sonra yeniden deneyin."
           }
         }
       }
@@ -1026,7 +1036,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "https ile başlayan bir web adresi kullan."
+            "value" : "https ile başlayan bir web adresi kullanın."
           }
         }
       }
@@ -1056,7 +1066,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Burada oturumun kapandı. Sunucuya ulaşılamadığı için bu oturum, süresi dolana kadar orada geçerli kalır."
+            "value" : "Burada oturumunuz kapandı. Sunucuya ulaşılamadığı için bu oturum, süresi dolana kadar orada geçerli kalır."
           }
         }
       }
@@ -1066,7 +1076,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Oturumun kapalı."
+            "value" : "Oturumunuz kapalı."
           }
         }
       }
@@ -1076,7 +1086,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu özel kanalın son üyesisin, bu yüzden ayrılamazsın."
+            "value" : "Bu özel kanalın son üyesisiniz, bu yüzden ayrılamazsınız."
           }
         }
       }
@@ -1107,7 +1117,7 @@
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Başka kişilerin de olduğu %lld çalışma alanının son sahibisin. Önce başka birini sahip yap."
+                  "value" : "Başka kişilerin de olduğu %lld çalışma alanının son sahibisiniz. Önce başka birini sahip yapın."
                 }
               }
             }
@@ -1120,7 +1130,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Başka kişilerin de olduğu bir çalışma alanının son sahibisin. Önce başka birini sahip yap."
+            "value" : "Başka kişilerin de olduğu bir çalışma alanının son sahibisiniz. Önce başka birini sahip yapın."
           }
         }
       }
@@ -1148,7 +1158,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bir mesaja en fazla %lld tepki ekleyebilirsin. Başka eklemek için birini kaldır."
+            "value" : "Bir mesaja en fazla %lld tepki ekleyebilirsiniz. Başka eklemek için birini kaldırın."
           }
         }
       }
@@ -1158,7 +1168,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Purlay'ın tutabileceği en fazla mesajı kaydettin. Daha fazlasını kaydetmek için bazılarını bırak."
+            "value" : "Purlay'ın tutabileceği en fazla mesajı kaydettiniz. Daha fazlasını kaydetmek için bazılarını bırakın."
           }
         }
       }
@@ -1168,7 +1178,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Artık buraya erişimin yok."
+            "value" : "Artık buraya erişiminiz yok."
           }
         }
       }
@@ -1178,7 +1188,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Farklı bir hesapla oturum açtın. Bu hesapla yeniden oturum aç."
+            "value" : "Farklı bir hesapla oturum açtınız. Bu hesapla yeniden oturum açın."
           }
         }
       }
@@ -1188,7 +1198,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hesabın silinmeden önce oturumun kapandı. Oturum açıp yeniden dene."
+            "value" : "Hesabınız silinmeden önce oturumunuz kapandı. Oturum açıp yeniden deneyin."
           }
         }
       }
@@ -1198,7 +1208,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sunucu oturumunu kapattı. Yeniden oturum aç."
+            "value" : "Sunucu oturumunuzu kapattı. Yeniden oturum açın."
           }
         }
       }
@@ -1208,7 +1218,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Oturumun kapatıldı."
+            "value" : "Oturumunuz kapatıldı."
           }
         }
       }
@@ -1218,7 +1228,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hesabın silinemedi. Bağlantını kontrol edip yeniden dene."
+            "value" : "Hesabınız silinemedi. Bağlantınızı kontrol edip yeniden deneyin."
           }
         }
       }
@@ -1228,7 +1238,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hesabın silindi."
+            "value" : "Hesabınız silindi."
           }
         }
       }
@@ -1238,7 +1248,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hesabın büyük olasılıkla silindi: sunucu bunu doğrulayamadan oturumun kapandı. Purlay'in bu cihazda tuttukları kaldırıldı."
+            "value" : "Hesabınız büyük olasılıkla silindi: sunucu bunu doğrulayamadan oturumunuz kapandı. Purlay'in bu cihazda tuttukları kaldırıldı."
           }
         }
       }
@@ -1248,7 +1258,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ için yazdığın mesaj gönderilmedi: bir dosya yüklenemedi. Yazdıkların kutuya geri döndü."
+            "value" : "%@ için yazdığınız mesaj gönderilmedi: bir dosya yüklenemedi. Yazdıklarınız kutuya geri döndü."
           }
         }
       }
@@ -1258,7 +1268,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mesajın gönderilmedi: bir dosya yüklenemedi. Yazdıkların kutuya geri döndü."
+            "value" : "Mesajınız gönderilmedi: bir dosya yüklenemedi. Yazdıklarınız kutuya geri döndü."
           }
         }
       }
@@ -1268,7 +1278,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Oturumun %@ tarihinde sona eriyor. Bağlı kalmak için o zamandan önce oturumu kapatıp yeniden aç."
+            "value" : "Oturumunuz %@ tarihinde sona eriyor. Bağlı kalmak için o zamandan önce oturumu kapatıp yeniden açın."
           }
         }
       }
@@ -1278,7 +1288,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Oturumun sona erdi. Yeniden oturum aç."
+            "value" : "Oturumunuz sona erdi. Yeniden oturum açın."
           }
         }
       }
@@ -1288,7 +1298,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Oturumunun süresi doldu. Yeniden oturum aç."
+            "value" : "Oturumunuzun süresi doldu. Yeniden oturum açın."
           }
         }
       }
@@ -1298,7 +1308,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gönderilmemiş mesajların okunamadı ve kenara alındı."
+            "value" : "Gönderilmemiş mesajlarınız okunamadı ve kenara alındı."
           }
         }
       }
