@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# scripts/lib/cache.py trusts a cache folder only when no other user can write it or swap it: not under a folder others may write
+# without the sticky bit (they could rename it and put their own, or a link, in its place after the check), and a folder of the
+# user's own that others may only read (0755, as an earlier version made it) is the user's alone. Python only.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+work="$(mktemp -d)"
+trap 'chmod -R u+w "$work"; rm -rf "$work"' EXIT
+failed=0
+mkdir -m 777 "$work/shared"
+if XDG_CACHE_HOME="$work/shared" PYTHONPATH=scripts/lib python3 scripts/lib/cache.py parse >/dev/null 2>&1; then
+  echo "FAIL: a cache under a folder others can write (no sticky bit) is trusted" >&2; failed=1
+fi
+mkdir -p "$work/mine/purlay-enforcement" && chmod 755 "$work/mine/purlay-enforcement"
+if ! XDG_CACHE_HOME="$work/mine" PYTHONPATH=scripts/lib python3 scripts/lib/cache.py parse >/dev/null 2>&1; then
+  echo "FAIL: the user's own cache folder that others may only read (0755) is not used, so caching is off for good" >&2; failed=1
+fi
+exit "$failed"

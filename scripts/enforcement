@@ -691,6 +691,10 @@ accept_in "QA: a sentence assigned through an optional chain whose type the code
 plant_in "QA: a Mac sentence assigned to an AppKit receiver named like a parameter typed elsewhere" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'import AppKit' 'struct QAHolder { var title: LocalizedStringKey }' 'func qaUse(menu: QAHolder) {}' 'func qaProbe() { let menu = NSMenuItem(); menu.title = \"Never said\" }' >> Sources/PurlayMacUI/Strings.swift"
 # QA (pr6-fourth): a name bound again without a stated type (if let, a closure's parameter, for-in) is not the outer declaration.
 plant_in "QA: a Mac sentence assigned to AppKit values rebound under the name of a parameter typed elsewhere" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'import AppKit' 'struct QAHolder { var title: LocalizedStringKey }' 'func qaIf(menu: QAHolder, item: NSMenuItem?) { if let menu = item { menu.title = \"Never said\" } }' 'func qaClosure(menu: QAHolder, items: [NSMenuItem]) { items.forEach { menu in menu.title = \"Never said\" } }' 'func qaFor(menu: QAHolder, items: [NSMenuItem]) { for menu in items { menu.title = \"Never said\" } }' >> Sources/PurlayMacUI/Strings.swift"
+# QA (pr9): a holder unwrapped under its own name keeps its type: `if var holder` is the outer `holder: QAH?`, unwrapped.
+accept_in "QA: a sentence assigned through a holder unwrapped by if-var shorthand" . \
+  "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Said E"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Söylendi E"}}}}')' \
+    && printf '%s\\n' 'struct QAE { var title: LocalizedStringKey = \"Starred\" }' 'func qaSet(holder: QAE?) { if var holder { holder.title = \"Said E\"; _ = holder } }' >> Sources/PurlayMacUI/Strings.swift"
 wait
 judged=0
 for name in "$RESULTS"/*.name; do

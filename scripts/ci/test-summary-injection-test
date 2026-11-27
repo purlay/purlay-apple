@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# scripts/ci/test-summary writes each failure on one line of its own: a target or test name holding a newline must not start a
+# line of the log, where "::" begins a GitHub Actions workflow command (::add-mask::, ::error::, ::stop-commands::).
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+output="$(python3 -c 'import json; print(json.dumps({"totalTestCount": 1, "passedTests": 0, "failedTests": 1, "skippedTests": 0,
+  "testFailures": [{"targetName": "PurlayTests\n::error title=Injected::from a name", "testName": "t\n::add-mask::x",
+                    "failureText": "a"}]}))' | scripts/ci/test-summary)"
+if grep -q '^::' <<<"$output"; then
+  echo "FAIL: a name in the summary starts a workflow command line: $(grep '^::' <<<"$output" | head -1)" >&2; exit 1
+fi
+echo "names in the summary cannot start a workflow command"
