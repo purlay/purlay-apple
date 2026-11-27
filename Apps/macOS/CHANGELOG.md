@@ -4,6 +4,12 @@ User-facing changes to Purlay for macOS. Releases require macOS 26 or later.
 
 ## [Unreleased]
 
+### Fixed
+
+- During a server rollout, message search and Chat notifications close cleanly when a server node cannot serve them.
+  The session and Updates stay available.
+- Keep saved messages and the Add Bookmark form open when their Chat action is temporarily unavailable during a rollout.
+
 ## [0.3.1] — 2026-11-27
 
 ### Changed

@@ -9,7 +9,7 @@ struct ReminderSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var date: Date
     @State private var busy = false
-    @State private var failure: String?
+    @State private var feedback: TimingActionFeedback?
 
     init(model: AppModel, message: Message) {
         self.model = model
@@ -24,7 +24,7 @@ struct ReminderSheet: View {
             FutureTimePicker(date: $date)
             Text("Only you will be reminded. Allow Purlay notifications to receive a reminder while the app is closed.")
                 .font(.caption).foregroundStyle(.secondary)
-            if let failure { Text(failure).font(.callout).foregroundStyle(.red) }
+            if let feedback { feedback }
             HStack {
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
                 Spacer()
@@ -32,12 +32,12 @@ struct ReminderSheet: View {
                 Button("Set Reminder") {
                     Task {
                         busy = true
-                        failure = nil
+                        feedback = nil
                         defer { busy = false }
                         do {
                             try await model.setReminder(for: message, at: date)
                             dismiss()
-                        } catch { failure = error.localizedDescription }
+                        } catch { feedback = TimingActionFeedback(error) }
                     }
                 }.keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
             }
@@ -48,9 +48,8 @@ struct ReminderSheet: View {
 struct RemindersSheet: View {
     let model: AppModel
     @Environment(\.dismiss) private var dismiss
-    @State private var editing: Message?
     @State private var busy: Uuid?
-    @State private var failure: String?
+    @State private var feedback: TimingActionFeedback?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -59,7 +58,7 @@ struct RemindersSheet: View {
                 refresh: { Task { await model.loadReminders() } }, refreshing: model.remindersLoading
             ) { dismiss() }
             Divider()
-            if let failure { Text(failure).foregroundStyle(.red).padding(.horizontal) }
+            if let feedback { feedback.padding(.horizontal) }
             if model.remindersFailed {
                 HStack {
                     Text("Reminders could not be refreshed.")
@@ -100,14 +99,15 @@ struct RemindersSheet: View {
                             }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
                         }.buttonStyle(.plain)
                         Menu {
-                            Button("Change Time…") { editing = reminder.message }
+                            // The window owns this editor so a refresh that closes the list cannot close it too.
+                            Button("Change Time…") { model.reminderTarget = reminder.message }
                             Button("Cancel Reminder", role: .destructive) {
                                 Task {
                                     busy = reminder.id
-                                    failure = nil
+                                    feedback = nil
                                     defer { busy = nil }
                                     do { try await model.cancelReminder(reminder) } catch {
-                                        failure = error.localizedDescription
+                                        feedback = TimingActionFeedback(error)
                                     }
                                 }
                             }
@@ -120,9 +120,6 @@ struct RemindersSheet: View {
             }
         }.modifier(ModalFrame(width: 600, height: 500))
             .task { await model.loadReminders() }
-            .sheet(isPresented: Binding(get: { editing != nil }, set: { if !$0 { editing = nil } })) {
-                if let editing { ReminderSheet(model: model, message: editing) }
-            }
     }
 }
 #endif
