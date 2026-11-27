@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# The demonstration must fail when a job ends without a verdict (killed by the OOM killer, a timeout, kill -9): a plant that was
+# never judged is not a plant that was refused. Builds a demonstration of one good plant and one job that is killed, and
+# requires it to fail.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+probe="$(mktemp scripts/enforcement-probe.XXXXXX)"
+trap 'rm -f "$probe"' EXIT
+python3 - "$probe" <<'PY'
+import sys
+s = open("scripts/enforcement").read()
+head, tail = s[:s.index("# The layers. Each plant below")], s[s.index("\nwait\n"):]
+middle = '''group=tree
+plant "a feature importing a feature" Sources/FeatureChat/Chat.swift "import FeatureAccount"
+plant_in "a job killed before its verdict" . 'sh -c "kill -9 \\$(ps -o ppid= -p \\$PPID)"'
+'''
+open(sys.argv[1], "w").write(head + middle + tail)
+PY
+chmod +x "$probe"
+if "$probe" --demo tree >/dev/null 2>&1; then
+  echo "FAIL: the demonstration passed though a job gave no verdict" >&2; exit 1
+fi
+echo "the demonstration fails when a job gives no verdict"

@@ -6,8 +6,8 @@ the logo's own shapes and colours and never a copy of them. scripts/icon runs it
   scripts/logo-swift --check [ROOT]    fail unless the file is exactly what the logo gives
 
 It reads the subset of SVG the logo uses (linear gradients in user space, and paths of absolute M, L, H, V, C and Z) and refuses
-anything else (another element, a transform, an opacity, a style), so a logo drawn differently is a change to this script and
-not a silently wrong mark. Python's standard library
+anything else (another element, a transform, an opacity, a style, an element where an SVG renderer would not draw it, such as a
+path inside <defs>), so a logo drawn differently is a change to this script and not a silently wrong mark. Python's standard library
 only: the check runs on a runner without Swift.
 """
 import re
@@ -39,7 +39,21 @@ READ = {
 }
 
 
+# Where each element may stand. A renderer draws what is in the <svg> and its <g>, never what is in <defs>, so a path anywhere
+# else would be drawn by the Swift and not by the SVG.
+PARENTS = {
+    "defs": {"svg"},
+    "linearGradient": {"defs"},
+    "stop": {"linearGradient"},
+    "g": {"svg", "g"},
+    "path": {"svg", "g"},
+}
+
+
 def refuse_unread(tree):
+    if tree.tag.removeprefix(SVG) != "svg":
+        fail("the root element is not <svg>")
+    parents = {child: parent for parent in tree.iter() for child in parent}
     for element in tree.iter():
         tag = element.tag.removeprefix(SVG)
         if tag not in READ:
@@ -47,6 +61,10 @@ def refuse_unread(tree):
         unread = sorted(set(element.attrib) - READ[tag])
         if unread:
             fail(f"<{tag}> has {', '.join(unread)}, which this script does not read")
+        if element is not tree:
+            parent = parents[element].tag.removeprefix(SVG)
+            if parent not in PARENTS.get(tag, set()):
+                fail(f"a <{tag}> inside <{parent}>, where this script does not read it as the SVG draws it")
 
 
 def hex_colour(text):

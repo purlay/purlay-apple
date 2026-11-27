@@ -612,9 +612,21 @@
     "%lld new replies in “%@”": {
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$lld new replies in “%2$@”"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld new reply in “%2$@”"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld new replies in “%2$@”"
+                }
+              }
+            }
           }
         },
         "tr": {
@@ -7238,6 +7250,24 @@
     },
     "Show All %lld Lines": {
       "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Show All %lld Line"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Show All %lld Lines"
+                }
+              }
+            }
+          }
+        },
         "tr": {
           "stringUnit": {
             "state": "translated",
@@ -7628,6 +7658,24 @@
     },
     "Statuses are at most %lld characters.": {
       "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Statuses are at most %lld character."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Statuses are at most %lld characters."
+                }
+              }
+            }
+          }
+        },
         "tr": {
           "stringUnit": {
             "state": "translated",
@@ -8058,6 +8106,24 @@
     },
     "Titles are at most %lld characters.": {
       "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Titles are at most %lld character."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Titles are at most %lld characters."
+                }
+              }
+            }
+          }
+        },
         "tr": {
           "stringUnit": {
             "state": "translated",
