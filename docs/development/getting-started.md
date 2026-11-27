@@ -79,13 +79,35 @@ TEST_RUNNER_PURLAY_UITEST_SESSION="<the __Host-purlay_session value from https:/
 
 Approving inside the system browser's page is not driven (TD-007); the server's half of that step runs in the live contract tests.
 
+## The iOS shell, Chat and sign-out against a fixture
+
+Four more UI tests skip without their own server, each a local fixture that answers in a scripted order (TD-028). Run them like
+the sign-in test above, on iPhone and on iPad, each run with a fresh fixture:
+
+- `WorkspaceShellUITests`: `TEST_RUNNER_PURLAY_SHELL_UITEST_SERVER`, `…_SESSION`, `…_CHAT_WORKSPACE` and `…_CORE_WORKSPACE`. A
+  member whose first workspace allows Chat and whose second omits it; the test checks the tab or the sidebar, switches to the
+  workspace without Chat and back, and keeps a screenshot of each.
+- `NativeChatUITests`: `TEST_RUNNER_PURLAY_CHAT_UITEST_SERVER` and `…_SESSION`. An unread joined channel with two recent messages
+  and an earlier page; the fixture refuses the first earlier-page read and the first read of an empty second channel, so both
+  Try Again controls are driven.
+- `NativeComposerUITests`: `TEST_RUNNER_PURLAY_COMPOSER_UITEST_SERVER` and `…_SESSION`. A writable channel, an announcement channel
+  only owners and admins may post in, and a workspace without Chat; the fixture holds the first message's echo until
+  `POST /composer-echo`, refuses the first attempt of the second, and records each send at `/composer-proof`.
+- `NativeSignOutUITests`: `TEST_RUNNER_PURLAY_SIGN_OUT_UITEST_SERVER`, `…_CONTROL` and `…_SESSION`. A loopback fixture with two
+  device sessions and two memberships with Chat, whose control listener records logout paths and socket counts, holds or
+  refuses requests, and stops and restarts the app's listener; the tests relaunch the Debug app without a seeded session to see
+  that it forgot the credential.
+
 ## Strings
 
 - **What both apps say about the engine** (a phase, a server problem, a sign-in failure, a notice, an upload failure): a
   `LocalizedStringResource` with `bundle: .module` in `Sources/PurlayWords`, and an entry in its catalogue,
   `Sources/PurlayWords/Resources/Localizable.xcstrings`.
+- **What both apps' screens say otherwise** (Cancel, a place in the workspace, a message's state): `SharedWords` in
+  `Sources/PurlayWords`, in the same catalogue.
 - **iOS's own:** a `LocalizedStringResource` in `Apps/iOS/App/Root/Words.swift` and an entry in
-  `Apps/iOS/App/Resources/Localizable.xcstrings`.
+  `Apps/iOS/App/Resources/Localizable.xcstrings`. A feature's screens take their sentences from the app (`FeatureChat`'s
+  `ChatStrings`), so a sentence keeps one home.
 - **The Mac's own:** write the sentence in English in the code.
 - `scripts/localize` builds the Mac app with string extraction and adds the new sentences of the Mac and of `PurlayWords` to their
   catalogues. Give each its Turkish value with the state `translated`, then run `scripts/enforcement tree`: its one checker

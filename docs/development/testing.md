@@ -14,10 +14,10 @@ replacing the code under test. The conventions are in [conventions.md](../archit
 | The chat feature's decisions (what a message row may show) | `Tests/FeatureChatTests` | `macOS` | `packages` |
 | The design system, whose colours take a UIKit path on iOS and an AppKit path on macOS | `Tests/PurlayDesignTests` | `macOS`, `iOS` | `packages`, `simulator` |
 | The Mac's screens and controls, and the Mac screens drawn from state, light and dark | `Tests/PurlayMacUITests` (`SnapshotTests` among them) | `macOS` | `packages` |
-| The iOS app's wiring and screen decisions (`RootScreenTests`, `WordsTests`, `EnvironmentTests`, `PrivacyManifestTests`) | `Apps/iOS/Tests/PurlayTests` | `iOS` | `simulator` |
-| The iOS sign-in against a real server (skips without one) | `Apps/iOS/Tests/PurlayUITests` | `iOS` | `simulator` |
+| The iOS app's wiring and screen decisions (`RootScreenTests`, `WordsTests`, `EnvironmentTests`, `PrivacyManifestTests`, `WorkspaceShellTests`, `NoticeWordsTests`) | `Apps/iOS/Tests/PurlayTests` | `iOS` | `simulator` |
+| The iOS sign-in against a real server, and the shell, Chat, the composer and sign-out against fixtures (each skips without its server, TD-028) | `Apps/iOS/Tests/PurlayUITests` | `iOS` | `simulator` |
 | The generator | `Tools/PurlayGen/Tests` | its own package | `generated` |
-| What both apps say about the engine, in each language | `Tests/PurlayWordsTests` | `macOS` | `packages` |
+| What both apps say, in each language (`EngineWordsTests`, `SharedWordsTests`) | `Tests/PurlayWordsTests` | `macOS` | `packages` |
 | The real client against a real server of the pinned version | `Tests/ContractTests` | `macOS` (compiled, and skipped without a server) | `packages`; against a server by hand: `scripts/contract-test` (TD-017) |
 | The rules, each with its violation planted (refused) and, where a rule could refuse good code, valid code written (accepted); each on its own copy, in parallel | `scripts/enforcement`, `--demo` | — | `rules` |
 | The strings: the three catalogues, one checker | `scripts/enforcement` | — | `rules` |
