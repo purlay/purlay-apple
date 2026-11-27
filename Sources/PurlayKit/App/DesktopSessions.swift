@@ -221,8 +221,11 @@ public final class DesktopSessions {
         }
         model.sharedServer = SharedServer(
             sessionInUse: { [weak self, weak model] in
+                // Only a confirmed session: read (`me`) and kept, never one a browser has just brought back.
                 self?.others(of: model).lazy.compactMap { other in
-                    other.heldSession.map { (session: $0, person: other.personHere) }
+                    guard let person = other.me?.user.id.value, !other.hasUnkeptSession, let session = other.heldSession
+                    else { return nil }
+                    return (session: session, person: Optional(person))
                 }.first
             },
             isEnding: { [weak self, weak model] in self?.others(of: model).contains { $0.isEndingSession } ?? false },

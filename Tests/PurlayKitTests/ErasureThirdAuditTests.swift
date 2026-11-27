@@ -343,7 +343,7 @@ struct ErasureThirdGuardTests {
     }
 
     @Test("on the Mac, a workspace that joined Ada's session moves with it when she signs in again elsewhere")
-    func strangersWorkspaceIsNotRenewed() async throws {
+    func joinedWorkspaceMovesWithRenewal() async throws {
         let h = ModelHarness()
         let (sessions, ada, other) = try await twoPeople(h)
         #expect(other.me?.user.id.value == FakeServer.userID, "joined Ada's session")

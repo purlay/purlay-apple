@@ -12,9 +12,13 @@ erasing now remove what the app keeps of a person, two people on one server beca
 **Decision.** One person is signed in per server in the app.
 - A workspace that signs in while another workspace of the same server is signed in joins that session: it adopts the
   session in use, with no browser, and reads its workspace with it (`AppModel.signIn()`, `SharedServer.sessionInUse`). The
-  server lists the person's workspaces from `/api/me` with that session, so no browser round trip is needed.
-- A browser sign-in's session is kept only in memory until `/api/me` says whose it is. It is written to the Keychain only
-  then, and only when it is the person the server's other sessions hold.
+  server lists the person's workspaces from `/api/me` with that session, so no browser round trip is needed. Only a
+  confirmed session is joined or compared against: one whose person has been read and that is kept, never one a browser
+  has just brought back.
+- On the Mac, a browser sign-in's session is kept only in memory until `/api/me` says whose it is. It is written to the
+  Keychain only then, and only when it is the person the server's other sessions hold. A first read that fails keeps it in
+  memory, and Try Again reads again with it; a model that lets it go unkept ends it on the server (`/auth/logout`), so none
+  is left alive with nothing holding it.
 - A browser sign-in that brings back somebody else (another workspace signed in while the browser was open) is refused: that
   session is ended at once (`/auth/logout`), nothing is written to the Keychain and nothing of anybody's is removed, and the
   person is told `SignInError.anotherPersonSignedIn(server:)`: "Sign out of <server> first to use another account."
@@ -32,5 +36,5 @@ data. *Refusing a second workspace's sign-in instead of joining:* the person is 
 again to open another of their own workspaces is friction with no gain.
 
 **Consequences.** The Mac cannot show two people of one server side by side; switching people means signing out of the
-server first, which the refusal says. iOS has one session and is unchanged, except that its credential is also written only
-after `/api/me`. Several accounts at once remains P-9, and would revisit this record.
+server first, which the refusal says. iOS has one session and nobody to refuse, so it is unchanged: its browser sign-in is
+kept in the Keychain at once, as before. Several accounts at once remains P-9, and would revisit this record.

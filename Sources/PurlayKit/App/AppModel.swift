@@ -192,9 +192,15 @@ public final class AppModel {
 
     /// The session in use here: the credential the Keychain keeps once it is known whose it is.
     @ObservationIgnored private(set) var heldSession: StoredSession?
-    /// A browser sign-in's session, not yet kept: it is written to the Keychain once `/api/me` says whose it is, and only
-    /// if it is the person the server's other sessions hold (ADR 0011).
+    /// A browser sign-in's session on the Mac, not yet kept: it is written to the Keychain once `/api/me` says whose it is,
+    /// and only if it is the person the server's other workspaces hold (ADR 0011). A first read that fails leaves it here,
+    /// and Try Again (`connect()`) reads again with it; a model that lets it go without keeping it ends it on the server.
     @ObservationIgnored private var unkeptCredential: StoredSession?
+    /// A browser sign-in here is not yet known to be whose.
+    var hasUnkeptSession: Bool { unkeptCredential != nil }
+    /// A sign-out is under way: a send waiting for its files does not go, so nothing is delivered after the person accepted
+    /// that what is unsent is removed. Released if the sign-out does not happen.
+    @ObservationIgnored var sendsHeld = false
     /// An account read under way: one asked for meanwhile (the Mac's Check Again beside its activation) waits for it and
     /// shares its answer instead of asking the server again.
     @ObservationIgnored var refreshingAccount: Task<Void, Never>?
@@ -658,6 +664,18 @@ public final class AppModel {
         ]
     }
 
+    private func holdSends() {
+        sendsHeld = true
+        engine?.stop()
+    }
+
+    /// The sign-out did not happen: what was held goes on as before.
+    private func releaseSends() {
+        sendsHeld = false
+        engine?.start()
+        for place in waitingSends.keys { settleWaitingSend(place) }
+    }
+
     /// The person's data is being removed, so the session is ending: nothing more is sent (a send waiting for its files is
     /// let go, the engine stops) and nothing more is written to the outbox, before the outbox goes.
     private func stopSendingForWipe() {
@@ -679,6 +697,19 @@ public final class AppModel {
     private func resumeOrAskToSignIn(_ address: ServerAddress) async {
         let manager = makeManager(for: address)
         self.manager = manager
+        // A browser sign-in whose first read was lost: read again with it, rather than look in a Keychain that does not have it.
+        if let pending = unkeptCredential {
+            guard pending.origin == origin?.description else {
+                unkeptCredential = nil
+                await endSession(holding: pending.cookie, on: address)
+                return await resumeOrAskToSignIn(address)
+            }
+            await manager.adopt(pending, for: address)
+            heldSession = pending
+            observe(manager)
+            await bootstrap()
+            return
+        }
         do {
             let state = try await manager.restore(for: address)
             if case .signedOut(.expired) = state { say(.sessionExpired) }
@@ -722,12 +753,13 @@ public final class AppModel {
             return
         }
         phase = .signingIn
-        let flow = signInFlow(keepingIn: UnkeptSessions())
+        // With no other session of the server to answer to (iOS), the session is kept at once, as it always was.
+        let flow = signInFlow(keepingIn: sharedServer == nil ? environment.sessions : UnkeptSessions())
         do {
             let session = try await flow.signIn(to: server, origin: origin)
             await manager.adopt(session, for: server)
             heldSession = session
-            unkeptCredential = session
+            if sharedServer != nil { unkeptCredential = session }
             signedInAt = environment.clock()
             warnedOfExpiry = false
             observe(manager)
@@ -1021,6 +1053,8 @@ public final class AppModel {
     private func signOutOnce(_ scope: SignOutScope) async -> SessionManager.SignOutResult {
         guard let manager else { return .done }
         let person = me?.user.id.value ?? environment.owner.load()
+        // From the moment the person asks: nothing more is sent while the server is told and the data removed.
+        holdSends()
         let result = await manager.signOut(scope)
         switch result {
         case .done: break
@@ -1029,7 +1063,9 @@ public final class AppModel {
         case .credentialKept: say(.signOutFailed)
         }
         switch result {
-        case .notDone, .credentialKept: return result
+        case .notDone, .credentialKept:
+            releaseSends()
+            return result
         case .done, .serverNotTold: break
         }
         forgetUnconfirmedErasure()
@@ -1283,8 +1319,13 @@ public final class AppModel {
     }
 
     private func tearDown() {
+        if let dropped = unkeptCredential, let server {
+            // Never kept and now let go: ended, so it is not left alive on the server with nothing holding it.
+            Task { await endSession(holding: dropped.cookie, on: server) }
+        }
         heldSession = nil
         unkeptCredential = nil
+        sendsHeld = false
         signedInAt = nil
         awayChange += 1
         for window in liveConversationWindows {

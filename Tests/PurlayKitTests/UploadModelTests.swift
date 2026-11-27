@@ -309,19 +309,40 @@ struct UploadModelTests {
         #expect(messageFrames(h).isEmpty)
     }
 
-    @Test("a waiting send whose file lands while signing out removes the person's data is not sent")
-    func signOutWipeHoldsTheSend() async {
-        // A wipe as slow as a loaded machine's: the file lands while it runs, before the session is torn down.
-        let h = ModelHarness(wipers: [RecordingWiper(onWipe: { try? await Task.sleep(for: .milliseconds(300)) })])
-        await h.signedIn()
-        await h.model.open(one)
+    @Test("a waiting send whose file lands while the sign-out is telling the server is not sent")
+    func signOutWipeHoldsTheSend() async throws {
+        let h = await opened()
         h.server.edit { $0.uploadDelays["slow.txt"] = 60 }
         let slow = await inFlight(h, "slow.txt")
         #expect(h.model.send("late"))
+        // The file lands while the server is being told: the logout answers only once the upload is done.
+        h.server.edit { $0.beforeLogoutResponse = { await slow.value } }
         _ = await h.model.signOut(.thisDevice)
-        await slow.value
         #expect(messageFrames(h).isEmpty, "\(messageFrames(h))")
         #expect(!h.server.requests.contains { $0.method == "POST" && $0.url.path.hasSuffix("/messages") })
+    }
+
+    @Test("a sign-out that does not happen lets the held send go once its file lands")
+    func failedSignOutReleasesTheSend() async throws {
+        let h = await opened()
+        h.server.edit { $0.uploadDelays["slow.txt"] = 60 }
+        let slow = await inFlight(h, "slow.txt")
+        #expect(h.model.send("late"))
+        h.server.edit {
+            $0.beforeLogoutResponse = { await slow.value }
+            $0.logoutStatus = 500
+        }
+        #expect(await h.model.signOut(.everywhere) == .notDone("the server could not be reached"))
+        #expect(h.model.phase == .ready)
+        #expect(!h.model.isWaiting(channel: one, parent: nil), "the held send went to the engine")
+        h.last.handlers.opened()
+        _ = await eventually {
+            !messageFrames(h).isEmpty || h.server.requests.contains { $0.url.path.hasSuffix("/messages") }
+        }
+        #expect(
+            messageFrames(h).count
+                + h.server.requests.count { $0.method == "POST" && $0.url.path.hasSuffix("/messages") }
+                >= 1, "the person's message was dropped by a sign-out that did not happen")
     }
 
     @Test(

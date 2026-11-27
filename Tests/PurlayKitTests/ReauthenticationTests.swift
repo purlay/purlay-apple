@@ -113,9 +113,13 @@ struct ReauthenticationTests {
         #expect(h.model.phase == .ready)
     }
 
-    @Test("a browser sign-in's session is kept in the Keychain only once /api/me says whose it is")
+    @Test(
+        "on the Mac, a browser sign-in's session is kept only once /api/me says whose it is, and Try Again reads with it"
+    )
     func keptOnlyOnceKnown() async throws {
         let h = ModelHarness()
+        // A model with other sessions of its server to answer to, as each of the Mac's workspaces has.
+        h.model.sharedServer = SharedServer(sessionInUse: { nil }, isEnding: { false }, renew: { _, _ in })
         await h.model.connect()
         h.server.edit { $0.meStatus = 500 }
         await h.model.signIn()
@@ -123,9 +127,33 @@ struct ReauthenticationTests {
         #expect(try h.sessions.load(for: server) == nil)
         h.server.edit { $0.meStatus = 200 }
         await h.model.connect()
-        await h.model.signIn()
-        #expect(h.model.phase == .ready)
+        #expect(h.model.phase == .ready, "Try Again reads with the session the browser made")
         #expect(try h.sessions.load(for: server)?.cookie == FakeServer.sessionValue)
+        #expect(h.server.requests.count { $0.url.path == "/api/native/token" } == 1, "no second browser sign-in")
+    }
+
+    @Test(
+        "on iOS, with no other session of the server, a browser sign-in is kept in the Keychain at once, as it always was"
+    )
+    func iOSKeepsAtOnce() async throws {
+        let h = ModelHarness()
+        await h.model.connect()
+        h.server.edit { $0.meStatus = 500 }
+        await h.model.signIn()
+        #expect(h.model.phase != .ready)
+        #expect(try h.sessions.load(for: server)?.cookie == FakeServer.sessionValue)
+    }
+
+    @Test("on the Mac, a session never kept is ended on the server when the model lets it go")
+    func unkeptIsEndedWhenDropped() async throws {
+        let h = ModelHarness()
+        h.model.sharedServer = SharedServer(sessionInUse: { nil }, isEnding: { false }, renew: { _, _ in })
+        await h.model.connect()
+        h.server.edit { $0.meStatus = 500 }
+        await h.model.signIn()
+        h.model.invalidateLocalSession()
+        await h.settle()
+        #expect(h.server.snapshot.revoked.contains(FakeServer.sessionValue))
     }
 
     @Test("a session restored at launch is of an unknown age: erasing it needs a sign-in again first")

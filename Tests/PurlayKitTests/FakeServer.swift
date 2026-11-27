@@ -118,6 +118,8 @@ final class FakeServer: HTTPTransport {
         var eraseStatus = 204
         var eraseError: String?
         var beforeEraseResponse: (@Sendable () async -> Void)?
+        /// Runs while `POST /auth/logout` is at the server, before it answers: what happens during a sign-out's round trip.
+        var beforeLogoutResponse: (@Sendable () async -> Void)?
         /// What the transport throws for `POST /api/me/erase` after the server received it: an answer lost on the way back.
         var eraseThrows: TransportError?
         /// The person `/api/me` names: their username as the server keeps it.
@@ -1184,10 +1186,12 @@ final class FakeServer: HTTPTransport {
             }
             return json(snapshot.eraseStatus, snapshot.eraseError ?? #"{"error":{"code":"INTERNAL","message":"x"}}"#)
         case ("POST", "/auth/logout"):
+            await snapshot.beforeLogoutResponse?()
             // Ends the session it was sent with, and no other.
             if snapshot.logoutStatus == 204, let cookie { state.withLock { _ = $0.revoked.insert(cookie) } }
             return HTTPResponse(status: snapshot.logoutStatus)
         case ("POST", "/auth/logout-all"):
+            await snapshot.beforeLogoutResponse?()
             if snapshot.logoutStatus == 204 { state.withLock { $0.sessionValid = false } }
             return HTTPResponse(status: snapshot.logoutStatus)
         default:
