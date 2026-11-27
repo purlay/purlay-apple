@@ -82,15 +82,18 @@ needed. A job's time is its set-up, its `scripts/verify` phases and its clean-up
 | 45895104429 (#2) | 13 s | 165 s | 102 s | 109 s | 186 s |
 | 45921783768 (#5) | 346 s | 114 s (18 · 4 · 21 · 27 · 44) | 87 s | 122 s | 654 s |
 | 45923140177 (#5, the warm-up below) | 570 s | 172 s | 127 s | 117 s | 1209 s |
+| 45926185244 (#5) | 577 s | 111 s (15 · 4 · 19 · 27 · 46) | 125 s | 93 s | 1117 s |
+| 45928126332 (#5) | 556 s | 148 s (21 · 7 · 28 · 37 · 54) | 75 s | 120 s | 1623 s (`verify` itself waited 847 s for a Linux runner) |
 
 - **The lanes nearly fit the target; the wait for a runner does not.** With runners free, the run is `changes` (about 10 s), the
   slowest lane (usually `packages`) and `verify` (about 8 s): 186 s and 193 s in PR #2's runs, when `packages` took 165–172 s;
-  about 150 s when it takes 114 s, as in run 45921783768. The runner's speed varies that much from one job to the next. The runs over 3 minutes waited: for
-  macOS runners (5 for the organisation) and, in the last two, for any runner at all (`changes`, a Linux job, waited 120 s and
-  280 s), because the organisation's 20 concurrent jobs were taken by other repositories' runs: the server's (24 runs queued at
-  01:20 UTC on 2026-11-27) and the three repositories this one replaced, whose CI still runs on macOS (`purlay-ios`,
-  `purlay-macos`, `purlay-swift`: run at 00:38–01:14 UTC that night). **Turning off the CI of the replaced repositories** (archive
-  them, or disable their workflows) is the change that matters most for the wait, and it is outside this repository.
+  about 150 s when it takes 111–114 s, as in PR #5's runs. The runner's speed varies that much from one job to the next. The
+  runs over 3 minutes waited: for macOS runners (5 for the organisation) and, in PR #5's, for any runner at all (`changes`, a
+  Linux job, waited 105–280 s, and `verify` up to 847 s), because the organisation's 20 concurrent jobs were taken by other repositories' runs: the
+  server's (174 runs between 01:10 and 02:24 UTC on 2026-11-27, 24 of them queued at a time) and the per-platform repositories whose code this one now
+  holds, whose CI still runs on macOS (`purlay-ios`: 11 runs in that hour). **Once work happens here alone, turning off the CI
+  of `purlay-ios`, `purlay-macos` and `purlay-swift`** (archive them, or disable their workflows) is the change that matters
+  most for the wait, and it is outside this repository.
 - **`packages`**: its test phase is the largest part (44–65 s for about 1000 tests on three cores; `PurlayMacUITests` alone 37 s,
   every other target together 35 s, in run 45921784210), then the build (27–44 s with every compilation a cache hit: linking and
   copying seven test bundles), then the job's first `xcodebuild` (21–40 s, shown as `resolve`).
