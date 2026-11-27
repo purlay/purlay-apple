@@ -108,9 +108,12 @@ public final class AppModel {
         didSet { onPhaseChange?() }
     }
     @ObservationIgnored var onPhaseChange: (() -> Void)?
-    /// The session ended here. `removedData`: the person signed out or the account was erased, and what this session kept of
-    /// them was removed; false when the server ended it (that data waits for their next sign-in).
-    @ObservationIgnored var onSessionEnded: ((_ removedData: Bool) -> Void)?
+    /// The session ended here. `removedDataOf`: the id of the person who signed out or whose account was erased, and whose data
+    /// this session removed; nil when the server ended it (that data waits for their next sign-in).
+    @ObservationIgnored var onSessionEnded: ((_ removedDataOf: String?) -> Void)?
+    /// The same person signed in again here (`reauthenticate()`): called with the new session and their id before the old
+    /// session is ended, so every other session that holds the old one (the Mac's workspaces of this server) moves first.
+    @ObservationIgnored var onSessionRenewed: ((_ session: StoredSession, _ personID: String) async -> Void)?
     private let preferredWorkspaceID: Uuid?
     public private(set) var server: ServerAddress?
     public private(set) var serverInfo: ClientInfo?
@@ -154,8 +157,20 @@ public final class AppModel {
     /// The socket said `account-deleted` while this app's erasure was out: the account is gone, whatever its answer says.
     @ObservationIgnored private var erasedBySocket = false
     /// An erasure left and its answer never came (`EraseAccountResult.unconfirmed`). Until the session ends, an end the
-    /// server gives it is read as that erasure's (`possiblyErased`), never as "sign in again", which would make a new account.
-    @ObservationIgnored private var erasureUnconfirmed = false
+    /// server gives without a reason (a `401`, a refused socket) is read as that erasure's (`possiblyErased`), never as "sign
+    /// in again", which would make a new account. A reason the socket gives settles it: `account-deleted` is the erasure,
+    /// `signed-out` and `expired` prove the account was still there. A successful read does not, since the erasure may still
+    /// be waiting on the server to commit. Kept in the preferences as the person's id (`unconfirmedErasureKey`), so a
+    /// relaunch keeps it; read back only for the same person (the retained data's owner).
+    @ObservationIgnored private var erasureUnconfirmed = false {
+        didSet {
+            guard erasureUnconfirmed != oldValue else { return }
+            environment.preferences.set(
+                erasureUnconfirmed ? me?.user.id.value ?? environment.owner.load() : nil,
+                for: Self.unconfirmedErasureKey)
+        }
+    }
+    static let unconfirmedErasureKey = "purlay.erasure.unconfirmed"
     /// An account read under way: one asked for meanwhile (the Mac's Check Again beside its activation) waits for it and
     /// shares its answer instead of asking the server again.
     @ObservationIgnored var refreshingAccount: Task<Void, Never>?
@@ -637,6 +652,13 @@ public final class AppModel {
             if case .signedOut(.expired) = state { say(.sessionExpired) }
             if case .signedIn(let session, _) = state {
                 cookieCache = session.cookie
+                // An erasure whose answer never came before the app was quit is still unconfirmed for its person.
+                let unconfirmed = environment.preferences.string(for: Self.unconfirmedErasureKey)
+                if let unconfirmed, unconfirmed == environment.owner.load() {
+                    erasureUnconfirmed = true
+                } else if unconfirmed != nil {
+                    environment.preferences.set(nil, for: Self.unconfirmedErasureKey)
+                }
                 observe(manager)
                 await bootstrap()
                 return
@@ -742,10 +764,22 @@ public final class AppModel {
         cookieCache = fresh.cookie
         signedInAt = environment.clock()
         warnedOfExpiry = false
-        // The socket moves to the new session before the old one ends, so the old one's ending is not heard here.
+        // The socket moves to the new session before the old one ends, so the old one's ending is not heard here; so does
+        // every other session that holds the old one.
         engine?.reconnect()
+        await onSessionRenewed?(fresh, me.user.id.value)
         await endSession(holding: old, on: server)
         return .done
+    }
+
+    /// Another session of this person on this server signed in again: this one moves to the new session (its socket
+    /// with it) before the old one is ended. Somebody else's, or one not signed in, is left as it is.
+    func adoptRenewedSession(_ session: StoredSession, of person: String) async {
+        guard phase == .ready || phase == .loading, let server, let manager, me?.user.id.value == person else { return }
+        await manager.adopt(session, for: server)
+        cookieCache = session.cookie
+        signedInAt = environment.clock()
+        engine?.reconnect()
     }
 
     /// A client of `server` that sends `session`, whatever the session in use is: for a session this app is not using.
@@ -815,7 +849,7 @@ public final class AppModel {
         case .endedByServer where announce: say(.sessionEndedByServer)
         case .expired, .endedByServer, .signedOutByPerson, .signedOutEverywhere, .accountErased, nil: break
         }
-        onSessionEnded?(false)
+        onSessionEnded?(nil)
     }
 
     /// The socket's `SESSION_ENDED`. Only an erasure (`account-deleted`) removes what the person kept here: their account is
@@ -823,6 +857,9 @@ public final class AppModel {
     /// reason ends the session as the server's, and keeps it.
     private func socketEndedSession(_ reason: SessionEndedFrame.Payload.Reason, manager: SessionManager) {
         guard reason == .accountDeleted else {
+            // A reason only a live session is given (`signed-out`, `expired`): the account was still there, so an
+            // unconfirmed erasure did not happen by then, and this is a session the server ended, said as one.
+            if reason == .signedOut || reason == .expired { erasureUnconfirmed = false }
             Task { await manager.sessionEndedByServer() }
             return
         }
@@ -857,11 +894,12 @@ public final class AppModel {
 
     /// The account is gone, or very likely gone: this app signs out as a sign-out does, every wiper run once, and says so.
     private func endErased(_ notice: Notice.Kind) async {
+        let person = me?.user.id.value ?? environment.owner.load()
         await manager?.accountErased()
         tearDown()
         phase = .signedOut
         say(notice)
-        onSessionEnded?(true)
+        onSessionEnded?(person)
     }
 
     /// How many messages the person sent that the server has not yet been heard to have: the outbox, which signing out
@@ -898,6 +936,7 @@ public final class AppModel {
 
     private func signOutOnce(_ scope: SignOutScope) async -> SessionManager.SignOutResult {
         guard let manager else { return .done }
+        let person = me?.user.id.value ?? environment.owner.load()
         let result = await manager.signOut(scope)
         switch result {
         case .done: break
@@ -911,7 +950,7 @@ public final class AppModel {
         }
         tearDown()
         phase = .signedOut
-        onSessionEnded?(true)
+        onSessionEnded?(person)
         return result
     }
 
@@ -960,7 +999,9 @@ public final class AppModel {
             await endErased(.accountErased)
             return .erased
         case .unconfirmed: erasureUnconfirmed = true
-        default: break
+        // The server read the account and refused: it is still there.
+        case .reauthenticationRequired, .lastOwner, .confirmationMismatch, .refused: erasureUnconfirmed = false
+        case .failed, .sessionEnded, .possiblyErased: break
         }
         // A session that ended while the request was out (a `401`, or the socket) was left to this: ended now, as the
         // observer would have, and said once, by the result.
@@ -977,8 +1018,9 @@ public final class AppModel {
 
     /// Stops this workspace without revoking the shared server credential a second time. `removingData`: the person signed
     /// out, or was erased, through another workspace of the same server, so what this one kept of them goes too.
-    func invalidateLocalSession(removingData: Bool = false) {
-        if removingData, let manager {
+    func invalidateLocalSession(removingDataOf person: String? = nil) {
+        // Only the same person's: a workspace of the server held by somebody else keeps what it kept.
+        if let person, person == (me?.user.id.value ?? environment.owner.load()), let manager {
             engine?.forgetOutbox()
             Task { await manager.personLeft() }
         }

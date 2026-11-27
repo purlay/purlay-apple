@@ -235,6 +235,37 @@ struct AccountErasureTests {
         #expect(h.model.notices.map(\.kind) == [.accountPossiblyErased])
     }
 
+    @Test("an unconfirmed erasure is kept as the person's id, and a definite answer of the server forgets it")
+    func unconfirmedMarker() async {
+        let h = ModelHarness()
+        await h.signedIn()
+        h.server.edit { $0.eraseThrows = .timedOut }
+        #expect(await h.model.eraseAccount(confirmation: "ada") == .unconfirmed)
+        #expect(h.preferences.string(for: AppModel.unconfirmedErasureKey) == FakeServer.userID)
+        h.server.edit {
+            $0.eraseThrows = nil
+            $0.eraseStatus = 403
+            $0.eraseError = error("REAUTHENTICATION_REQUIRED")
+        }
+        #expect(await h.model.eraseAccount(confirmation: "ada") == .reauthenticationRequired)
+        #expect(h.preferences.string(for: AppModel.unconfirmedErasureKey) == nil, "the account was read: it is there")
+    }
+
+    @Test("an unconfirmed erasure kept for somebody else is not read as this person's at launch, and is forgotten")
+    func unconfirmedMarkerOfAnother() async throws {
+        let wiper = RecordingWiper()
+        let h = ModelHarness(wipers: [wiper])
+        h.owner.save(FakeServer.userID)
+        h.preferences.set("0199155c-6200-7b7f-8c11-0000000000e9", for: AppModel.unconfirmedErasureKey)
+        try h.rememberedSession()
+        h.server.edit { $0.sessionValid = false }
+        await h.model.connect()
+        await h.settle()
+        #expect(h.model.notices.map(\.kind) == [.sessionEndedByServer])
+        #expect(wiper.wipes == 0)
+        #expect(h.preferences.string(for: AppModel.unconfirmedErasureKey) == nil)
+    }
+
     @Test("an erasure asked while a sign-out is under way waits for it, does not ask the server, and says it ended")
     func eraseDuringSignOut() async throws {
         let target = Mutex<AppModel?>(nil)

@@ -219,14 +219,22 @@ public final class DesktopSessions {
             guard let self, let session else { return }
             self.changed(session)
         }
-        model.onSessionEnded = { [weak self, weak model, weak session] removedData in
+        model.onSessionRenewed = { [weak self, weak model] renewed, person in
+            guard let self, let model else { return }
+            for other in self.sessions where other.model !== model && other.model.origin == model.origin {
+                await other.model.adoptRenewedSession(renewed, of: person)
+            }
+        }
+        // Every workspace of a server shares its credential, so one that ends ends them all; what each kept is removed only
+        // when it is the same person's whose data the ending one removed.
+        model.onSessionEnded = { [weak self, weak model, weak session] removedDataOf in
             guard let self, let model, let session else { return }
             if self.pendingLink?.server == model.origin || self.pendingLink?.server == model.server {
                 self.pendingLink = nil
                 self.linkGeneration += 1
             }
             for other in self.sessions where other.model !== model && other.model.origin == model.origin {
-                other.model.invalidateLocalSession(removingData: removedData)
+                other.model.invalidateLocalSession(removingDataOf: removedDataOf)
                 self.attention.clear(other.id.uuidString)
             }
             self.attention.clear(session.id.uuidString)
