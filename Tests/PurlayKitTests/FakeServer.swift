@@ -24,6 +24,7 @@ final class FakeServer: HTTPTransport {
         var uploadError: (status: Int, code: String, remaining: Int?)?
         var uploadErrors: [String: (status: Int, code: String, remaining: Int?)] = [:]
         var uploadDelays: [String: Int] = [:]
+        var beforeUploadResponse: (@Sendable () async -> Void)?
         var attachmentData: [String: Data] = [:]
         var reminders: [MessageReminder] = []
         var reminderError: (status: Int, code: String)?
@@ -1005,6 +1006,7 @@ final class FakeServer: HTTPTransport {
             let items = URLComponents(url: request.url, resolvingAgainstBaseURL: false)?.queryItems ?? []
             let id = items.first { $0.name == "id" }?.value ?? ""
             let name = items.first { $0.name == "name" }?.value ?? ""
+            await snapshot.beforeUploadResponse?()
             if let wait = snapshot.uploadDelays[name] { try? await Task.sleep(for: .milliseconds(wait)) }
             if let failure = snapshot.uploadErrors[name] ?? snapshot.uploadError {
                 let details = failure.remaining.map { #","details":{"remainingBytes":\#($0)}"# } ?? ""
