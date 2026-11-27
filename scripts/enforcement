@@ -668,8 +668,8 @@ plant_in "a logo shape faded by an opacity the Swift does not read" . \
   "sed -i.bak 's/<path fill=\"url(#stem)\"/<path opacity=\".2\" fill=\"url(#stem)\"/' $LOGOS"
 plant_in "a logo stop faded by a stop-opacity the Swift does not read" . \
   "sed -i.bak 's/<stop offset=\"1\" stop-color=\"#0EA5EE\"/<stop offset=\"1\" stop-opacity=\".3\" stop-color=\"#0EA5EE\"/' $LOGOS"
-# qa/pr4-recheck: a path inside <defs> is never drawn by an SVG renderer, yet logo-swift draws it, here regenerated so the Swift
-# and the launch mark agree with the SVG and only the subset check can refuse it.
+# A path inside <defs> is never drawn by an SVG renderer. The Swift is regenerated after it, so only the reading of the SVG
+# (where each element may stand) can refuse it.
 plant_in "a logo path inside defs, which the SVG does not draw" . \
   "sed -i.bak 's#  </defs>#    <path fill=\"url(\\#stem)\" d=\"M0 0 H1024 V1024 H0 Z\"/></defs>#' $LOGOS && (\"$OLDPWD/scripts/logo-swift\" . >/dev/null 2>&1 || true)"
 plant "a button built from a LocalizedStringResource" Apps/iOS/App/Root/RootView.swift 'let leaked = Button(Words.signInButton) {}'
