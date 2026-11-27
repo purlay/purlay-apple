@@ -194,7 +194,9 @@ extension SnapshotTests {
         let model = AppModel(
             AppEnvironment(
                 transport: transport, sessions: sessions, preferences: Preferences(),
-                authenticator: ScriptedAuthenticator([]), appVersion: SemanticVersion("0.3.0")!, deviceName: "Test Mac",
+                authenticator: ScriptedAuthenticator([]), appVersion: SemanticVersion("0.3.0")!,
+                identity: AppIdentity(bundleIdentifier: "dev.purlay.mac.tests", platform: .macOS),
+                deviceName: "Test Mac",
                 allowsLocalHTTP: false, serverAddress: server.description,
                 dataDirectory: FileManager.default.temporaryDirectory,
                 openSocket: { _, _ in preconditionFailure("a core-only workspace opens no socket") },
