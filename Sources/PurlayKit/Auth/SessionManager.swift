@@ -49,6 +49,7 @@ public actor SessionManager {
 
     private let store: any SessionStore
     private let owner: any OwnerMemory
+    private let log: Log
     private let wipers: [any UserDataWiper]
     private let now: @Sendable () -> Date
     private let endSession: @Sendable (SignOutScope) async throws -> Void
@@ -57,12 +58,13 @@ public actor SessionManager {
     private var continuations: [UUID: AsyncStream<State>.Continuation] = [:]
 
     public init(
-        store: any SessionStore, owner: any OwnerMemory, wipers: [any UserDataWiper] = [],
+        store: any SessionStore, owner: any OwnerMemory, log: Log, wipers: [any UserDataWiper] = [],
         now: @escaping @Sendable () -> Date = Date.init,
         endSession: @escaping @Sendable (SignOutScope) async throws -> Void
     ) {
         self.store = store
         self.owner = owner
+        self.log = log
         self.wipers = wipers
         self.now = now
         self.endSession = endSession
@@ -167,7 +169,7 @@ public actor SessionManager {
         do {
             try store.delete(for: server)
         } catch {
-            Log.session.error("the sign-in could not be removed: \(String(describing: error), privacy: .public)")
+            log.session.error("the sign-in could not be removed: \(String(describing: error), privacy: .public)")
             if !told { return .credentialKept }
         }
         for wiper in wipers { await wiper.wipe() }

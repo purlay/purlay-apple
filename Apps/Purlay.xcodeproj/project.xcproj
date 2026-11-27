@@ -66,6 +66,7 @@
             { "path": "iOSUITests.xcconfig" },
             { "path": "macOS.xcconfig" },
             { "path": "Release.xcconfig" },
+            { "path": "Shared.xcconfig" },
           ],
         },
       ],
@@ -112,6 +113,9 @@
           "build-phase": { "build-phase": "frameworks" },
         }, {
           "product-name": "PurlayTokens",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "PurlayWords",
           "build-phase": { "build-phase": "frameworks" },
         },
       ],

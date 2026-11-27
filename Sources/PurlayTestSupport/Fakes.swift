@@ -1,4 +1,5 @@
 import Foundation
+import PurlayContract
 import PurlayKit
 import Synchronization
 
@@ -70,7 +71,7 @@ public actor ScriptedAuthenticator: WebAuthenticator {
             let state =
                 URLComponents(url: page, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "state" }?
                 .value ?? ""
-            return URL(string: "purlay://auth?code=\(code)&state=\(state)")!
+            return URL(string: ContractConstants.nativeRedirect + "?code=\(code)&state=\(state)")!
         }
     }
 }

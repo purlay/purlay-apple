@@ -17,7 +17,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1935C75DF9976A248E37B33F"
-               BuildableName = "Purlay iOS.app"
+               BuildableName = "Purlay.app"
                BlueprintName = "Purlay iOS"
                ReferencedContainer = "container:Purlay.xcodeproj">
             </BuildableReference>
@@ -40,7 +40,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1935C75DF9976A248E37B33F"
-            BuildableName = "Purlay iOS.app"
+            BuildableName = "Purlay.app"
             BlueprintName = "Purlay iOS"
             ReferencedContainer = "container:Purlay.xcodeproj">
          </BuildableReference>
@@ -65,7 +65,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1935C75DF9976A248E37B33F"
-            BuildableName = "Purlay iOS.app"
+            BuildableName = "Purlay.app"
             BlueprintName = "Purlay iOS"
             ReferencedContainer = "container:Purlay.xcodeproj">
          </BuildableReference>
@@ -84,7 +84,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1935C75DF9976A248E37B33F"
-            BuildableName = "Purlay iOS.app"
+            BuildableName = "Purlay.app"
             BlueprintName = "Purlay iOS"
             ReferencedContainer = "container:Purlay.xcodeproj">
          </BuildableReference>

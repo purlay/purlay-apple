@@ -4,7 +4,9 @@ import Synchronization
 
 // The outside of the app, replaced for a test: the network, the Keychain, the browser and the data owner's memory. They are written
 // here and not taken from `PurlayTestSupport`: linking that product into this test bundle puts a second, static copy of `PurlayKit`
-// beside the one the app loads, and two copies of one class are two types.
+// beside the one the app loads, and two copies of one type are two types. Tried again in November 2026 with these fakes removed:
+// the browser's `WebAuthenticatorError`, thrown from the test support's copy, was not caught by the app's
+// `catch let error as WebAuthenticatorError`, and the sign-in failure was never said (RootScreenTests' browserFailure).
 
 /// Answers a request as a script says, and remembers what it was asked. A request nobody scripted is a failure the test sees, not a hang.
 actor ScriptedTransport: HTTPTransport {

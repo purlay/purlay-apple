@@ -139,7 +139,7 @@ public final class DesktopSessions {
 
     /// Called by Launch Services or the explicit paste-link action. Browser authentication owns the auth route.
     public func openLink(_ url: URL) async {
-        if url.scheme?.lowercased() == "purlay", url.host == "auth" { return }
+        if NativeRedirect.isCallback(url) { return }
         guard let link = ConversationLink.parse(url, allowsLocalHTTP: environment.allowsLocalHTTP) else {
             pendingLink = nil
             linkGeneration += 1

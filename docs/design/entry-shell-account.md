@@ -4,8 +4,8 @@
 > FR-023, FR-025 in [requirements](../product/requirements.md)
 >
 > **Status:** slice 1 in progress. Built: `PurlayDesign`'s mark, brand, motion and the button, bar and notice seams; the launch
-> screen, connecting and Welcome; the decisions for two-step verification and no workspace (`RootScreen`). Still to build in
-> slice 1: the Problem screen's design, the two-step and no-workspace screens, and the notice banners in glass.
+> screen, connecting and Welcome; the notice banners in glass; the decisions for two-step verification and no workspace
+> (`RootScreen`). Still to build in slice 1: the Problem screen's design, and the two-step and no-workspace screens.
 
 ## Intent
 
@@ -46,9 +46,10 @@ never stuck.
 
 - iOS 18 floor and iOS 27 SDK. Version checks only in `PurlayDesign`, as modifiers named by role ([ADR 0002](../decisions/0002-platform-floors-and-one-availability-seam.md)).
 - `AppModel` from `PurlayKit` is the one model. Views read it and call it. Slice 1 needs no change to the engine.
-- Every sentence is in `Words` and in the catalogue, in English and Turkish.
+- Every sentence is in the app's `Words` and its catalogue, or, for what the engine reports, in `PurlayWords`' `EngineWords`
+  and its catalogue, in English and Turkish.
 - Each screen is decided from a pure value (`RootScreen`). A tap that must happen once goes through a guard that reads the
-  phase (`RootActions`).
+  phase (`RootActions`); signing out and reading the account again run once in `AppModel`, which the Mac shares.
 
 ## Approaches considered
 
@@ -93,7 +94,9 @@ in place.
 - **Welcome (signed out).** The mark (vector, drawn from the logo in `Design/purlay.svg` as a SwiftUI `Shape`, sharp at
   every size), "Purlay", and one line: "Your team's conversations, in your pocket." A bottom bar holds "Sign In" as the one
   prominent glass button and, under it, a secondary line: "You'll continue in your browser on <server host>." The footer
-  says that a new account is made on the sign-in page. The background is a quiet `MeshGradient` in the brand blues. It is
+  says that a new account is made on the sign-in page. Every line wraps, at any size, and never ends in "…". Content
+  scrolled under the bar takes the mark with it, and the mark is cut at the bar's top edge, as it is at the status bar, so it
+  never covers Sign In. The background is a quiet `MeshGradient` in the brand blues. It is
   static under Reduce Motion and when the device runs in Low Power Mode, and otherwise drifts slowly (no faster than one
   cycle in 20 s).
 - **Problem.** `ContentUnavailableView` with a symbol for each problem. The action goes in the bottom bar: Try Again, or
@@ -102,8 +105,10 @@ in place.
 - **Two-step verification required** (`me.mustEnrolTwoFactor`). Set Up in Browser opens `twoFactorSetupURL`. Refresh calls
   `refreshAccount()`, and so does the app coming back to the foreground. Sign Out is in the toolbar.
 - **No workspace** (ready, no workspace). Open Purlay on the Web (`webFrontDoor`), Refresh, and Sign Out.
-- **Notice banners.** A glass capsule at the top (`purlaySurface(.panel)`). It materializes on iOS 26 and slides with a
-  fade before. VoiceOver announces it. It stays until dismissed.
+- **Notice banners.** A glass capsule at the top (`purlaySurface(.panel)`), in one `PurlayNoticeStack`; a banner taller than one
+  line keeps the capsule's corners. It materializes on iOS 26 and slides with a fade before. VoiceOver announces it, and
+  reads the whole sentence. It stays until dismissed, with a dismiss button that is a 44 pt target. It never covers the
+  screen: three lines show (one on a landscape iPhone), and Read More opens the whole sentence in a sheet that scrolls.
 
 `RootScreen` gains `.twoFactorRequired` and `.noWorkspace`, decided from the phase and the account, so each is tested
 without drawing.

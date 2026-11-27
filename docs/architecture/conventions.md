@@ -10,9 +10,9 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
 | Format | `xcrun swift-format lint --strict` (Xcode's toolchain): 120 columns, 4 spaces | `.swift-format`; the `packages` lane, and the pre-commit hook on staged files |
 | Compiler | Swift 6 language mode, complete strict concurrency, every warning an error | `Package.swift` (`strict`), `Config/Shared.xcconfig` |
 | Architecture rules | `scripts/enforcement`, and `--demo`, which plants each violation and requires the refusal | the `rules` lane |
-| Strings | `scripts/localize --check` (Mac), `scripts/enforcement` (iOS) | the `rules` lane |
+| Strings | `scripts/enforcement`: one checker for the three catalogues; `scripts/localize` adds the Mac's and the engine's new sentences | the `rules` lane |
 | Generated code | `scripts/generate --check` | the `generated` lane |
-| Tests | Swift Testing (`@Test`, `@Suite`, `#expect`); XCUITest for the iOS sign-in only | `Tests/`, `Apps/iOS/Tests/`, `Tools/PurlayGen/Tests/`, `ContractTests/` |
+| Tests | Swift Testing (`@Test`, `@Suite`, `#expect`); XCUITest for the iOS sign-in only | `Tests/` (`Tests/ContractTests` among them), `Apps/iOS/Tests/`, `Tools/PurlayGen/Tests/` |
 | Secrets | gitleaks, pinned, over the whole history; the pre-commit hook on staged changes | `scripts/verify security`, [ADR 0005](../decisions/0005-make-verify-and-a-secret-scan.md) |
 | Commit messages | conventional commits (`type(scope): what changed`) | `.githooks/commit-msg`; the squash title is the message that lands |
 | Verify | `make verify` before pushing; `make verify-all` as a release does | `Makefile` over `scripts/verify` |
@@ -43,9 +43,12 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
   `AppEnvironment`, built in each app's composition root. Platform-specific acts arrive as protocols the app implements
   (`AttentionPresenter`, `WebAuthenticator`, `PreferenceStore`).
 - A screen is decided from a pure value (`RootScreen` on iOS) so each state is tested without drawing. A tap that must happen
-  once goes through a guard that reads the phase (`RootActions`), never a flag in the view.
+  once goes through a guard that reads the phase (`RootActions`), never a flag in the view. What leaves the phase as it is while
+  the server answers (signing out, reading the account again) runs once in the model, for both apps: a call meanwhile waits
+  for the one under way.
 - Colour, spacing, type and motion come from `PurlayTokens`: through `PurlayDesign` on iOS, through `TokenBinding.swift` and
-  `NativePalette.swift` on the Mac. A view names a token, never a colour of its own.
+  `NativePalette.swift` on the Mac. A view names a token, never a colour of its own; a colour literal is allowed only in the
+  tokens, the logo and `NativePalette.swift` (enforced).
 - Liquid Glass belongs on the navigation layer, never on content, and is the system's own (`purlaySurface`, the glass button
   styles), never drawn by hand.
 
@@ -56,8 +59,8 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
   dismissed into a broken state.
 - Wire error codes are matched from the generated union; an unknown id or code is ignored or shown generically, never a crash.
 - A failure shown to a person is a sentence written for them. The server's `message` is English and written for a log, so it is
-  never shown, and neither is `String(describing:)` of an error. Each `ServerProblem` and `SignInError` case has its sentence in
-  `Words.swift`, matched exhaustively, so a new case fails to compile until it has words.
+  never shown, and neither is `String(describing:)` of an error. Each `ServerProblem`, `SignInError`, notice and upload failure
+  has its sentence in `PurlayWords`' `EngineWords`, matched exhaustively, so a new case fails to compile until it has words.
 - No empty `catch`, no `_ = error`, no silent fallback. A `try?` is acceptable only for work whose failure changes nothing
   (cancelling a sleep). A failure is shown, retried by a stated rule, or logged with its cause.
 
@@ -95,9 +98,13 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
 
 ## Strings and screens
 
-- Every sentence a person reads is in the app's catalogue (`Localizable.xcstrings`), English as the source and Turkish complete.
-  On iOS it is a `LocalizedStringResource` in `Words.swift`; on the Mac it is written in English in the code (`Strings.swift`,
-  `Text("…")`) and `scripts/localize` adds it to the catalogue. A view never writes a literal sentence on iOS.
+- Every sentence a person reads is in one catalogue (`Localizable.xcstrings`), English as the source and Turkish complete. What
+  both apps say about the engine is `PurlayWords`' (`EngineWords`, its own catalogue); what only one app says is that app's: on
+  iOS a `LocalizedStringResource` in `Words.swift`, on the Mac English in the code (`Strings.swift`, `Text("…")`). For the Mac
+  and the engine, `scripts/localize` adds new sentences to their catalogues. A view never writes a literal sentence on iOS.
+  A sentence lives in one catalogue only, and every sentence in a catalogue is a string literal in the code that reads that
+  catalogue: the iOS app's, the Mac app's with `PurlayMacUI`, `PurlayWords`' (enforced). A sentence the code stopped saying
+  is removed; the catalogues keep no extraction state, so `stale` alone would never show it.
 - A button is built from a `Text` label: `Button(Words.x)` showed English on a Turkish simulator (enforced).
 - Turkish addresses the person as "sen", as the web client does; its wording follows `apps/web/src/i18n/catalogue/tr.ts` of the
   server repository.
@@ -126,6 +133,7 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
 | Editing a file under `Generated/` | the bundle pin or `Tools/PurlayGen` | `scripts/generate --check` |
 | A build setting in the project file | `Config/*.xcconfig` | enforced |
 | A string with no final Turkish value | the Turkish value in the catalogue | enforced |
+| A catalogue sentence no code that reads the catalogue says | remove it from the catalogue | enforced |
 | `Button(Words.x)`, a literal sentence in an iOS view, `String(describing:)` of an error shown to a person | a `Text(Words.x)` label; a sentence in `Words` | the catalogue; a person is not shown a developer's text |
 | Linking `PurlayTestSupport` into the iOS app's tests | `Apps/iOS/Tests/PurlayTests/Fakes.swift` | ADR 0006 |
 | Lowering strict concurrency, silencing a warning, `// swift-format-ignore` without a reason | fix the cause | the compiler is the first reviewer |
@@ -136,4 +144,5 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
 
 - **Citations of plan sections** in the Mac code's comments (`§12.3`, `M-8`, `M6-1`) point at a plan that is not in the
   repository (TD-011, Q-006). Cite a document, a decision or the server's `D-xxx` decision instead.
-- **Colour literals** outside `TokenBinding.swift` are in `NativePalette.swift` only (TD-012); do not add another place.
+- **`NativePalette.swift`** holds the Mac's neutral greys and status colours as literals, because no token states them yet. Its
+  blue is the accent token. Do not add a colour there that a token states.

@@ -53,7 +53,8 @@ enum RootScreen: Equatable {
 }
 
 /// What a tap on a screen does. A second tap that arrives before the first has changed the phase finds the phase changed, and does
-/// nothing: one sign-in, one check, however fast the finger.
+/// nothing: one sign-in, one check, however fast the finger. Signing out and refreshing the account keep the phase `.ready` while
+/// the server answers; the model runs each once while one is under way, for both apps.
 @MainActor
 enum RootActions {
     static func signIn(_ model: AppModel) async {
@@ -68,7 +69,7 @@ enum RootActions {
 
     static func signOut(_ model: AppModel, everywhere: Bool) async {
         guard model.phase == .ready else { return }
-        _ = await model.signOut(everywhere ? .everywhere : .thisDevice)
+        await model.signOut(everywhere ? .everywhere : .thisDevice)
     }
 
     static func refreshAccount(_ model: AppModel) async {

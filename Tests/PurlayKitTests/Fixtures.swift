@@ -8,7 +8,26 @@ enum Fixtures {
         var root = URL(fileURLWithPath: #filePath)
         for _ in 0..<3 { root.deleteLastPathComponent() }
         let data = try Data(contentsOf: root.appendingPathComponent("Contract/bundle/fixtures/" + path))
-        return try JSONDecoder().decode(JSONValue.self, from: data)
+        // Not JSONDecoder: the Markdown corpus holds trees two hundred values deep, past what the app reads from a server
+        // (`JSONValue.depthMax`). It is the server's own test data, which the app never reads, so it is read here without
+        // that bound, through Foundation's parser and a converter whose frames are small.
+        return try value(JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed))
+    }
+
+    struct NotJSON: Error {}
+
+    private static func value(_ object: Any) throws -> JSONValue {
+        switch object {
+        case is NSNull: return .null
+        case let number as NSNumber:
+            if CFGetTypeID(number) == CFBooleanGetTypeID() { return .bool(number.boolValue) }
+            if CFNumberIsFloatType(number) { return .number(number.doubleValue) }
+            return .integer(number.intValue)
+        case let text as String: return .string(text)
+        case let items as [Any]: return .array(try items.map(value))
+        case let fields as [String: Any]: return .object(try fields.mapValues(value))
+        default: throw NotJSON()
+        }
     }
 }
 

@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// `⌘K`: the way to anywhere. Type a name and Return; the arrows move; Escape closes. Whatever was typed, the last row searches messages for
@@ -223,7 +224,11 @@ struct SearchSheet: View {
                     Label(Words.savedSearchFailure(savedFailure), systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button("Dismiss") { self.savedFailure = nil }.buttonStyle(.link)
+                    Button {
+                        self.savedFailure = nil
+                    } label: {
+                        Text(EngineWords.dismiss)
+                    }.buttonStyle(.link)
                 }
                 .font(.caption)
             }
@@ -471,7 +476,7 @@ struct SearchSheet: View {
             } description: {
                 Text("Check your connection and try again.")
             } actions: {
-                Button("Try Again", action: run)
+                Button(action: run) { Text(EngineWords.tryAgain) }
             }
             .frame(maxHeight: .infinity)
         case .refused:

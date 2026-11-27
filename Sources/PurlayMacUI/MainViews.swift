@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// The signed-in window (§12.3): the sidebar, the channel that is open, and its thread as the inspector. The split view, the
@@ -615,7 +616,7 @@ private struct FeedLoadFailed: View {
         } description: {
             Text("Check your connection and try again.")
         } actions: {
-            Button("Try Again", action: retry).glassButton(prominent: true)
+            Button(action: retry) { Text(EngineWords.tryAgain) }.glassButton(prominent: true)
         }
         .frame(maxWidth: .infinity, minHeight: 280)
         .padding(.top, Spacing.space12)

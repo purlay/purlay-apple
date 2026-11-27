@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 enum ChannelSheet: String, Identifiable {
@@ -350,7 +351,11 @@ struct NewConversationSheet: View {
                     } description: {
                         Text("Check your connection and try again.")
                     } actions: {
-                        Button("Try Again") { refreshRevision &+= 1 }.glassButton()
+                        Button {
+                            refreshRevision &+= 1
+                        } label: {
+                            Text(EngineWords.tryAgain)
+                        }.glassButton()
                     }
                 } else if people.isEmpty {
                     EmptyState.search(text: query)

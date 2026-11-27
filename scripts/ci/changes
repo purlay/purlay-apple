@@ -44,7 +44,7 @@ lanes_for() {
     Sources/PurlayDesign/*) echo "rules packages ios macos simulator" ;;
     Tests/PurlayDesignTests/*) echo "rules packages simulator" ;;
     Package.swift | Sources/* | Config/* | Apps/Purlay.xcodeproj/* | scripts/build-number) echo "rules packages ios macos" ;;
-    Tests/* | TestPlans/macOS.xctestplan | .swift-format | ContractTests/*) echo "rules packages" ;;
+    Tests/* | TestPlans/macOS.xctestplan | .swift-format) echo "rules packages" ;;
     TestPlans/iOS.xctestplan) echo "rules simulator" ;;
     TestPlans/*) echo "rules packages" ;;
     .github/actionlint.yaml | .githooks/* | scripts/dev/* | scripts/install-lint-tools) echo "rules" ;;

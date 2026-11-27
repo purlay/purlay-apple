@@ -15,7 +15,7 @@ updates:
   # The package and the tools' packages. The root package and the generator have no dependency today; this watches for one.
   # Sparkle is pinned in the Xcode project, which Dependabot does not read (docs/architecture/tech-debt.md, TD-013).
   - package-ecosystem: swift
-    directories: [/, /Tools/PurlayGen, /ContractTests]
+    directories: [/, /Tools/PurlayGen]
     schedule: { interval: weekly, day: monday, time: "06:00", timezone: Europe/Istanbul }
     cooldown: { default-days: 7 }
     commit-message: { prefix: "chore(deps)" }

@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// What the person was told in this workspace, as a page in the window (not a sheet): newest first, Today and Earlier, a row
@@ -85,8 +86,12 @@ struct InboxPage: View {
             } description: {
                 Text("Check your connection and try again.")
             } actions: {
-                Button("Try Again") { Task { await model.setInboxFilter(model.inboxFilter) } }
-                    .glassButton(prominent: true)
+                Button {
+                    Task { await model.setInboxFilter(model.inboxFilter) }
+                } label: {
+                    Text(EngineWords.tryAgain)
+                }
+                .glassButton(prominent: true)
             }
         case .loaded:
             if model.inboxRows.isEmpty {
@@ -292,10 +297,8 @@ extension Words {
         case 1: return named[0]
         case 2: return String(localized: "\(named[0]) and \(named[1])")
         default:
-            let others = named.count - 2
-            return others == 1
-                ? String(localized: "\(named[0]), \(named[1]) and 1 other")
-                : String(localized: "\(named[0]), \(named[1]) and \(others) others")
+            // The catalogue gives the count its plural form: "and 1 other", "and 2 others".
+            return String(localized: "\(named[0]), \(named[1]) and \(named.count - 2) others")
         }
     }
 }
@@ -328,8 +331,12 @@ private struct UpdatesList: View {
             } description: {
                 Text("Check your connection and try again.")
             } actions: {
-                Button("Try Again") { Task { await model.reloadUpdates() } }
-                    .glassButton(prominent: true)
+                Button {
+                    Task { await model.reloadUpdates() }
+                } label: {
+                    Text(EngineWords.tryAgain)
+                }
+                .glassButton(prominent: true)
             }
         case .loaded:
             if model.updateRows.isEmpty {

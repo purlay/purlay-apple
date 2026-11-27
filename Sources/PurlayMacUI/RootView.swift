@@ -2,6 +2,7 @@
 import AppKit
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// The window's content: one screen for each phase the model can be in, and no other.
@@ -24,10 +25,10 @@ public struct RootView: View {
     }
 
     /// What the window says while it waits, or nil when there is a screen to show.
-    private var waitingLabel: String? {
+    private var waitingLabel: LocalizedStringResource? {
         switch model.phase {
-        case .launching, .checking: String(localized: "Connecting…")
-        case .loading: String(localized: "Loading your workspace…")
+        case .launching, .checking: EngineWords.connecting
+        case .loading: EngineWords.loadingWorkspace
         default: nil
         }
     }

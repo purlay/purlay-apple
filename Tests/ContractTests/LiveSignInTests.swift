@@ -53,7 +53,8 @@ struct LiveSignInTests {
         let issued = SignedInBrowser.Issued()
         let browser = SignedInBrowser(api: PurlayAPI(client: world.client(as: persona)), issued: issued)
         let signIn = NativeSignIn(
-            transport: URLSessionTransport(), appVersion: world.appVersion, authenticator: browser,
+            transport: URLSessionTransport(), appVersion: world.appVersion, platform: world.identity.platform,
+            authenticator: browser,
             store: InMemorySessionStore(),
             deviceName: "Contract Test Mac")
         return (try await signIn.signIn(to: world.server, origin: world.server), issued)
@@ -100,7 +101,8 @@ struct LiveSignInTests {
             AppEnvironment(
                 transport: transport, sessions: InMemorySessionStore(),
                 preferences: UserDefaultsPreferences(suite: localDomain), authenticator: browser,
-                appVersion: world.appVersion, deviceName: "Contract Test Mac", allowsLocalHTTP: true,
+                appVersion: world.appVersion, identity: world.identity, deviceName: "Contract Test Mac",
+                allowsLocalHTTP: true,
                 serverAddress: world.server.description, dataDirectory: FileManager.default.temporaryDirectory,
                 openSocket: { _, _ in
                     Issue.record("The core-only workspace tried to open a socket")

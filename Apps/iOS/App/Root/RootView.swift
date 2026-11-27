@@ -1,5 +1,6 @@
 import PurlayDesign
 import PurlayKit
+import PurlayWords
 import SwiftUI
 
 /// One screen per phase of the app's model, with what the model said to the person above it. Only system components: navigation
@@ -41,7 +42,7 @@ private struct ProblemView: View {
     let retry: () async -> Void
 
     var body: some View {
-        let words = Words.problem(problem)
+        let words = EngineWords.problem(problem)
         Scrolling {
             ContentUnavailableView {
                 Label(words.title, systemImage: "wifi.exclamationmark")
@@ -51,7 +52,7 @@ private struct ProblemView: View {
                 Button {
                     Task { await retry() }
                 } label: {
-                    Text(Words.tryAgain)
+                    Text(EngineWords.tryAgain)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
@@ -60,32 +61,41 @@ private struct ProblemView: View {
     }
 }
 
-/// What the model said that is not a screen of its own, one line each, each to be dismissed.
-private struct NoticeList: View {
+/// What the model said that is not a screen of its own, each to be dismissed, on the glass the notices share. VoiceOver does not
+/// read a banner that appears on its own, so each new one is announced, once.
+struct NoticeList: View {
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     let model: AppModel
 
+    /// The space above the notices. A landscape iPhone hides the status bar and leaves no top safe area, so the notices keep
+    /// their own margin there instead of touching the screen's edge; elsewhere the status bar's area is the margin.
+    nonisolated static func topMargin(_ verticalSizeClass: UserInterfaceSizeClass?) -> CGFloat {
+        verticalSizeClass == .compact ? 8 : 0
+    }
+
     var body: some View {
-        VStack(spacing: 8) {
+        PurlayNoticeStack {
             ForEach(model.notices) { notice in
-                if let words = Words.notice(notice.kind) {
-                    HStack(alignment: .center, spacing: 12) {
-                        Text(words).font(.callout).padding(.vertical, 12).frame(
-                            maxWidth: .infinity, alignment: .leading)
-                        Button {
-                            model.dismiss(notice)
-                        } label: {
-                            Image(systemName: "xmark")
-                                .frame(minWidth: 44, minHeight: 44)
-                                .contentShape(.rect)
-                        }
-                        .accessibilityLabel(Text(Words.dismiss))
-                    }
-                    .padding(.leading)
-                    .background(.thinMaterial, in: .rect(cornerRadius: 12))
-                    .padding(.horizontal)
-                    .accessibilityElement(children: .contain)
+                if let words = EngineWords.notice(notice.kind) {
+                    NoticeBanner(words: words) { model.dismiss(notice) }
+                        .purlayNoticeTransition()
                 }
             }
         }
+        .padding(.horizontal)
+        .padding(.top, Self.topMargin(verticalSizeClass))
+        .purlayAnimation(.smooth, value: model.notices)
+        .onChange(of: model.notices) { old, new in
+            let sentences = Self.arrivals(from: old, to: new).compactMap { EngineWords.notice($0.kind) }
+            guard !sentences.isEmpty else { return }
+            AccessibilityNotification.Announcement(sentences.map { String(localized: $0) }.joined(separator: "\n"))
+                .post()
+        }
+    }
+
+    /// The notices in `new` that were not in `old`, in the order they are shown: each is announced when it arrives, never again.
+    nonisolated static func arrivals<Item: Identifiable>(from old: [Item], to new: [Item]) -> [Item] {
+        let shown = Set(old.map(\.id))
+        return new.filter { !shown.contains($0.id) }
     }
 }

@@ -85,7 +85,12 @@ public struct AppEnvironment {
     public var preferences: any PreferenceStore
     public var authenticator: any WebAuthenticator
     public var appVersion: SemanticVersion
-    public var platform: ClientPlatform
+    /// Which app this is: the platform the server is told, and what the Keychain and the log are named after.
+    public var identity: AppIdentity {
+        didSet { log = Log(subsystem: identity.logSubsystem) }
+    }
+    /// The log, under the app's own subsystem: made from `identity`, and made again when it changes, so it names no other app.
+    public private(set) var log: Log
     public var deviceName: String
     public var allowsLocalHTTP: Bool
     /// The one server this app signs in to: Purlay's own. Only a development build points it elsewhere.
@@ -106,7 +111,7 @@ public struct AppEnvironment {
     public init(
         transport: any HTTPTransport, sessions: any SessionStore, preferences: any PreferenceStore,
         authenticator: any WebAuthenticator,
-        appVersion: SemanticVersion, platform: ClientPlatform = .macOS, deviceName: String, allowsLocalHTTP: Bool,
+        appVersion: SemanticVersion, identity: AppIdentity, deviceName: String, allowsLocalHTTP: Bool,
         serverAddress: String = ServerAddress.hosted, dataDirectory: URL,
         openSocket: @escaping (ServerAddress, String) -> OpenSocket, schedule: @escaping Schedule,
         random: @escaping () -> Double = { Double.random(in: 0...1) },
@@ -122,7 +127,8 @@ public struct AppEnvironment {
         self.preferences = preferences
         self.authenticator = authenticator
         self.appVersion = appVersion
-        self.platform = platform
+        self.identity = identity
+        self.log = Log(subsystem: identity.logSubsystem)
         self.deviceName = deviceName
         self.allowsLocalHTTP = allowsLocalHTTP
         self.serverAddress = serverAddress

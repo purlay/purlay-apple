@@ -1,6 +1,7 @@
 #if os(macOS)
 import PurlayContract
 import PurlayKit
+import PurlayWords
 import SwiftUI
 
 struct UnresolvedPageView: View {
@@ -55,7 +56,11 @@ struct UnresolvedPageView: View {
             } description: {
                 Text("Check your connection and try again.")
             } actions: {
-                Button("Try Again") { Task { await model.loadUnresolved() } }
+                Button {
+                    Task { await model.loadUnresolved() }
+                } label: {
+                    Text(EngineWords.tryAgain)
+                }
             }
         } else if model.unresolvedItems.isEmpty {
             ContentUnavailableView(

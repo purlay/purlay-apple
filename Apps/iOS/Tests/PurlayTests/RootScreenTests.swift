@@ -1,5 +1,6 @@
 import PurlayContract
 import PurlayKit
+import PurlayWords
 import Testing
 
 @testable import Purlay
@@ -108,7 +109,7 @@ struct RootScreenTests {
         #expect(harness.model.phase == .problem(expected))
         #expect(RootScreen(harness.model) == .problem(expected))
         for language in ["en", "tr"] {
-            let words = Words.problem(expected)
+            let words = EngineWords.problem(expected)
             let title = text(words.title, in: language)
             let detail = text(words.detail, in: language)
             #expect(!title.isEmpty && !detail.isEmpty)
@@ -156,7 +157,7 @@ struct RootScreenTests {
         await RootActions.signIn(harness.model)
         let notice = try #require(harness.model.notices.first)
         #expect(notice.kind == .signInFailed(.browserFailed("ASWebAuthenticationSessionError 2")))
-        let words = try #require(Words.notice(notice.kind))
+        let words = try #require(EngineWords.notice(notice.kind))
         #expect(text(words, in: "en") == "The browser could not be opened.")
         #expect(!text(words, in: "tr").contains("ASWebAuthenticationSessionError"))
         harness.model.dismiss(notice)
@@ -172,7 +173,7 @@ struct RootScreenTests {
         let notice = try #require(harness.model.notices.first)
         #expect(notice.kind == .invalidAddress(.hasCredentials))
         #expect(
-            text(try #require(Words.notice(notice.kind)), in: "en")
+            text(try #require(EngineWords.notice(notice.kind)), in: "en")
                 == "Leave the user name and password out of the address.")
         #expect(await harness.transport.requests.isEmpty)
     }

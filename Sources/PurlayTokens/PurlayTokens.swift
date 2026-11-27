@@ -2,8 +2,8 @@ import Foundation
 
 // The shapes the generated tokens (Generated/) are written in. No value lives here: every number and colour is generated
 // from the server's `tokens.json` (M-5, §6.6), so a change there reaches the app through `scripts/generate` and nowhere else.
-// This package depends on nothing and draws nothing: how a token becomes a SwiftUI style, an AppKit colour or a font is
-// PurlayUI's `TokenBinding.swift`, the one file allowed to turn a token into something drawn.
+// This package depends on nothing and draws nothing: a token becomes something drawn in PurlayDesign (`Brand.swift`, for iOS)
+// and in PurlayMacUI's `TokenBinding.swift` (for the Mac).
 
 /// A colour in sRGB, each component 0…1.
 public struct RGBA: Equatable, Hashable, Sendable {

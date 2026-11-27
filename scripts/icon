@@ -9,8 +9,10 @@
 //   its mark; the white behind it is this script's.
 // - The iOS launch mark (LaunchMark.imageset): the logo with its root width and height set to 120, the size PurlayMark has on the
 //   first frame, and the viewBox untouched so the padding is the same. scripts/enforcement checks it.
+// - The logo as Swift (Sources/PurlayDesign/Logo.swift), which PurlayMark and the Welcome field draw: scripts/logo-swift writes
+//   it, and scripts/enforcement runs that with --check.
 //
-//   scripts/icon    write the icon sets and the launch mark (Apps/*/App/Resources/Assets.xcassets) from the logo
+//   scripts/icon    write the icon sets, the launch mark and the logo's Swift from the logo
 import AppKit
 
 let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
@@ -130,3 +132,11 @@ let markContents: [String: Any] = [
 ]
 try writeJSON(markContents, to: markSet.appendingPathComponent("Contents.json"))
 print("wrote \(markName) to \(markSet.path)")
+
+// The logo as Swift.
+let logoSwift = Process()
+logoSwift.executableURL = root.appendingPathComponent("scripts/logo-swift")
+logoSwift.arguments = [root.path]
+try logoSwift.run()
+logoSwift.waitUntilExit()
+guard logoSwift.terminationStatus == 0 else { fail("scripts/logo-swift could not write the logo's Swift") }
