@@ -12,6 +12,8 @@ final class FakeServer: HTTPTransport {
         var clientInfo = FakeServer.clientInfo()
         var infoStatus = 200
         var meStatus = 200
+        /// When set, `GET /api/me` answers this error body with `meStatus`, as the server's edge does (a 426 `CLIENT_TOO_OLD`).
+        var meErrorBody: String?
         /// Runs while `GET /api/me` is at the server, before it answers.
         var beforeMeResponse: (@Sendable () async -> Void)?
         var profile = #"{"title":null,"timeZone":null,"status":null}"#
@@ -476,6 +478,7 @@ final class FakeServer: HTTPTransport {
         case ("GET", "/api/me"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
             await snapshot.beforeMeResponse?()
+            if let body = snapshot.meErrorBody { return json(snapshot.meStatus, body) }
             return json(
                 snapshot.meStatus,
                 Self.meJSON(

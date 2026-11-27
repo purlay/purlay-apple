@@ -247,6 +247,31 @@ struct ReauthenticationTests {
     }
 
     @Test(
+        "the time before the browser comes back counts: the app counts from when it opened the page, not from when the browser returned"
+    )
+    func timeBeforeTheBrowserReturnsCounts() async {
+        // The browser signed in 4 minutes before the page opened, so prompt=login hands it over at once; the person then leaves
+        // the "open in Purlay" question for 4 minutes. The server holds a sign-in 8 minutes old when the app has the session.
+        let clock = HarnessClock()
+        let h = ModelHarness(
+            browser: ScriptedBrowser { page in
+                let answer = clock.server!.browse(page)
+                if page.query?.contains("prompt=login") == true { clock.elapsed!.set(clock.elapsed!.seconds + 240) }
+                return answer
+            })
+        clock.attach(h)
+        h.server.edit {
+            $0.clientInfo = FakeServer.clientInfo(nativeFreshSignIn: true)
+            $0.browserSignedInAt = -240
+        }
+        await h.signedIn()
+        h.server.edit { $0.nextSession = Self.fresh }
+        #expect(await h.model.reauthenticate() == .done)
+        h.elapsed.set(Self.erasureMinutes - Self.freshMinutes - AppModel.erasureSignInMargin)
+        #expect(h.model.erasureNeedsReauthentication, "counted from the page's opening, the limit has come")
+    }
+
+    @Test(
         "after a fresh sign-in the account can be erased, and the app counts the server's limit from the earliest the browser may have signed in"
     )
     func freshSignInErases() async {
@@ -261,5 +286,16 @@ struct ReauthenticationTests {
         #expect(h.model.erasureNeedsReauthentication, "the browser may have signed in up to its fresh limit before")
         h.elapsed.set(0)
         #expect(await h.model.eraseAccount(confirmation: "ada") == .erased)
+    }
+}
+
+/// Lets a browser made before the harness reach the harness's server and clock.
+@MainActor
+private final class HarnessClock: @unchecked Sendable {
+    nonisolated(unsafe) var server: FakeServer?
+    nonisolated(unsafe) var elapsed: Elapsed?
+    func attach(_ harness: ModelHarness) {
+        server = harness.server
+        elapsed = harness.elapsed
     }
 }

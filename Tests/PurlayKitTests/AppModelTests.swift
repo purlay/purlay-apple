@@ -503,6 +503,26 @@ struct SignedInTests {
         await h.settle()
         #expect(h.model.phase == .problem(.appTooOld(shown)))
     }
+
+    @Test(
+        "an iOS app the server refuses with 426 CLIENT_TOO_OLD on a request, after a handshake that let it in, is told to update with the minimum the server gave"
+    )
+    func iOSRequestRefusedAsTooOld() async {
+        let h = ModelHarness(identity: AppIdentity(bundleIdentifier: "dev.purlay.kit-tests", platform: .iOS))
+        // The operator raised the iOS minimum after this app's handshake: the edge refuses every request (client-policy.ts).
+        h.server.edit {
+            $0.meStatus = 426
+            $0.meErrorBody =
+                #"{"error":{"code":"CLIENT_TOO_OLD","message":"Update Purlay.","details":{"minContractVersion":null,"minAppVersion":"9.0.0","downloadUrl":null}}}"#
+        }
+        await h.model.connect()
+        await h.model.signIn()
+        await h.settle()
+        #expect(
+            h.model.phase
+                == .problem(.appTooOld(ClientMinimum(appVersion: "9.0.0", contractVersion: nil, downloadUrl: nil))),
+            "a 426 is said as \(h.model.phase), not as an app too old")
+    }
 }
 
 @MainActor

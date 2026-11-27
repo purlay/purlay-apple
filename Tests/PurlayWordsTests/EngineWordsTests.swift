@@ -73,6 +73,27 @@ struct EngineWordsTests {
         }
     }
 
+    /// The server's product glossary (purlay/purlay `docs/GLOSSARY.md`, D-359) owns the product's words; the terms it says are
+    /// never used, in Turkish.
+    private static let glossaryNever: [(term: String, glossary: String)] = [
+        ("Derin Çalışma", "Deep Work is \"Deep Work\" in both languages, never \"Derin Çalışma\" (D-348)"),
+        ("konu", "a thread is \"Thread\", never \"konu\", which is a channel's topic (D-348)"),
+        ("iki faktörlü", "two-step verification is \"İki adımlı doğrulama\""),
+        ("giriş yap", "sign in is \"Oturum aç\", never \"giriş\""),
+        ("çıkış yap", "sign out is \"Oturumu kapat\", never \"çıkış yap\""),
+    ]
+
+    @Test("Turkish uses the server glossary's terms, never the ones it rules out")
+    func glossaryTerms() {
+        for sentence in Self.everySentence {
+            let turkish = text(sentence, in: "tr").lowercased(with: Locale(identifier: "tr"))
+            for rule in Self.glossaryNever where turkish.contains(rule.term.lowercased(with: Locale(identifier: "tr")))
+            {
+                Issue.record("\(turkish): \(rule.glossary)")
+            }
+        }
+    }
+
     @Test("the words the two apps used to say differently are one: connecting is \"Bağlanıyor…\"")
     func oneWording() {
         #expect(text(EngineWords.connecting, in: "tr") == "Bağlanıyor…")

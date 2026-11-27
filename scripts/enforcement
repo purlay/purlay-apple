@@ -542,6 +542,11 @@ plant_in "a Turkish value not yet final" . \
 plant_in "a translation that drops a value" . \
   "python3 -c '$(recatalogue $WORDS 'strings["It needs version %@ or newer."]["localizations"]["tr"]["stringUnit"]["value"] = "Daha yeni bir sürüm gerekir."')'"
 plant_in "a Turkish sentence that addresses the person as sen" . "python3 -c '$(recatalogue $WORDS 'strings["Try Again"]["localizations"]["tr"]["stringUnit"]["value"] = "Yeniden deneyebilirsin"')'"
+# QA (PR 19): sen forms the rule's comment says it refuses, or that no siz sentence shares: the question particle, written apart
+# ("misin"), the back-vowel negative ability ("-amazsın") and the future ("-eceksin").
+plant_in "QA: a Turkish question that addresses the person as sen" . "python3 -c '$(recatalogue $WORDS 'strings["Try Again"]["localizations"]["tr"]["stringUnit"]["value"] = "Emin misin?"')'"
+plant_in "QA: a Turkish sentence that says sen cannot, with back vowels" . "python3 -c '$(recatalogue $WORDS 'strings["Try Again"]["localizations"]["tr"]["stringUnit"]["value"] = "Bu kanaldan ayrılamazsın"')'"
+plant_in "QA: a Turkish sentence that says what sen will do" . "python3 -c '$(recatalogue $WORDS 'strings["Try Again"]["localizations"]["tr"]["stringUnit"]["value"] = "Tarayıcında devam edeceksin"')'"
 plant_in "plural forms without other" . "python3 -c '$(recatalogue $WORDS 'forms = strings["%lld unsent messages could not be restored."]["localizations"]["tr"]["variations"]["plural"]; forms["few"] = forms.pop("other")')'"
 plant_in "a stale sentence" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Conversations"]["extractionState"] = "stale"')'"
 plant_in "a sentence in two catalogues" . "python3 -c '$(recatalogue $IOS_STRINGS 'strings["Try Again"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Yeniden Dene"}}}}')'"
