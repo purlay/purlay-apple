@@ -334,9 +334,26 @@ if ! $demo; then
 fi
 
 fail=0
+# Everything the demonstration writes (each job's copy and verdict) is under one folder, removed however the run ends. An
+# interrupted run stops its jobs, and what they started, first.
+RESULTS="$(mktemp -d)"
+# shellcheck disable=SC2329 # called by the trap below
+stop_jobs() {
+  local pid
+  for pid in $(jobs -p); do stop_tree "$pid"; done
+  wait 2>/dev/null || true
+}
+# shellcheck disable=SC2329 # called by the trap below
+stop_tree() { # pid: it and every process under it
+  local child
+  for child in $(pgrep -P "$1" 2>/dev/null); do stop_tree "$child"; done
+  kill -TERM "$1" 2>/dev/null || true
+}
+trap 'rm -rf "$RESULTS"' EXIT
+trap 'stop_jobs; exit 130' INT TERM
 copy_tree() { # a copy of what the rules read, without build products
   local copy
-  copy="$(mktemp -d)"
+  copy="$(mktemp -d "$RESULTS/copy.XXXXXX")"
   # The generated constants and colours stay: the URL-scheme rule reads the contract's redirect there, the accent rule the token.
   rsync -a --exclude .build --exclude .swiftpm --include '/Sources/PurlayContract/Generated/***' \
     --include '/Sources/PurlayTokens/Generated/***' --exclude Generated \
@@ -344,9 +361,9 @@ copy_tree() { # a copy of what the rules read, without build products
   echo "$copy"
 }
 # Each plant and fixture is a job on its own copy, run in parallel (as many at once as the machine has processors) and
-# reported in the order written. A job writes one verdict line to its own file; a job whose setting-up fails reports BROKEN,
-# and none stops the others.
-RESULTS="$(mktemp -d)"
+# reported in the order written. A job writes its name, then one verdict line, then its exit status, each to its own file; a
+# job whose setting-up fails reports BROKEN, and none stops the others. A job that ends without a verdict (killed, out of
+# memory or disk) fails the run: a plant never judged is not a plant refused.
 JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)"
 job=0
 start() { # verdict function, name, setting-up function and its arguments: one job, in the background
@@ -356,11 +373,17 @@ start() { # verdict function, name, setting-up function and its arguments: one j
   job=$((job + 1))
   # bash 3.2 (macOS's) has no `wait -n`: a free slot is looked for instead.
   while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do sleep 0.05; done
-  (
-    copy="$(copy_tree)"
-    if "$@" "$copy"; then "$verdict" "$name" "$copy"; else echo "  BROKEN       $name (its setting-up failed)"; fi
-    rm -rf "$copy"
-  ) >"$RESULTS/$(printf '%04d' "$job")" 2>&1 &
+  local result
+  result="$RESULTS/$(printf '%04d' "$job")"
+  printf '%s\n' "$name" >"$result.name"
+  {
+    (
+      copy="$(copy_tree)"
+      if "$@" "$copy"; then "$verdict" "$name" "$copy"; else echo "  BROKEN       $name (its setting-up failed)"; fi
+      rm -rf "$copy"
+    ) >"$result" 2>&1
+    echo "$?" >"$result.status"
+  } &
 }
 # shellcheck disable=SC2329 # called by start()
 refused() { # name copy
@@ -663,9 +686,22 @@ accept_in "QA: a sentence assigned through an optional chain whose type the code
 # A receiver's type is the one its own declaration states, not that of another declaration of the same name in the file.
 plant_in "QA: a Mac sentence assigned to an AppKit receiver named like a parameter typed elsewhere" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'import AppKit' 'struct QAHolder { var title: LocalizedStringKey }' 'func qaUse(menu: QAHolder) {}' 'func qaProbe() { let menu = NSMenuItem(); menu.title = \"Never said\" }' >> Sources/PurlayMacUI/Strings.swift"
 wait
-for result in "$RESULTS"/*; do
-  [ -e "$result" ] || continue
-  if grep -qE '^  (NOT |BROKEN)' "$result"; then cat "$result" >&2; fail=1; else cat "$result"; fi
+judged=0
+for name in "$RESULTS"/*.name; do
+  [ -e "$name" ] || continue
+  result="${name%.name}"
+  verdicts="$(grep -cE '^  (refused|accepted|NOT REFUSED|NOT ACCEPTED|BROKEN) ' "$result" 2>/dev/null || true)"
+  if [ "$(cat "$result.status" 2>/dev/null)" != 0 ] || [ "$verdicts" != 1 ]; then
+    echo "  NO VERDICT   $(cat "$name") (the job ended with status $(cat "$result.status" 2>/dev/null || echo none))" >&2
+    fail=1
+  elif grep -qE '^  (NOT |BROKEN)' "$result"; then
+    cat "$result" >&2; fail=1
+  else
+    cat "$result"
+  fi
+  judged=$((judged + 1))
 done
-rm -rf "$RESULTS"
+if [ "$judged" != "$job" ]; then
+  echo "  $job jobs were started and $judged reported" >&2; fail=1
+fi
 exit $fail
