@@ -159,6 +159,22 @@ struct ReauthenticationTests {
         #expect(h.server.snapshot.revoked.contains("left-pending"))
     }
 
+    @Test("one sign-out that does not happen releases only its own hold on the sends: another sign-out's stays")
+    func holdsAreCountedPerSignOut() async {
+        let h = ModelHarness()
+        await h.signedIn()
+        let first = UUID()
+        let second = UUID()
+        h.model.holdSends(for: first)
+        h.model.holdSends(for: second)
+        h.model.releaseSends(for: first)
+        #expect(h.model.sendsHeld, "the second sign-out's hold was released by the first's failure")
+        h.model.releaseSends(for: second)
+        #expect(!h.model.sendsHeld)
+        h.model.releaseSends(for: second)
+        #expect(!h.model.sendsHeld, "a release told twice changes nothing")
+    }
+
     @Test("on the Mac, a session never kept is ended on the server when the model lets it go")
     func unkeptIsEndedWhenDropped() async throws {
         let h = ModelHarness()

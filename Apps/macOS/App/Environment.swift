@@ -33,6 +33,8 @@ enum RealEnvironment {
         let serverAddress = ServerAddress.hosted
         #endif
         let clientHeader = ClientHeader.value(appVersion: version, platform: identity.platform)
+        // One Keychain service per workspace session for a sign-in not yet known to be whose (ADR 0011).
+        let pendingService = identity.keychainService + ".pending."
         return AppEnvironment(
             transport: URLSessionTransport(), sessions: KeychainSessionStore(service: identity.keychainService),
             preferences: UserDefaultsPreferences(), authenticator: SystemBrowserAuthenticator(), appVersion: version,
@@ -57,7 +59,9 @@ enum RealEnvironment {
             // directly under Caches/Previews, for every session alike. The badge is cleared by the model.
             wipers: [FolderWiper(cachesRoot.appendingPathComponent("Previews", isDirectory: true))],
             // A browser sign-in not yet known to be whose, apart from the session in use (ADR 0011).
-            pendingSessions: KeychainSessionStore(service: identity.keychainService + ".pending"))
+            pendingSessions: PendingSessionStores { slot in
+                KeychainSessionStore(service: pendingService + slot)
+            })
     }
 
     #if DEBUG
