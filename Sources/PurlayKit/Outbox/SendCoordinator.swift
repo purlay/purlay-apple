@@ -59,7 +59,7 @@ public struct Outgoing: Sendable {
     }
 }
 
-/// What a person's own send does between the keystroke and the acknowledgement (`ARCHITECTURE.md` §5.3, plan §9.3):
+/// What a person's own send does between the keystroke and the acknowledgement (`ARCHITECTURE.md` §5.3):
 ///
 /// 1. The id is made now, against the corrected server clock, and is the message's id for good: the row never moves when the
 ///    acknowledgement lands.

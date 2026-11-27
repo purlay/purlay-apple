@@ -2,7 +2,7 @@ import Foundation
 import Synchronization
 
 /// The real socket: one `URLSessionWebSocketTask` per connection, with the headers the server needs of a client that is not a
-/// browser (§9.1): the session as an explicit `Cookie`, `Origin` equal to the server's own address, and the client's version.
+/// browser: the session as an explicit `Cookie`, `Origin` equal to the server's own address, and the client's version.
 /// No token in the address (`ARCHITECTURE.md` §7.2). Each socket has a session of its own, so closing one cannot touch another.
 public struct URLSessionSocketTransport {
     public let cookie: @Sendable () async -> String?

@@ -5,7 +5,7 @@ import PurlayTokens
 import PurlayWords
 import SwiftUI
 
-/// What the connection is doing, said only when it is not simply working: a bar above the messages (§8).
+/// What the connection is doing, said only when it is not simply working: a bar above the messages.
 struct ConnectionBar: View {
     let status: Connection.Status
     let degradedCount: Int

@@ -3,7 +3,7 @@ import PurlayKit
 import PurlayMacUI
 import SwiftUI
 
-/// The shell: scenes, commands and the app delegate. What the app does lives in the packages (M-3).
+/// The shell: scenes, commands and the app delegate. What the app does lives in the packages.
 @main
 struct PurlayApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
@@ -125,7 +125,7 @@ private struct ConversationScene: View {
     }
 }
 
-/// The app lives on when the last window closes, so the socket stays open and a notification can still arrive (M-11).
+/// The app lives on when the last window closes, so the socket stays open and a notification can still arrive.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Set by the app once its model exists; the Dock menu reads it when it is opened.

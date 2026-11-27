@@ -2,7 +2,7 @@ import Foundation
 import PurlayContract
 
 /// The one error shape of the API (`API.md` §1): a status, a code, and words that are not for the person to read.
-/// The interface shows its own sentence for each code and never `message` (§5.4).
+/// The interface shows its own sentence for each code and never `message`.
 public struct APIError: Error, Sendable, Equatable {
     public let status: Int
     public let code: ErrorCode

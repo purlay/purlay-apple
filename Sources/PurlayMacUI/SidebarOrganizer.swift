@@ -1,4 +1,5 @@
 #if os(macOS)
+import PurlayDesign
 import PurlayKit
 import PurlayTokens
 import SwiftUI
@@ -17,7 +18,7 @@ struct SidebarOrganizer: View {
                 image: "sidebar.left")
             HStack {
                 TextField(editing == nil ? "New group name" : "Group name", text: $name)
-                    .textFieldStyle(.roundedBorder)
+                    .purlayTextField()
                     .onSubmit(save)
                     .onChange(of: name) { _, _ in invalid = false }
                 Button(editing == nil ? "Add Group" : "Save", action: save)
