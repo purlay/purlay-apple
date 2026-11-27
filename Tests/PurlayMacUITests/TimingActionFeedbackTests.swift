@@ -2,7 +2,7 @@ import Foundation
 import PurlayKit
 import Testing
 
-@testable import PurlayUI
+@testable import PurlayMacUI
 
 @MainActor
 @Suite("message timing action feedback")
