@@ -649,6 +649,19 @@ accept_in "QA: a sentence with two counts, in English substitutions with plural 
 # A literal assigned to a String property of another value is not said as a sentence, though a type of this module has a
 # property of that name typed as one.
 plant_in "QA: a Mac sentence assigned only to an AppKit String property sharing a typed name" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'import AppKit' 'func qaProbe(_ item: NSMenuItem) { item.title = \"Never said\" }' >> Sources/PurlayMacUI/Strings.swift"
+# QA (pr6-third): the code's own APIs and assignments the sentence rule must read, and a receiver it must not guess.
+# A view keeps its title as a Text and takes its action first: the sentence is a parameter after a closure's parentheses.
+accept_in "QA: the code's own initialiser taking a sentence after a closure parameter" . \
+  "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Said A"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Söylendi A"}}}}')' \
+    && printf '%s\\n' 'struct QARow: View { let label: Text; let action: () -> Void' '  init(action: @escaping () -> Void, title: LocalizedStringKey) { self.action = action; label = Text(title) }' '  var body: some View { Button(action: action) { label } } }' 'let qaRow = QARow(action: {}, title: \"Said A\")' >> Sources/PurlayMacUI/Strings.swift"
+accept_in "QA: the code's own function taking a sentence after a default value with parentheses" . \
+  "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Said B"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Söylendi B"}}}}')' \
+    && printf '%s\\n' 'func qaShow(size: CGSize = CGSize(width: 1, height: 1), title: LocalizedStringKey) {}' 'let qaShown: Void = qaShow(title: \"Said B\")' >> Sources/PurlayMacUI/Strings.swift"
+accept_in "QA: a sentence assigned through an optional chain whose type the code states" . \
+  "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Said D"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Söylendi D"}}}}')' \
+    && printf '%s\\n' 'struct QAH { var title: LocalizedStringKey = \"Starred\" }' 'final class QAM { var holder: QAH?; func set() { holder?.title = \"Said D\" } }' >> Sources/PurlayMacUI/Strings.swift"
+# A receiver's type is the one its own declaration states, not that of another declaration of the same name in the file.
+plant_in "QA: a Mac sentence assigned to an AppKit receiver named like a parameter typed elsewhere" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'import AppKit' 'struct QAHolder { var title: LocalizedStringKey }' 'func qaUse(menu: QAHolder) {}' 'func qaProbe() { let menu = NSMenuItem(); menu.title = \"Never said\" }' >> Sources/PurlayMacUI/Strings.swift"
 wait
 for result in "$RESULTS"/*; do
   [ -e "$result" ] || continue
