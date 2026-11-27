@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""A job that needs a fan-in job (one whose `if` runs it after skipped lanes: `always()` or `!cancelled()`) states its own status
+function. Without one its `if` gets the implicit `success()`, which GitHub evaluates over every ancestor, not only the jobs it
+names: a lane that `changes` skipped makes it false, and the job is skipped although the fan-in passed (actions/runner#2205).
+The rules lane is meant to run it.
+
+Usage: scripts/ci/job-conditions-test [WORKFLOW]      (default .github/workflows/ci.yml)
+"""
+import re
+import sys
+
+FAN_IN = re.compile(r"always\(\)|!\s*cancelled\(\)")
+STATUS = re.compile(r"always\(\)|cancelled\(\)|failure\(\)")
+
+
+def jobs_of(text: str) -> dict:
+    jobs, current, inside = {}, None, False
+    for line in text.splitlines():
+        if line.startswith("jobs:"):
+            inside = True
+            continue
+        if not inside:
+            continue
+        if match := re.match(r"^  ([A-Za-z0-9_-]+):\s*$", line):
+            current = jobs.setdefault(match.group(1), {"needs": [], "if": ""})
+        elif current is not None and (match := re.match(r"^    needs:\s*(.+)$", line)):
+            current["needs"] = [n.strip() for n in match.group(1).strip("[] ").split(",") if n.strip()]
+        elif current is not None and (match := re.match(r"^    if:\s*(.+)$", line)):
+            current["if"] = match.group(1)
+    return jobs
+
+
+def problems(jobs: dict) -> list[str]:
+    found = []
+    for name, job in sorted(jobs.items()):
+        fan_ins = [need for need in job["needs"] if FAN_IN.search(jobs.get(need, {}).get("if", ""))]
+        if fan_ins and not STATUS.search(job["if"]):
+            found.append(f"{name} needs {', '.join(fan_ins)} but its if ({job['if'] or 'none'!r}) has no status function: "
+                         "it is skipped whenever any lane before them was")
+    return found
+
+
+def main() -> None:
+    sample = "jobs:\n  lane:\n    if: false\n  verify:\n    if: always()\n    needs: [lane]\n  after:\n    needs: [verify]\n    if: x\n"
+    if not problems(jobs_of(sample)):
+        sys.exit("FAIL  the check does not refuse a job that needs a fan-in with an implicit success()")
+    print("ok    refuses a job that needs a fan-in with an implicit success()")
+    path = sys.argv[1] if len(sys.argv) > 1 else ".github/workflows/ci.yml"
+    with open(path, encoding="utf-8") as handle:
+        found = problems(jobs_of(handle.read()))
+    if found:
+        sys.exit("FAIL  " + "\nFAIL  ".join(found))
+    print(f"ok    {path}: every job after a fan-in states its own status function")
+
+
+if __name__ == "__main__":
+    main()
