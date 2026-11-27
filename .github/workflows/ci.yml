@@ -246,17 +246,17 @@ jobs:
       - name: The contract, the generated code and the generator
         run: scripts/verify generated
 
-  # The iOS tests on a simulator: on every push to main, every night and by hand; for a pull request that changes the iOS app or
-  # the design system (scripts/ci/changes), as a check that is not required. The simulator boots after the build, not beside it
-  # (scripts/verify says why).
+  # The iOS tests on a simulator: on every push to main, every night and by hand, beside the other lanes, so that main's run (which
+  # a release requires, simulator included) ends as early as it can. The simulator boots after the build, not beside it
+  # (scripts/verify says why). Its steps are `simulator-pr`'s too.
   simulator:
     needs: changes
-    if: needs.changes.outputs.simulator == 'true'
+    if: needs.changes.outputs.simulator == 'true' && github.event_name != 'pull_request'
     runs-on: xcode-27
     timeout-minutes: 30
     permissions:
       contents: read
-    steps:
+    steps: &simulator-steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -286,6 +286,19 @@ jobs:
         with:
           path: ${{ env.PURLAY_CACHE_DIR }}
           key: ${{ steps.keys.outputs.key }}
+
+  # The same tests for a pull request that changes the iOS app or the design system (scripts/ci/changes): a check that is not
+  # required, started once `verify` has passed, so that it never holds one of the organisation's five macOS runners while a
+  # required lane of this or another pull request waits for it.
+  simulator-pr:
+    name: simulator (pull request)
+    needs: [changes, verify]
+    if: needs.changes.outputs.simulator == 'true' && github.event_name == 'pull_request'
+    runs-on: xcode-27
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps: *simulator-steps
 
   # A red simulator on main opens one issue labelled ci-red-main, or brings the open one up to date: never a second one.
   simulator-red-on-main:
