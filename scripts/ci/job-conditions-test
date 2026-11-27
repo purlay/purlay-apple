@@ -83,7 +83,34 @@ def problems(jobs: dict) -> list[str]:
     return found
 
 
+def required_on_closed(text: str, jobs: dict, required: list[str]) -> list[str]:
+    """A workflow that runs on `closed` posts every job's check onto the pull request's head, skipped. A skipped check counts as
+    passed, and it is the newest check of that name on the head: reopen the pull request and the required check reads as passed
+    until the new run's own check exists (GitHub creates a job's check only when its needs are done)."""
+    if not re.search(r"^\s*types:\s*\[[^\]]*\bclosed\b", text, re.MULTILINE):
+        return []
+    found = []
+    for name, job in sorted(jobs.items()):
+        shown = job["keys"].get("name", name).strip().strip("'\"") or name
+        if shown in required:
+            found.append(f"{name} is the required check {shown!r} in a workflow that runs on closed: the closed run posts it "
+                         "skipped (counted as passed) on the head a reopened pull request merges from")
+    return found
+
+
 def main() -> None:
+    block = ("jobs:\n  lane:\n    if: false\n  verify:\n    if: always()\n    needs: [lane]\n  after:\n    needs:\n"
+             "      - verify\n    if: x\n")
+    gaps = []
+    if not problems(jobs_of(block)):
+        gaps.append("the check does not refuse a job that needs a fan-in, written as a block list, with an implicit success()")
+    else:
+        print("ok    refuses a fan-in need written as a block list")
+    ored = "on:\n  pull_request:\n    types: [closed]\njobs:\n  lane:\n    if: x || github.event.action != 'closed'\n"
+    if not closed_problems(ored, jobs_of(ored)):
+        gaps.append("the check does not refuse a closed guard that an || makes ineffective")
+    else:
+        print("ok    refuses a closed guard behind an ||")
     sample = "jobs:\n  lane:\n    if: false\n  verify:\n    if: always()\n    needs: [lane]\n  after:\n    needs: [verify]\n    if: x\n"
     if not problems(jobs_of(sample)):
         sys.exit("FAIL  the check does not refuse a job that needs a fan-in with an implicit success()")
@@ -101,7 +128,12 @@ def main() -> None:
     with open(path, encoding="utf-8") as handle:
         text = handle.read()
     jobs = jobs_of(text)
-    found = problems(jobs) + closed_problems(text, jobs) + twin_problems(jobs)
+    import json
+    with open(".github/rulesets/main.json", encoding="utf-8") as handle:
+        required = [check["context"] for rule in json.load(handle)["rules"] if rule["type"] == "required_status_checks"
+                    for check in rule["parameters"]["required_status_checks"]]
+    found = problems(jobs) + closed_problems(text, jobs) + twin_problems(jobs) + required_on_closed(text, jobs, required)
+    found = gaps + found
     if found:
         sys.exit("FAIL  " + "\nFAIL  ".join(found))
     print(f"ok    {path}: every job after a fan-in states its own status function; every job refuses a closed pull request;"
