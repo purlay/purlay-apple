@@ -13,7 +13,8 @@ starting a simulator took about three and a half minutes whatever was tested.
   runs every lane; any event but a pull request runs every lane.
 - The simulator lane runs on every push to main, nightly and by hand, on one named simulator, and only what needs iOS (the app's
   tests and `PurlayDesignTests`); every other package test runs once, on macOS. On a pull request that changes the iOS app or
-  the design system it runs too, as a check that is **not required**: `verify` does not wait for it. A release requires main's
+  the design system it runs too, as a check that is **not required**, and only after `verify` has passed, so that it never
+  takes one of the five macOS runners while a required lane waits for one (amended 2026-11-27). A release requires main's
   run of the tagged commit to have passed, its simulator job included; a red simulator on main opens or updates one
   `ci-red-main` issue. (Amended 2026-11-26, after measuring it at 369–594 s warm on the hosted runner, most of it the fresh
   device's boot and first launch: it ran every package test that builds for iOS, weekly, and `verify` waited for it.)
