@@ -2,7 +2,12 @@
 
 User-facing changes to Purlay for macOS. Releases require macOS 26 or later.
 
-## [Unreleased]
+## [0.3.2] — Unreleased
+
+### Fixed
+
+- Inbox and message search keep working while a server rollout briefly stops serving chat: the notification or the search is
+  dismissed, and you stay signed in with Updates and later requests available.
 
 ### Fixed
 
@@ -18,6 +23,7 @@ User-facing changes to Purlay for macOS. Releases require macOS 26 or later.
 
 ### Fixed
 
+- Sign-out holds queued messages. They resume if the server refuses sign-out and are discarded when the session ends.
 - A person at the keyboard no longer shows as away to everyone five minutes after connecting: the app now tells the server when you use it.
 - A workspace whose server has chat turned off, or whose channels are briefly not served during a rollout, opens instead of failing. It offers the workspace's profile, members, invitations and data pages in the browser, hides the chat menus, and says chat is off when a conversation link is opened.
 

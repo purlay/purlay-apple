@@ -64,7 +64,7 @@ Adoption and retention targets are not set: Q-002.
 
 ## Where it is
 
-- **Mac:** released; 0.3.0 (2026-11-24) is the latest, with fixes waiting under *Unreleased* in
+- **Mac:** released; 0.3.1 (2026-11-27, from purlay-macos) is the latest, with fixes waiting under 0.3.2 in
   [`Apps/macOS/CHANGELOG.md`](../../Apps/macOS/CHANGELOG.md). Functional scope FR-101 to FR-124.
 - **iPhone and iPad:** the walking skeleton is done (launch, handshake, sign-in, resuming a session) and the entry screens are
   being designed into the app ([design](../design/entry-shell-account.md), slice 1). Nothing is distributed.

@@ -8,8 +8,8 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-# The last build the Mac shipped from purlay-macos (v0.3.0). A smaller number would never be offered as an update.
-SHIPPED=10
+# The last build the Mac shipped, from purlay-macos (v0.3.1, build 11). A smaller number would never be offered as an update.
+SHIPPED=11
 if [ "${1:-}" = "--shipped" ]; then echo "$SHIPPED"; exit 0; fi
 
 # A shallow clone counts only the commits it fetched, which would number a build below one already shipped.

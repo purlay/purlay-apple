@@ -102,7 +102,7 @@ jobs:
           restore-keys: |
             ${{ steps.keys.outputs.this_week }}
             ${{ steps.keys.outputs.last_week }}
-      # scripts/verify numbers the build first (scripts/build-number: the commit count, above the shipped build 10).
+      # scripts/verify numbers the build first (scripts/build-number: the commit count, above the shipped build 11).
       - name: Build Release, and check its transport security and entitlements
         run: scripts/ci/retry-infra scripts/verify macos Release
       - name: Find what was built

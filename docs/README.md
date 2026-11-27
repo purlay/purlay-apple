@@ -5,7 +5,7 @@ The entry point: where things stand, what holds the code in shape, and which doc
 
 ## Where things stand (2026-11-26)
 
-- **Mac:** released. 0.3.0 (2026-11-24) is the latest; fixes wait under *Unreleased* in
+- **Mac:** released. 0.3.1 (2026-11-27, from purlay-macos) is the latest; fixes wait under 0.3.2 in
   [`Apps/macOS/CHANGELOG.md`](../Apps/macOS/CHANGELOG.md). FR-101 to FR-124 work; followed threads (FR-125) wait for the contract.
   The first release from this repository waits for the stable update feed (TD-019, [runbook](runbooks/mac-update-feed.md)).
 - **iPhone and iPad:** the walking skeleton works against a real server (launch, handshake, sign-in through the system browser,

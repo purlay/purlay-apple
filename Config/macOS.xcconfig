@@ -1,7 +1,7 @@
 // The Mac app (target Purlay macOS), shipped with Developer ID and Sparkle.
 // Keep the released bundle identifier stable for Keychain and Sparkle update continuity.
 PRODUCT_BUNDLE_IDENTIFIER = dev.purlay.mac
-MARKETING_VERSION = 0.3.1
+MARKETING_VERSION = 0.3.2
 SDKROOT = macosx
 // The floor. Package.swift states the same floor (scripts/enforcement).
 MACOSX_DEPLOYMENT_TARGET = 26.0
