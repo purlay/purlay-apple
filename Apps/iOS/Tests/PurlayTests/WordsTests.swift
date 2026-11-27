@@ -29,10 +29,10 @@ struct WordsTests {
             addresses.map { .invalidAddress($0) } + signIns.map { .signInFailed($0) } + [
                 .sessionExpired, .sessionEndedByServer, .signedOutElsewhere,
                 .sessionEndsSoon(Date(timeIntervalSince1970: 0)),
-                .storageProblem, .originMismatch, .loadFailed,
+                .storageProblem, .originMismatch, .loadFailed, .readFailed,
             ]
         return Words.fixed + EngineWords.fixed + [Words.continuesInBrowser("purlay.app")]
-            + [Words.backToWorkspace("Acme"), Words.switchWorkspace("Acme")]
+            + [Words.backToWorkspace("Acme"), Words.switchWorkspace("Acme"), Words.unread(2)]
             + problems.flatMap { [EngineWords.problem($0).title, EngineWords.problem($0).detail] }
             + signIns.compactMap(EngineWords.signIn) + notices.compactMap(EngineWords.notice)
     }

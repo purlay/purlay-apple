@@ -9,6 +9,7 @@ land, headed "Unreleased" until it ships (`scripts/ci/changelog-versions` requir
 - Sign in through your browser, on the server's own page: the app never asks for your password, and keeps you signed in.
 - English and Turkish for every sentence; the problem screens say what is wrong in words for a person and offer Try Again.
 - A launch screen of the Purlay mark, which stays in place while the app connects and becomes the Welcome screen.
+- Open joined channels from Chat and read their native message history. Load earlier messages without leaving the feed.
 - Switch between workspaces from the signed-in app. Available destinations appear in iPhone tabs and the iPad sidebar.
 - The app's icon is the Purlay mark.
 - The sign-in and loading screens scroll at the largest text sizes.

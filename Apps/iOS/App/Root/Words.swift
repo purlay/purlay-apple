@@ -1,4 +1,6 @@
+import FeatureChat
 import Foundation
+import PurlayWords
 
 /// The sentences only this app says, as values its catalogue translates (`Localizable.xcstrings`). What both apps say about what
 /// the engine reports (a phase, a server problem, a sign-in, a notice) is PurlayWords' `EngineWords`, translated once for both.
@@ -13,7 +15,32 @@ enum Words {
     static let readMore = LocalizedStringResource("Read More")
     static let workspace = LocalizedStringResource("Workspace")
     static let chat = LocalizedStringResource("Chat")
-    static let openChatInBrowser = LocalizedStringResource("Open Chat in Browser")
+    static let starred = LocalizedStringResource("Starred")
+    static let channels = LocalizedStringResource("Channels")
+    static let conversations = LocalizedStringResource("Direct Messages")
+    static let noChannels = LocalizedStringResource("No Joined Channels")
+    static let channelUnavailable = LocalizedStringResource("Channel Unavailable")
+    static let noMessages = LocalizedStringResource("No Messages Yet")
+    static let loadingMessages = LocalizedStringResource("Loading messages…")
+    static let messagesFailed = LocalizedStringResource("Couldn’t Load Messages")
+    static let loadEarlier = LocalizedStringResource("Load Earlier Messages")
+    static let loadingEarlier = LocalizedStringResource("Loading earlier messages…")
+    static let earlierFailed = LocalizedStringResource("Couldn’t load earlier messages.")
+    static let jumpToLatest = LocalizedStringResource("Jump to Latest")
+    static let unknownSender = LocalizedStringResource("Unknown Sender")
+    static let messageUnavailable = LocalizedStringResource("Message unavailable")
+    static func unread(_ count: Int) -> LocalizedStringResource {
+        LocalizedStringResource("\(count) unread")
+    }
+
+    static let chatStrings = ChatStrings(
+        starred: starred, channels: channels, conversations: conversations,
+        noChannels: noChannels, channelUnavailable: channelUnavailable,
+        noMessages: noMessages, loadingMessages: loadingMessages, messagesFailed: messagesFailed,
+        loadEarlier: loadEarlier, loadingEarlier: loadingEarlier, earlierFailed: earlierFailed,
+        jumpToLatest: jumpToLatest, tryAgain: EngineWords.tryAgain, unknownSender: unknownSender,
+        messageUnavailable: messageUnavailable, unread: unread)
+
     static let noWorkspaceModules = LocalizedStringResource("No Modules Available")
     static let noWorkspaces = LocalizedStringResource("No Workspaces Yet")
     static let twoFactorRequired = LocalizedStringResource("Two-Factor Authentication Required")
@@ -29,7 +56,9 @@ enum Words {
     /// The fixed sentences of the screens, so a test can look at each in every language.
     static let fixed: [LocalizedStringResource] = [
         tagline, signInButton, continuesInBrowserNoHost, newAccount, readMore,
-        workspace, chat, openChatInBrowser, noWorkspaceModules, noWorkspaces, twoFactorRequired, setUpTwoFactor,
+        workspace, chat, noWorkspaceModules, noWorkspaces, twoFactorRequired, setUpTwoFactor,
+        starred, channels, conversations, noChannels, channelUnavailable, noMessages, loadingMessages,
+        messagesFailed, loadEarlier, loadingEarlier, earlierFailed, jumpToLatest, unknownSender, messageUnavailable,
     ]
 
     /// Where the sign-in goes on: the person's browser, on the server's host.

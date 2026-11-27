@@ -1,12 +1,42 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%lld unread" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld okunmamış"
+          }
+        }
+      }
+    },
     "Back to %@" : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ Çalışma Alanına Dön"
+          }
+        }
+      }
+    },
+    "Channel Unavailable" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kanal Kullanılamıyor"
+          }
+        }
+      }
+    },
+    "Channels" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kanallar"
           }
         }
       }
@@ -21,12 +51,112 @@
         }
       }
     },
+    "Couldn’t Load Messages" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesajlar Yüklenemedi"
+          }
+        }
+      }
+    },
+    "Couldn’t load earlier messages." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Önceki mesajlar yüklenemedi."
+          }
+        }
+      }
+    },
+    "Direct Messages" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doğrudan Mesajlar"
+          }
+        }
+      }
+    },
+    "Jump to Latest" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Son Mesaja Git"
+          }
+        }
+      }
+    },
+    "Load Earlier Messages" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Önceki Mesajları Yükle"
+          }
+        }
+      }
+    },
+    "Loading earlier messages…" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Önceki mesajlar yükleniyor…"
+          }
+        }
+      }
+    },
+    "Loading messages…" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesajlar yükleniyor…"
+          }
+        }
+      }
+    },
+    "Message unavailable" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesaj kullanılamıyor"
+          }
+        }
+      }
+    },
     "New to Purlay? Create an account when you sign in." : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Purlay'de yeni misin? Giriş yaparken hesap oluşturabilirsin."
+          }
+        }
+      }
+    },
+    "No Joined Channels" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Katıldığın Kanal Yok"
+          }
+        }
+      }
+    },
+    "No Messages Yet" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Henüz Mesaj Yok"
           }
         }
       }
@@ -47,16 +177,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Henüz Çalışma Alanı Yok"
-          }
-        }
-      }
-    },
-    "Open Chat in Browser" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sohbeti Tarayıcıda Aç"
           }
         }
       }
@@ -91,6 +211,16 @@
         }
       }
     },
+    "Starred" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yıldızlı"
+          }
+        }
+      }
+    },
     "Switch Workspace, %@" : {
       "localizations" : {
         "tr" : {
@@ -107,6 +237,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "İki Faktörlü Kimlik Doğrulama Gerekli"
+          }
+        }
+      }
+    },
+    "Unknown Sender" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bilinmeyen Gönderen"
           }
         }
       }
