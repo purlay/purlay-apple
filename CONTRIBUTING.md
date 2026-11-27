@@ -23,7 +23,9 @@ iPhone and iPad app, the Mac app and the Swift they share. Start with [`docs/REA
    is deleted on merge. A branch does not need to be up to date with main to merge: `verify` runs on the merge with main, and
    requiring it would restart every open pull request's check after each merge.
 
-A pull request's check, whose target is 3 minutes, took 2 min 25 s to 3 min 11 s when every lane but the simulator was needed (measured), less when fewer are, and under 30 seconds for documents only
+A pull request's check, whose target is 3 minutes, takes about 2½ to 3¼ minutes when every lane but the simulator is needed and
+runners are free (measured), less when fewer lanes are, and under 30 seconds for documents only; the wait for a runner comes on
+top
 ([`docs/development/ci.md`](docs/development/ci.md)). Keep it that way: a change that makes it slower says why in its description,
 with the run's times.
 
