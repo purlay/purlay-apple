@@ -1,5 +1,6 @@
 import PurlayContract
 import PurlayKit
+import PurlayTokens
 import SwiftUI
 
 struct ChannelListView: View {
@@ -63,7 +64,7 @@ struct ChannelListView: View {
                     .accessibilityHidden(true)
             }
         }
-        .frame(minHeight: 44)
+        .frame(minHeight: Size.sizeTouch)
         .accessibilityElement(children: .combine)
         .accessibilityValue(unread > 0 ? Text(words.unread(unread)) : Text(verbatim: ""))
     }

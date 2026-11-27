@@ -1,5 +1,6 @@
 import PurlayContract
 import PurlayKit
+import PurlayTokens
 import SwiftUI
 
 struct ChannelFeedView: View {
@@ -39,7 +40,7 @@ struct ChannelFeedView: View {
                 history(window, pending: pending)
             } else if model.channelLoadFailed.contains(channelID), !opening {
                 ScrollView {
-                    VStack(spacing: 16) {
+                    VStack(spacing: Spacing.space4) {
                         ContentUnavailableView {
                             Label {
                                 Text(words.messagesFailed)
@@ -52,7 +53,7 @@ struct ChannelFeedView: View {
                             Task { await open(force: true) }
                         } label: {
                             Text(words.tryAgain)
-                                .frame(minWidth: 44, minHeight: 44)
+                                .frame(minWidth: Size.sizeTouch, minHeight: Size.sizeTouch)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.borderedProminent)
@@ -126,7 +127,7 @@ struct ChannelFeedView: View {
                 }
                 .scrollTargetLayout()
                 .padding(.horizontal)
-                .padding(.vertical, 12)
+                .padding(.vertical, Spacing.space3)
                 .frame(maxWidth: ChatLayout.readableWidth)
                 .frame(maxWidth: .infinity)
             }
@@ -204,23 +205,23 @@ struct ChannelFeedView: View {
     /// A read of a channel already shown failed: the messages it had stay, and this says beside them that newer ones did not
     /// load, with Try Again. iOS shows no notice for it (`NoticeList.words`), so this is where it is said.
     private var newerFailedControl: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Spacing.space1) {
             Text(words.newerFailed)
                 .foregroundStyle(.secondary)
             Button {
                 Task { await open(force: true) }
             } label: {
                 Text(words.tryAgain)
-                    .frame(minHeight: 44, alignment: .leading)
+                    .frame(minHeight: Size.sizeTouch, alignment: .leading)
                     .contentShape(Rectangle())
             }
             .accessibilityIdentifier("chat.retryNewer")
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, Spacing.space2)
     }
 
     private var earlierControl: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Spacing.space1) {
             if earlierFailed {
                 Text(words.earlierFailed)
                     .foregroundStyle(.secondary)
@@ -232,7 +233,7 @@ struct ChannelFeedView: View {
                     Task { await loadEarlier() }
                 } label: {
                     Text(earlierFailed ? words.tryAgain : words.loadEarlier)
-                        .frame(minHeight: 44, alignment: .leading)
+                        .frame(minHeight: Size.sizeTouch, alignment: .leading)
                         .contentShape(Rectangle())
                 }
                 .accessibilityIdentifier("chat.loadEarlier")

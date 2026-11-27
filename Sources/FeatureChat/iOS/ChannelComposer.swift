@@ -1,5 +1,6 @@
 import PurlayContract
 import PurlayKit
+import PurlayTokens
 import SwiftUI
 
 struct ChannelComposer: View {
@@ -21,14 +22,14 @@ struct ChannelComposer: View {
         VStack(spacing: 0) {
             Divider()
             if canPost {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(alignment: .bottom, spacing: 8) {
+                VStack(alignment: .leading, spacing: Spacing.space1) {
+                    HStack(alignment: .bottom, spacing: Spacing.space2) {
                         TextField(text: draft, axis: .vertical) {
                             Text(words.writeMessage)
                         }
                         .textFieldStyle(.roundedBorder)
                         .lineLimit(1...5)
-                        .frame(minHeight: 44)
+                        .frame(minHeight: Size.sizeTouch)
                         .accessibilityIdentifier("chat.composer")
                         Button(action: send) {
                             Label {
@@ -37,7 +38,7 @@ struct ChannelComposer: View {
                                 Image(systemName: "arrow.up")
                             }
                             .labelStyle(.iconOnly)
-                            .frame(width: 44, height: 44)
+                            .frame(minWidth: Size.sizeTouch, minHeight: Size.sizeTouch)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.borderedProminent)
@@ -52,7 +53,7 @@ struct ChannelComposer: View {
                     }
                 }
                 .padding(.horizontal)
-                .padding(.vertical, 8)
+                .padding(.vertical, Spacing.space2)
                 .frame(maxWidth: ChatLayout.readableWidth)
             } else {
                 Text(words.channelReadOnly)

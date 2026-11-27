@@ -1,4 +1,5 @@
 import PurlayContract
+import PurlayTokens
 import SwiftUI
 
 struct MessageHistoryRow: View {
@@ -6,14 +7,14 @@ struct MessageHistoryRow: View {
     let words: ChatStrings
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: Spacing.space1) {
             if Self.canShowBody(message) {
                 ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.space2) {
                         sender
                         time
                     }
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: Spacing.space1) {
                         sender
                         time
                     }
@@ -35,9 +36,9 @@ struct MessageHistoryRow: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, Spacing.space2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .contain)
+        .accessibilityElement(children: .combine)
         .accessibilityIdentifier("chat.message.\(message.id.value)")
     }
 

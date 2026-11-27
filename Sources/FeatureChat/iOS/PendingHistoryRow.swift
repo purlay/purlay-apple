@@ -1,4 +1,5 @@
 import PurlayKit
+import PurlayTokens
 import SwiftUI
 
 struct PendingHistoryRow: View {
@@ -7,7 +8,7 @@ struct PendingHistoryRow: View {
     let retry: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: Spacing.space1) {
             Text(verbatim: message.content)
                 .textSelection(.enabled)
             Text(status)
@@ -16,13 +17,13 @@ struct PendingHistoryRow: View {
             if message.delivery == .failed, let retry {
                 Button(action: retry) {
                     Text(words.retryMessage)
-                        .frame(minHeight: 44, alignment: .leading)
+                        .frame(minHeight: Size.sizeTouch, alignment: .leading)
                         .contentShape(Rectangle())
                 }
                 .accessibilityIdentifier("chat.outbox.retry")
             }
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, Spacing.space2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chat.pending.\(message.id.value)")
