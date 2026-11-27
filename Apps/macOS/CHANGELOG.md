@@ -6,6 +6,7 @@ User-facing changes to Purlay for macOS. Releases require macOS 26 or later.
 
 ### Fixed
 
+- Turkish speaks to you formally ("siz") throughout, as the web does.
 - A session the server ends, or one that expires, no longer removes a newer sign-in another workspace kept meanwhile: only
   its own entry leaves the Keychain.
 - During a server rollout, message search and Chat notifications close cleanly when a server node cannot serve them.

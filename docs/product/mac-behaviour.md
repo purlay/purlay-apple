@@ -116,7 +116,7 @@ Both actions require an explicit choice in the same confirmation dialog, and fai
 
 ## Server features
 
-The contract is pinned to server 0.8.0 (`Contract/contract.lock`) and the oldest server this build reads is 0.5.0
+The contract is pinned to server 0.9.1 (`Contract/contract.lock`) and the oldest server this build reads is 0.5.0
 (`CompatibleContracts.minimumServer`): a channel's `sidebarGroupId` is required from 0.5.0. `GET /api/me` types the server's `modules`
 and each membership's grant; `AppModel.hasModule(_:)` decides what a workspace has, and a module this app does not know is ignored.
 

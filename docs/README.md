@@ -16,8 +16,8 @@ The entry point: where things stand, what holds the code in shape, and which doc
   Their work up to their final commits (purlay-swift `83f32d7`, purlay-macos `b468562`, purlay-ios `c25436e`) is here, except
   unfinished work, which is carried in the draft pull request `wip/macos-parity`; what only managed the separate repositories
   (package pins, the Swift package's releases) has no place here and was left out.
-- **The engine:** shared by both apps; speaks the contract of server 0.8.0 and reads servers from 0.5.0. The server has
-  released 0.9.0 ([contract drift](runbooks/contract-drift.md)).
+- **The engine:** shared by both apps; speaks the contract of server 0.9.1 and reads servers from 0.5.0
+  ([contract drift](runbooks/contract-drift.md)).
 - **CI and releases:** the lanes run side by side behind one required check; releases run from tags
   ([ci.md](development/ci.md), [releasing.md](development/releasing.md)). Their times on hosted runners are estimates until the
   first week of runs (TD-021).

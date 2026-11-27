@@ -15,3 +15,5 @@ land, headed "Unreleased" until it ships (`scripts/ci/changelog-versions` requir
 - Switch between workspaces from the signed-in app. Available destinations appear in iPhone tabs and the iPad sidebar.
 - The app's icon is the Purlay mark.
 - The sign-in and loading screens scroll at the largest text sizes.
+- Turkish speaks to you formally ("siz"), as the web does, and two-step verification has the web's name in both languages.
+- A server's update requirement for iPhone and iPad is the one the app follows; the Mac's no longer applies to it.

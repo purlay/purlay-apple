@@ -58,6 +58,19 @@ struct HandoffTests {
         #expect(url.fragment == nil)
     }
 
+    @Test("a sign-in that must be fresh asks the page for one with prompt=login (D-356); an ordinary one does not")
+    func freshSignIn() throws {
+        let attempt = SignInAttempt.make()
+        let server = try ServerAddress.parse("chat.example.com")
+        let fresh = try #require(attempt.authorizationURL(on: server, platform: .iOS, prompt: .login))
+        let items = try #require(URLComponents(url: fresh, resolvingAgainstBaseURL: false)?.queryItems)
+        #expect(items.first { $0.name == "prompt" }?.value == "login")
+        let ordinary = try #require(attempt.authorizationURL(on: server, platform: .iOS))
+        #expect(
+            URLComponents(url: ordinary, resolvingAgainstBaseURL: false)?.queryItems?.contains { $0.name == "prompt" }
+                == false)
+    }
+
     // MARK: What the callback says
 
     private let attempt = SignInAttempt(verifier: String(repeating: "v", count: 43), state: "state-state-state-xyz")

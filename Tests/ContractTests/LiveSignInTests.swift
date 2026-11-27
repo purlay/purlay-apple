@@ -5,9 +5,10 @@ import PurlayTestSupport
 import Synchronization
 import Testing
 
-/// Stands in for the browser: the person is signed in there already, and says yes to the application on the server's own page.
-/// Everything else — the page's address, the call that makes the code, the redirect, the exchange — is the real thing.
-private struct SignedInBrowser: WebAuthenticator {
+/// Stands in for the browser: the person is signed in there already, and says yes to the application on the server's own page,
+/// which passes the page's `prompt` on as the server's page does. Everything else — the page's address, the call that makes the
+/// code, the redirect, the exchange — is the real thing.
+struct SignedInBrowser: WebAuthenticator {
     let api: PurlayAPI
     let issued: Issued
 
@@ -22,7 +23,10 @@ private struct SignedInBrowser: WebAuthenticator {
         guard let challenge = items.first(where: { $0.name == "challenge" })?.value,
             let state = items.first(where: { $0.name == "state" })?.value
         else { throw WebAuthenticatorError.failed("the page has no challenge") }
-        let answer = try await api.nativeAuthorize(body: NativeAuthorizeRequest(challenge: challenge, state: state))
+        let prompt = items.first(where: { $0.name == "prompt" })?.value.map(
+            NativeAuthorizeRequest.Prompt.init(rawValue:))
+        let answer = try await api.nativeAuthorize(
+            body: NativeAuthorizeRequest(challenge: challenge, prompt: prompt, state: state))
         guard let redirect = URL(string: answer.redirect) else { throw WebAuthenticatorError.failed("no redirect") }
         if let code = URLComponents(url: redirect, resolvingAgainstBaseURL: false)?.queryItems?.first(where: {
             $0.name == "code"

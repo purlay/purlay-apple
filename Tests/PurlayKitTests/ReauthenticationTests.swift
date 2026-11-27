@@ -196,7 +196,9 @@ struct ReauthenticationTests {
         #expect(h.model.erasureNeedsReauthentication)
     }
 
-    @Test("a browser sign-in is recent enough to erase for a little less than the server allows, and then not")
+    @Test(
+        "before D-356, a server judged the session's own age: a browser sign-in is recent enough to erase for a little less than it allows, and then not"
+    )
     func recentForAWhile() async {
         let h = ModelHarness()
         await h.signedIn()
@@ -209,5 +211,55 @@ struct ReauthenticationTests {
         h.server.edit { $0.nextSession = Self.fresh }
         #expect(await h.model.reauthenticate() == .done)
         #expect(!h.model.erasureNeedsReauthentication, "signing in again starts the time again")
+    }
+
+    // MARK: A server that judges the browser's own sign-in (D-356)
+
+    private static let freshMinutes = TimeInterval(ContractConstants.nativeFreshSignInMinutes * 60)
+    private static let erasureMinutes = TimeInterval(ContractConstants.erasureSignInMinutes * 60)
+
+    /// A server of D-356, whose browser last signed the person in `browserAge` seconds before the test's start.
+    private func judging(browserAge: TimeInterval) -> ModelHarness {
+        let h = ModelHarness()
+        h.server.edit {
+            $0.clientInfo = FakeServer.clientInfo(nativeFreshSignIn: true)
+            $0.browserSignedInAt = -browserAge
+        }
+        return h
+    }
+
+    @Test("a sign-in again asks the browser for a fresh sign-in; the first sign-in does not")
+    func asksForAFreshSignIn() async {
+        let h = judging(browserAge: 3_600)
+        await h.signedIn()
+        h.server.edit { $0.nextSession = Self.fresh }
+        #expect(await h.model.reauthenticate() == .done)
+        #expect(h.server.snapshot.prompts == [nil, "login"])
+    }
+
+    @Test(
+        "a browser sign-in may hand over a browser that signed in long ago: it is never taken as fresh enough to erase")
+    func browserSignInIsNotFresh() async {
+        let h = judging(browserAge: 3_600)
+        await h.signedIn()
+        #expect(h.model.erasureNeedsReauthentication)
+        #expect(await h.model.eraseAccount(confirmation: "ada") == .reauthenticationRequired)
+    }
+
+    @Test(
+        "after a fresh sign-in the account can be erased, and the app counts the server's limit from the earliest the browser may have signed in"
+    )
+    func freshSignInErases() async {
+        let h = judging(browserAge: 3_600)
+        await h.signedIn()
+        h.server.edit { $0.nextSession = Self.fresh }
+        #expect(await h.model.reauthenticate() == .done)
+        #expect(!h.model.erasureNeedsReauthentication)
+        h.elapsed.set(Self.erasureMinutes - Self.freshMinutes - AppModel.erasureSignInMargin - 1)
+        #expect(!h.model.erasureNeedsReauthentication)
+        h.elapsed.set(Self.erasureMinutes - Self.freshMinutes - AppModel.erasureSignInMargin)
+        #expect(h.model.erasureNeedsReauthentication, "the browser may have signed in up to its fresh limit before")
+        h.elapsed.set(0)
+        #expect(await h.model.eraseAccount(confirmation: "ada") == .erased)
     }
 }

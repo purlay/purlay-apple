@@ -65,7 +65,8 @@ struct Harness {
             """)
     }
 
-    /// A server's answer to the handshake, as a Purlay server of the current release gives it.
+    /// A server's answer to the handshake, as a Purlay server of the current release gives it: `minApp` is the iOS app's
+    /// minimum (D-340). The Mac's is set far above this app, so a test passes only if the iOS app reads its own.
     nonisolated static func clientInfo(
         minApp: String = "0.1.0", contract: Int = ContractConstants.contractVersion,
         appURL: String = "https://purlay.test"
@@ -73,8 +74,9 @@ struct Harness {
         ScriptedTransport.json(
             200,
             """
-            {"server":{"version":"0.8.0"},"contractVersion":\(contract),"appUrl":"\(appURL)",\
-            "minClient":{"macos":{"appVersion":"\(minApp)","contractVersion":1,"downloadUrl":null}},\
+            {"server":{"version":"0.9.1"},"contractVersion":\(contract),"appUrl":"\(appURL)",\
+            "minClient":{"macos":{"appVersion":"99.0.0","contractVersion":1,"downloadUrl":null},\
+            "ios":{"appVersion":"\(minApp)","contractVersion":1,"downloadUrl":null}},\
             "auth":{"email":true,"github":true,"google":false,"oidc":null,"password":true,"signUp":"invite-only"}}
             """)
     }

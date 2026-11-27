@@ -42,17 +42,17 @@ public enum HandshakeOutcome: Sendable, Equatable {
 public enum Handshake {
     /// Both directions, decided from what the server said and what this build is.
     public static func evaluate(
-        _ info: ClientInfo, appVersion: SemanticVersion, appContract: Int = ContractConstants.contractVersion,
+        _ info: ClientInfo, appVersion: SemanticVersion, platform: ClientPlatform,
+        appContract: Int = ContractConstants.contractVersion,
         supported: Set<Int> = CompatibleContracts.supported,
         minimumServer: SemanticVersion = CompatibleContracts.minimumServer, allowsLocalHTTP: Bool = false
     ) -> HandshakeOutcome {
-        let minimum = info.minClient.macos
-        if let needed = minimum.contractVersion, appContract < needed {
-            return .appTooOld(minimum: minimum, server: info)
-        }
-        if let text = minimum.appVersion {
+        if let minimum = info.minimum(for: platform) {
+            if let needed = minimum.contractVersion, appContract < needed {
+                return .appTooOld(minimum: minimum, server: info)
+            }
             // A minimum the app cannot read is not a reason to refuse: the server's own check, at the edge, still stands.
-            if let needed = SemanticVersion(text), appVersion < needed {
+            if let text = minimum.appVersion, let needed = SemanticVersion(text), appVersion < needed {
                 return .appTooOld(minimum: minimum, server: info)
             }
         }
@@ -68,5 +68,20 @@ public enum Handshake {
             return .unusableOrigin(info.appUrl, server: info)
         }
         return .ready(info, origin: origin)
+    }
+}
+
+extension ClientInfo {
+    /// The minimum the server asks of an app on `platform` (D-340): each platform has its own, and a server that gives none
+    /// for a platform (one before D-340 gives none for iOS) asks nothing of it. Never another platform's.
+    public func minimum(for platform: ClientPlatform) -> ClientMinimum? {
+        switch platform {
+        case .macOS: minClient.macos
+        case .iOS:
+            minClient.ios.map {
+                ClientMinimum(
+                    appVersion: $0.appVersion, contractVersion: $0.contractVersion, downloadUrl: $0.downloadUrl)
+            }
+        }
     }
 }

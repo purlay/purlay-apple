@@ -6,26 +6,70 @@ import Testing
 
 @Suite("Handshake")
 struct HandshakeTests {
+    private func minimum(app: String?, contract: Int?) -> String {
+        """
+        {"appVersion":\(app.map { "\"\($0)\"" } ?? "null"),"contractVersion":\(contract.map(String.init) ?? "null"),"downloadUrl":null}
+        """
+    }
+
+    /// A server's answer: the Mac's minimum as given, and the iOS one only where `ios` says (a server before D-340 sends none).
     private func info(
         contract: Int = 1, minContract: Int? = 1, minApp: String? = "0.1.0",
-        appUrl: String = "https://chat.example.com", server: String = "0.6.1"
+        appUrl: String = "https://chat.example.com", server: String = "0.6.1", ios: String? = nil
     ) throws -> ClientInfo {
-        let minimum = """
-            {"appVersion":\(minApp.map { "\"\($0)\"" } ?? "null"),"contractVersion":\(minContract.map(String.init) ?? "null"),"downloadUrl":null}
-            """
+        let platforms =
+            "\"macos\":\(minimum(app: minApp, contract: minContract))" + (ios.map { ",\"ios\":\($0)" } ?? "")
         let text = """
             {"server":{"version":"\(server)"},"contractVersion":\(contract),"appUrl":"\(appUrl)",
-             "minClient":{"macos":\(minimum)},"auth":{"email":true,"github":true,"google":false,"oidc":null,"password":true,"signUp":"invite-only"}}
+             "minClient":{\(platforms)},"auth":{"email":true,"github":true,"google":false,"oidc":null,"password":true,"signUp":"invite-only"}}
             """
         return try JSONDecoder().decode(ClientInfo.self, from: Data(text.utf8))
     }
 
     private let app = SemanticVersion("0.1.0")!
 
-    private func outcome(_ info: ClientInfo, app: SemanticVersion? = nil, contract: Int = 1, supported: Set<Int> = [1])
-        -> HandshakeOutcome
-    {
-        Handshake.evaluate(info, appVersion: app ?? self.app, appContract: contract, supported: supported)
+    private func outcome(
+        _ info: ClientInfo, app: SemanticVersion? = nil, contract: Int = 1, supported: Set<Int> = [1],
+        platform: ClientPlatform = .macOS
+    ) -> HandshakeOutcome {
+        Handshake.evaluate(
+            info, appVersion: app ?? self.app, platform: platform, appContract: contract, supported: supported)
+    }
+
+    @Test("an iOS app is held to the iOS minimum, not the Mac's")
+    func iOSMinimum() throws {
+        let server = try info(minApp: "0.1.0", ios: minimum(app: "9.0.0", contract: 1))
+        guard case .appTooOld(let needed, _) = outcome(server, platform: .iOS) else {
+            Issue.record("an iOS app the server refuses was served")
+            return
+        }
+        #expect(needed == ClientMinimum(appVersion: "9.0.0", contractVersion: 1, downloadUrl: nil))
+        guard case .ready = outcome(server, platform: .macOS) else {
+            Issue.record("the Mac was held to the iOS minimum")
+            return
+        }
+    }
+
+    @Test("a Mac minimum above the iOS app does not refuse it: a server that gives no iOS minimum has none")
+    func noIOSMinimum() throws {
+        let server = try info(minApp: "9.0.0")
+        guard case .ready = outcome(server, platform: .iOS) else {
+            Issue.record("the iOS app was held to the Mac's minimum")
+            return
+        }
+        guard case .appTooOld = outcome(server, platform: .macOS) else {
+            Issue.record("the Mac was served under its minimum")
+            return
+        }
+    }
+
+    @Test("an iOS minimum with no values set is no minimum")
+    func emptyIOSMinimum() throws {
+        guard case .ready = outcome(try info(minApp: "9.0.0", ios: minimum(app: nil, contract: nil)), platform: .iOS)
+        else {
+            Issue.record("an empty iOS minimum refused the app")
+            return
+        }
     }
 
     @Test("a server this app can talk to is ready, with the Origin it gave")

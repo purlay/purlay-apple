@@ -51,7 +51,7 @@ public struct HandshakeClient: Sendable {
             // Cancelled while waiting: the caller asked to stop, and that is not a finding about the server.
             throw .unreachable(.cancelled)
         }
-        return Handshake.evaluate(info, appVersion: appVersion, allowsLocalHTTP: allowsLocalHTTP)
+        return Handshake.evaluate(info, appVersion: appVersion, platform: platform, allowsLocalHTTP: allowsLocalHTTP)
     }
 }
 
