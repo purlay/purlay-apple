@@ -7,7 +7,8 @@
 #
 # GROUP is `tree`, `layers`, or both when it is left out. `tree` is shell, grep and Python only, so it runs on a Linux runner
 # without Swift (scripts/verify rules). `layers` reads the package through `swift package dump-package`, which compiles the
-# manifest and so needs the Swift toolchain: it runs on macOS (scripts/verify packages).
+# manifest and so needs the Swift toolchain, and checks scripts/lib/sentence_calls.py against the SDK: it runs on macOS
+# (scripts/verify packages).
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
@@ -676,8 +677,13 @@ PY
 }
 
 if ! $demo; then
-  check . && echo "enforcement ($RULE_GROUPS): the tree holds every rule"
-  exit
+  status=0
+  check . || status=1
+  # The calls the sentence rule reads as saying a sentence are what this Xcode's SDK declares (scripts/lib/sentence_calls.py).
+  # Writing them needs Xcode, as the layers do, so a new SDK is seen where they run.
+  if wants layers && ! scripts/dev/sentence-calls --check; then status=1; fi
+  [ "$status" -ne 0 ] || echo "enforcement ($RULE_GROUPS): the tree holds every rule"
+  exit "$status"
 fi
 
 fail=0

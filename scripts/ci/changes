@@ -47,6 +47,8 @@ lanes_for() {
     Tests/* | TestPlans/macOS.xctestplan | .swift-format) echo "rules packages" ;;
     TestPlans/iOS.xctestplan) echo "rules simulator" ;;
     TestPlans/*) echo "rules packages" ;;
+    # The SDK's calls that take a sentence: checked against the SDK where Xcode is, in the packages lane.
+    scripts/lib/sentence_calls.py | scripts/dev/sentence-calls) echo "rules packages" ;;
     .github/actionlint.yaml | .githooks/* | scripts/dev/* | scripts/install-lint-tools) echo "rules" ;;
     scripts/enforcement | scripts/check-branch | scripts/localize | Design/*) echo "rules" ;;
     # Read by scripts/enforcement alone (logo-swift also by scripts/icon, whose output is Swift and mapped as such).

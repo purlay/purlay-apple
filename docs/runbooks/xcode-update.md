@@ -11,7 +11,10 @@ what the image has.
 3. One pull request, `ci: build with Xcode 27.N`: `XCODE_VERSION` in `.github/toolchain.env`, and the version named in
    `docs/development/ci.md` and `docs/development/getting-started.md`. The compilation caches are keyed by the Xcode build, so the
    first runs are cold.
-4. After it merges, run main's CI by hand (*Actions → CI → Run workflow*) to warm the caches.
+4. In the same pull request, run `scripts/dev/sentence-calls`: it writes `scripts/lib/sentence_calls.py`, the calls of the new
+   SDK that take a sentence, which the catalogue rule reads. The packages lane refuses a file this Xcode would write otherwise
+   (`scripts/enforcement layers`).
+5. After it merges, run main's CI by hand (*Actions → CI → Run workflow*) to warm the caches.
 
 A new Xcode that breaks the build (a new warning is an error here) is fixed in the same pull request; nothing is silenced.
 

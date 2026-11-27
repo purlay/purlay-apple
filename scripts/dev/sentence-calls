@@ -1,29 +1,36 @@
 #!/usr/bin/env python3
-"""Writes scripts/lib/sentence_calls.py: every call the SDK's SwiftUI and Foundation declare with a parameter that takes a sentence
-(LocalizedStringKey, LocalizedStringResource, String.LocalizationValue), read from their .swiftinterface files for macOS and the
-iOS simulator, with the label of each such parameter. scripts/enforcement counts a catalogue sentence as said where one of these
-calls says it. Run it after an Xcode update: it needs Xcode, the rules lane does not.
+"""Writes scripts/lib/sentence_calls.py: every call the SDK declares with a parameter that takes a sentence (LocalizedStringKey,
+LocalizedStringResource, String.LocalizationValue, IntentDialog), read from the .swiftinterface files of the frameworks below for
+macOS and the iOS simulator, with the label of each such parameter. scripts/enforcement counts a catalogue sentence as said where
+one of these calls says it. It needs Xcode, which the rules lane does not have; `--check` runs in the layers group of
+scripts/enforcement (the packages lane), so a new Xcode whose SDK says otherwise is seen there.
 
-  scripts/dev/sentence-calls
+  scripts/dev/sentence-calls            write the file
+  scripts/dev/sentence-calls --check    fail unless the file is what this Xcode's SDK gives
 """
 import pathlib
 import re
 import subprocess
+import sys
 
 OUTPUT = pathlib.Path(__file__).resolve().parent.parent / "lib/sentence_calls.py"
-SENTENCE = r"(?:\w+::|\w+\.)*(?:LocalizedStringKey|LocalizedStringResource|LocalizationValue)\b(?![.:])"
+SENTENCE = r"(?:\w+::|\w+\.)*(?:LocalizedStringKey|LocalizedStringResource|LocalizationValue|IntentDialog)\b(?![.:])"
+# The frameworks whose calls an app says sentences through: the interface, intents and widgets, charts, and each platform's own.
+FRAMEWORKS = ("SwiftUI", "SwiftUICore", "Foundation", "AppIntents", "WidgetKit", "Charts", "AppKit", "UIKit")
 DECLARATION = re.compile(r"(?:@\S+\s+)*(?:public |open |final |@frozen |nonisolated |indirect )*"
                          r"(?:struct|class|enum|extension|actor|protocol)\s+([\w.:]+)")
 # Not called by name in an app's code: the compiler's interpolation hooks, and the underscored SPI.
 SKIPPED = re.compile(r"^_|^appendInterpolation$|^placeholderFormatSpecifier$|^setActionName$")
 # Sentences the SDK does not type as one: a key NSLocalizedString looks up, and a key or value built from a literal.
 EXTRA = {"NSLocalizedString": {""}, "LocalizedStringKey": {""}, "LocalizationValue": {""}}
+# A type the code names otherwise: App Intents' IntentParameter is written as the property wrapper @Parameter.
+ALIASES = {"IntentParameter": "Parameter"}
 
 
 def interfaces():
     for sdk in ("macosx", "iphonesimulator"):
         root = pathlib.Path(subprocess.check_output(["xcrun", "--sdk", sdk, "--show-sdk-path"], text=True).strip())
-        for framework in ("SwiftUI", "SwiftUICore", "Foundation"):
+        for framework in FRAMEWORKS:
             for path in (root / "System/Library/Frameworks" / f"{framework}.framework").rglob("*.swiftinterface"):
                 if re.search(r"(arm64e?-apple-macos|arm64-apple-ios-simulator)\.swiftinterface$", path.name):
                     yield path
@@ -56,7 +63,9 @@ for path in interfaces():
             for parameter in parameters(function.group(2)):
                 typed = re.match(rf"\s*(\w+)(?:\s+\w+)?\s*:\s*(?:__owned\s+|sending\s+|@\w+\s+)*\[?{SENTENCE}", parameter)
                 if typed and callee and not SKIPPED.search(callee) and typed.group(1) != "stringInterpolation":
-                    calls.setdefault(callee, set()).add("" if typed.group(1) == "_" else typed.group(1))
+                    for name in (callee, ALIASES.get(callee)):
+                        if name:
+                            calls.setdefault(name, set()).add("" if typed.group(1) == "_" else typed.group(1))
         depth += line.count("{") - line.count("}")
         while owners and depth <= owners[-1][0]:
             owners.pop()
@@ -69,5 +78,10 @@ lines = [
 ]
 lines += [f"    {name!r}: {sorted(labels)!r}," for name, labels in sorted(calls.items())]
 lines += ["}", ""]
-OUTPUT.write_text("\n".join(lines))
-print(f"wrote {OUTPUT.relative_to(OUTPUT.parent.parent.parent)}: {len(calls)} calls")
+written = "\n".join(lines)
+if sys.argv[1:] == ["--check"]:
+    if not OUTPUT.exists() or OUTPUT.read_text() != written:
+        sys.exit("FAIL: scripts/lib/sentence_calls.py is not what this Xcode's SDK gives; run scripts/dev/sentence-calls")
+else:
+    OUTPUT.write_text(written)
+    print(f"wrote scripts/lib/sentence_calls.py: {len(calls)} calls")
