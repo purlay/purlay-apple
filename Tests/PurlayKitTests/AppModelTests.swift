@@ -102,6 +102,8 @@ final class ModelHarness {
     let server = FakeServer()
     let loginItem = FakeLoginItem()
     let sessions = MemorySessions()
+    /// The Mac's pending sign-ins (ADR 0011), kept apart from the session in use.
+    let pendingSessions = MemorySessions()
     let preferences: MemoryPreferences
     let owner = MemoryOwnerStore()
     let attention = RecordingAttention()
@@ -123,6 +125,7 @@ final class ModelHarness {
         self.preferences = preferences
         let server = server
         let sessions = sessions
+        let pendingSessions = pendingSessions
         let preferences = preferences
         let owner = owner
         let attention = attention
@@ -149,7 +152,8 @@ final class ModelHarness {
                 },
                 random: { 0 }, clock: { Date(timeIntervalSince1970: Double(epochMs) / 1_000 + elapsed.seconds) },
                 owner: owner,
-                sleep: { _ in }, attention: attention, loginItem: loginItem, wipers: wipers))
+                sleep: { _ in }, attention: attention, loginItem: loginItem, wipers: wipers,
+                pendingSessions: pendingSessions))
     }
 
     func settle() async {

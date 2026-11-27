@@ -664,13 +664,45 @@ public final class AppModel {
         ]
     }
 
-    private func holdSends() {
+    /// A browser sign-in's session, kept apart until it is known whose (`AppEnvironment.pendingSessions`). A Keychain that
+    /// refuses it is logged: the session still lives in memory, and only a quit before it is kept would lose it.
+    private func rememberPendingSession(_ session: StoredSession, for server: ServerAddress) {
+        do {
+            try environment.pendingSessions?.save(session, for: server)
+        } catch {
+            environment.log.session.error(
+                "a pending sign-in could not be kept: \(String(describing: type(of: error)), privacy: .public)")
+        }
+    }
+
+    private func loadPendingSession(for server: ServerAddress) -> StoredSession? {
+        do {
+            return try environment.pendingSessions?.load(for: server)
+        } catch {
+            environment.log.session.error(
+                "a pending sign-in could not be read: \(String(describing: type(of: error)), privacy: .public)")
+            return nil
+        }
+    }
+
+    private func forgetPendingSession(for server: ServerAddress) {
+        do {
+            try environment.pendingSessions?.delete(for: server)
+        } catch {
+            environment.log.session.error(
+                "a pending sign-in could not be removed: \(String(describing: type(of: error)), privacy: .public)")
+        }
+    }
+
+    /// Nothing more is sent from this session, from the moment a sign-out of its server starts (here, or in another of the
+    /// Mac's workspaces of the server).
+    func holdSends() {
         sendsHeld = true
         engine?.stop()
     }
 
     /// The sign-out did not happen: what was held goes on as before.
-    private func releaseSends() {
+    func releaseSends() {
         sendsHeld = false
         engine?.start()
         for place in waitingSends.keys { settleWaitingSend(place) }
@@ -709,6 +741,17 @@ public final class AppModel {
             observe(manager)
             await bootstrap()
             return
+        }
+        // One the app was quit with: read again with it, unless a session is kept for the server already (one session per
+        // server), in which case it is ended.
+        if sharedServer != nil, let stored = loadPendingSession(for: address) {
+            if (try? environment.sessions.load(for: address)) ?? nil != nil {
+                forgetPendingSession(for: address)
+                await endSession(holding: stored.cookie, on: address)
+            } else {
+                unkeptCredential = stored
+                return await resumeOrAskToSignIn(address)
+            }
         }
         do {
             let state = try await manager.restore(for: address)
@@ -759,7 +802,10 @@ public final class AppModel {
             let session = try await flow.signIn(to: server, origin: origin)
             await manager.adopt(session, for: server)
             heldSession = session
-            if sharedServer != nil { unkeptCredential = session }
+            if sharedServer != nil {
+                unkeptCredential = session
+                rememberPendingSession(session, for: server)
+            }
             signedInAt = environment.clock()
             warnedOfExpiry = false
             observe(manager)
@@ -875,9 +921,18 @@ public final class AppModel {
     private func keep(
         _ session: StoredSession, for me: MeResponse, on server: ServerAddress, manager: SessionManager
     ) async -> Bool {
+        forgetPendingSession(for: server)
         let refusal: SignInError
-        if let other = sharedServer?.sessionInUse()?.person, other != me.user.id.value {
+        let inUse = sharedServer?.sessionInUse()
+        if let other = inUse?.person, other != me.user.id.value {
             refusal = .anotherPersonSignedIn(server: server.origin.host() ?? server.description)
+        } else if let inUse, inUse.session.cookie != session.cookie {
+            // The same person is already signed in to the server here: one session per server, so this workspace joins it
+            // and the browser's is ended.
+            await manager.adopt(inUse.session, for: server)
+            heldSession = inUse.session
+            await endSession(holding: session.cookie, on: server)
+            return true
         } else {
             do {
                 try environment.sessions.save(session, for: server)
@@ -1020,10 +1075,16 @@ public final class AppModel {
 
     /// How many messages the person sent that the server has not yet been heard to have: the outbox, which signing out
     /// removes. The sign-out screen says it first, so nothing unsent goes without the person knowing.
+    ///
+    /// On the Mac this is the total of every workspace of the server held by the same person, since signing out of one ends
+    /// them all and removes each one's outbox.
     public var unsentMessageCount: Int {
         if let sessionOwner { return sessionOwner.unsentMessageCount }
-        return pending.count { $0.delivery != .sent }
+        return unsentHere + (sharedServer?.unsentElsewhere() ?? 0)
     }
+
+    /// This session's own unsent messages.
+    var unsentHere: Int { pending.count { $0.delivery != .sent } }
 
     /// Where this session's Quick Look copies of attachments are kept, under its environment's caches: removed with the rest
     /// of what the person kept here.
@@ -1053,8 +1114,10 @@ public final class AppModel {
     private func signOutOnce(_ scope: SignOutScope) async -> SessionManager.SignOutResult {
         guard let manager else { return .done }
         let person = me?.user.id.value ?? environment.owner.load()
-        // From the moment the person asks: nothing more is sent while the server is told and the data removed.
+        // From the moment the person asks: nothing more is sent, here or in any workspace of the server, while the server is
+        // told and the data removed.
         holdSends()
+        sharedServer?.holdSends()
         let result = await manager.signOut(scope)
         switch result {
         case .done: break
@@ -1065,6 +1128,7 @@ public final class AppModel {
         switch result {
         case .notDone, .credentialKept:
             releaseSends()
+            sharedServer?.releaseSends()
             return result
         case .done, .serverNotTold: break
         }
@@ -1321,6 +1385,7 @@ public final class AppModel {
     private func tearDown() {
         if let dropped = unkeptCredential, let server {
             // Never kept and now let go: ended, so it is not left alive on the server with nothing holding it.
+            forgetPendingSession(for: server)
             Task { await endSession(holding: dropped.cookie, on: server) }
         }
         heldSession = nil
@@ -1681,4 +1746,9 @@ struct SharedServer {
     var isEnding: () -> Bool
     /// Every other session of the server that holds `old` moves to `fresh`.
     var renew: (_ old: String, _ fresh: StoredSession) async -> Void
+    /// The unsent messages of the other sessions of the server held by the same person: a sign-out here removes them too.
+    var unsentElsewhere: () -> Int = { 0 }
+    /// A sign-out of the server started here: the other sessions send nothing more; released if it does not happen.
+    var holdSends: () -> Void = {}
+    var releaseSends: () -> Void = {}
 }

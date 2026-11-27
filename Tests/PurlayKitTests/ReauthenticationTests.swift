@@ -144,6 +144,21 @@ struct ReauthenticationTests {
         #expect(try h.sessions.load(for: server)?.cookie == FakeServer.sessionValue)
     }
 
+    @Test("on the Mac, a pending sign-in found at launch beside a kept session is ended: one session per server")
+    func stalePendingEndedAtLaunch() async throws {
+        let h = ModelHarness()
+        h.model.sharedServer = SharedServer(sessionInUse: { nil }, isEnding: { false }, renew: { _, _ in })
+        try h.rememberedSession()
+        try h.pendingSessions.save(
+            StoredSession(cookie: "left-pending", expiresAt: nil, origin: "http://localhost:4390"), for: server)
+        await h.model.connect()
+        await h.settle()
+        #expect(h.model.phase == .ready)
+        #expect(try h.sessions.load(for: server)?.cookie == FakeServer.sessionValue)
+        #expect(try h.pendingSessions.load(for: server) == nil)
+        #expect(h.server.snapshot.revoked.contains("left-pending"))
+    }
+
     @Test("on the Mac, a session never kept is ended on the server when the model lets it go")
     func unkeptIsEndedWhenDropped() async throws {
         let h = ModelHarness()

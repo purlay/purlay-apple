@@ -118,6 +118,8 @@ final class FakeServer: HTTPTransport {
         var eraseStatus = 204
         var eraseError: String?
         var beforeEraseResponse: (@Sendable () async -> Void)?
+        /// What `POST /api/channels/{id}/messages` answers when set: a send over HTTP that is not taken.
+        var sendMessageStatus: Int?
         /// Runs while `POST /auth/logout` is at the server, before it answers: what happens during a sign-out's round trip.
         var beforeLogoutResponse: (@Sendable () async -> Void)?
         /// What the transport throws for `POST /api/me/erase` after the server received it: an answer lost on the way back.
@@ -1176,6 +1178,9 @@ final class FakeServer: HTTPTransport {
                 return json(snapshot.readStatus, #"{"error":{"code":"INTERNAL","message":"x"}}"#)
             }
             return json(200, #"{"lastReadMessageId":"\#(id)","unreadCount":0,"unreadMentionCount":0}"#)
+        case ("POST", _)
+        where snapshot.sendMessageStatus != nil && path.hasPrefix("/api/channels/") && path.hasSuffix("/messages"):
+            return json(snapshot.sendMessageStatus ?? 503, #"{"error":{"code":"DATABASE_UNAVAILABLE","message":"x"}}"#)
         case ("POST", "/api/me/erase"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
             await snapshot.beforeEraseResponse?()

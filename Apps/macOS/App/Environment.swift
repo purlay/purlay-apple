@@ -55,7 +55,9 @@ enum RealEnvironment {
             // The engine removes the drafts, the outbox and the Quick Look copies it keeps under this environment (per
             // workspace session, P-6 in docs/design/entry-shell-account.md). The app's own: the copies an earlier version kept
             // directly under Caches/Previews, for every session alike. The badge is cleared by the model.
-            wipers: [FolderWiper(cachesRoot.appendingPathComponent("Previews", isDirectory: true))])
+            wipers: [FolderWiper(cachesRoot.appendingPathComponent("Previews", isDirectory: true))],
+            // A browser sign-in not yet known to be whose, apart from the session in use (ADR 0011).
+            pendingSessions: KeychainSessionStore(service: identity.keychainService + ".pending"))
     }
 
     #if DEBUG

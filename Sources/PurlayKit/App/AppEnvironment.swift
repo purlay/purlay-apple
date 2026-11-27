@@ -91,6 +91,10 @@ public struct NoLoginItem: LoginItemControl {
 public struct AppEnvironment {
     public var transport: any HTTPTransport
     public var sessions: any SessionStore
+    /// Where the Mac keeps a browser sign-in's session until `/api/me` says whose it is (ADR 0011), apart from the session in
+    /// use, so a quit does not lose it or leave it alive on the server with nothing holding it. None on iOS, which keeps a
+    /// sign-in at once.
+    public var pendingSessions: (any SessionStore)?
     public var preferences: any PreferenceStore
     public var authenticator: any WebAuthenticator
     public var appVersion: SemanticVersion
@@ -138,10 +142,12 @@ public struct AppEnvironment {
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
         attention: any AttentionPresenter = SilentAttention(),
         loginItem: any LoginItemControl = NoLoginItem(),
-        wipers: [any UserDataWiper] = []
+        wipers: [any UserDataWiper] = [],
+        pendingSessions: (any SessionStore)? = nil
     ) {
         self.loginItem = loginItem
         self.wipers = wipers
+        self.pendingSessions = pendingSessions
         self.transport = transport
         self.sessions = sessions
         self.preferences = preferences

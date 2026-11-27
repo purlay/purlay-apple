@@ -233,6 +233,16 @@ public final class DesktopSessions {
                 for other in self?.others(of: model) ?? [] {
                     await other.adoptRenewedSession(fresh, replacing: old)
                 }
+            },
+            unsentElsewhere: { [weak self, weak model] in
+                guard let person = model?.personHere else { return 0 }
+                return self?.others(of: model).filter { $0.personHere == person }.reduce(0) { $0 + $1.unsentHere } ?? 0
+            },
+            holdSends: { [weak self, weak model] in
+                for other in self?.others(of: model) ?? [] { other.holdSends() }
+            },
+            releaseSends: { [weak self, weak model] in
+                for other in self?.others(of: model) ?? [] { other.releaseSends() }
             })
         // Every workspace of a server shares its credential, so one that ends ends them all; what each kept is removed only
         // when it is the same person's whose data the ending one removed.
