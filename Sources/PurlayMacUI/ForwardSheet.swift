@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -91,3 +92,4 @@ struct ForwardSheet: View {
         if model.post(Self.content(note: note, link: link), to: target) { dismiss() }
     }
 }
+#endif

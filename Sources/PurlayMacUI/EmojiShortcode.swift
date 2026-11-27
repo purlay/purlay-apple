@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 
 /// An emoji written by its name after a colon, as the web client offers it: `:smi` lists 😄 and its kin, and choosing one puts the
@@ -60,3 +61,4 @@ enum EmojiShortcode {
         CharacterSet.alphanumerics.contains(scalar) || scalar == "_" || scalar == "-" || scalar == "+"
     }
 }
+#endif

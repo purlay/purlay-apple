@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -96,3 +97,4 @@ struct AddPeopleSheet: View {
         if !failed { dismiss() }
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -93,3 +94,4 @@ struct DeviceSessionsSection: View {
         }
     }
 }
+#endif

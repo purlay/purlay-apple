@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 import PurlayContract
 import PurlayKit
@@ -161,3 +162,4 @@ struct SearchFiltersPopover: View {
         change { $0.repository = typed.isEmpty ? nil : typed }
     }
 }
+#endif
