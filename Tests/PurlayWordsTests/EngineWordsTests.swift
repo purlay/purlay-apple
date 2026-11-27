@@ -22,7 +22,8 @@ struct EngineWordsTests {
         [ServerAddress.Problem.empty, .unreadable, .notAWebAddress, .hasCredentials, .hasMoreThanAHost, .insecure]
         .map { .invalidAddress($0) } + signIns.map { .signInFailed($0) } + [
             .sessionExpired, .sessionEndsSoon(Date(timeIntervalSince1970: 0)), .sessionEndedByServer,
-            .signedOutElsewhere, .serverNotTold, .signOutEverywhereFailed, .signOutFailed, .unsentLost(2),
+            .signedOutElsewhere, .serverNotTold, .signOutEverywhereFailed, .signOutFailed, .dataNotWiped,
+            .unsentLost(2),
             .unrestorable(1), .outboxCorrupt, .storageProblem, .originMismatch, .sendTooLong, .tooManyFiles,
             .readFailed, .loginItemFailed, .sendHeld(""), .sendHeld("# general"), .saveFailed, .fileNotWritten,
             .filesNotRead(["a.pdf", "b.png"]), .savedFull, .pinFailed, .pinsFull, .bookmarkFailed, .unreadFailed,

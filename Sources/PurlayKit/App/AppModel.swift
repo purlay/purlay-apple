@@ -16,6 +16,9 @@ public struct Notice: Equatable, Identifiable, Sendable {
         /// This device is signed out and the server could not be told: its session lives until it expires or is ended from elsewhere.
         case serverNotTold
         case signOutEverywhereFailed
+        /// Some of what the app kept of the person on this device could not be removed: it is tried again at the next sign-in of
+        /// another person, or the next sign-out.
+        case dataNotWiped
         /// Signing out here could neither reach the server nor remove the sign-in from this Mac: still signed in.
         case signOutFailed
         case unsentLost(Int)
@@ -567,12 +570,13 @@ public final class AppModel {
         let client = environment.transport
         let version = environment.appVersion
         return SessionManager(
-            store: environment.sessions, owner: environment.owner, log: environment.log, wipers: [],
+            store: environment.sessions, owner: environment.owner, log: environment.log, wipers: environment.wipers,
             now: environment.clock,
             endSession: { [weak self] scope in
                 guard let self else { return }
                 try await self.endServerSession(scope, client: client, version: version, address: address)
-            })
+            },
+            onWipeFailure: { [weak self] _ in await self?.say(.dataNotWiped) })
     }
 
     private func endServerSession(

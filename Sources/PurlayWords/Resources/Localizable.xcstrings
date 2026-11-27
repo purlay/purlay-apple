@@ -477,6 +477,16 @@
         }
       }
     },
+    "Some of your data on this device could not be removed. Purlay tries again at the next sign-in or sign-out." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu cihazdaki verilerinin bir kısmı silinemedi. Purlay bir sonraki giriş ya da çıkışta yeniden dener."
+          }
+        }
+      }
+    },
     "Someone else changed this question or decision first. It now shows their change; review it and try again." : {
       "localizations" : {
         "tr" : {

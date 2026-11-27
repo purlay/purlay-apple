@@ -114,6 +114,10 @@ final class FakeServer: HTTPTransport {
         var olderDelay: Int?
         var reactionDelay: Int?
         var logoutStatus = 204
+        /// What `POST /api/me/erase` answers: its status and error body; `204` ends the session as the server does.
+        var eraseStatus = 204
+        var eraseError: String?
+        var beforeEraseResponse: (@Sendable () async -> Void)?
         var online = true
         var sessionValid = true
         var readStatus = 200
@@ -1152,6 +1156,14 @@ final class FakeServer: HTTPTransport {
                 return json(snapshot.readStatus, #"{"error":{"code":"INTERNAL","message":"x"}}"#)
             }
             return json(200, #"{"lastReadMessageId":"\#(id)","unreadCount":0,"unreadMentionCount":0}"#)
+        case ("POST", "/api/me/erase"):
+            guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            await snapshot.beforeEraseResponse?()
+            if snapshot.eraseStatus == 204 {
+                state.withLock { $0.sessionValid = false }
+                return HTTPResponse(status: 204)
+            }
+            return json(snapshot.eraseStatus, snapshot.eraseError ?? #"{"error":{"code":"INTERNAL","message":"x"}}"#)
         case ("POST", "/auth/logout"), ("POST", "/auth/logout-all"):
             if snapshot.logoutStatus == 204 { state.withLock { $0.sessionValid = false } }
             return HTTPResponse(status: snapshot.logoutStatus)

@@ -45,7 +45,10 @@ enum RealEnvironment {
                 }
                 return { task.cancel() }
             },
-            owner: DefaultsOwner(), attention: attention, loginItem: SystemLoginItem())
+            owner: DefaultsOwner(), attention: attention, loginItem: SystemLoginItem(),
+            // None yet (P-6 in docs/design/entry-shell-account.md): the drafts in the defaults, the outbox's files, and the
+            // Quick Look copies under Caches/Previews are kept and not yet removed at sign-out. The badge is cleared by the model.
+            wipers: [])
     }
 
     #if DEBUG

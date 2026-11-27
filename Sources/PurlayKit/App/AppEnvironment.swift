@@ -107,6 +107,10 @@ public struct AppEnvironment {
     public var sleep: @Sendable (Duration) async throws -> Void
     public var attention: any AttentionPresenter
     public var loginItem: any LoginItemControl
+    /// What the app keeps of the person on this device beside what the engine keeps: each runs once when the person signs out
+    /// (here or everywhere) or erases their account, and when another person signs in where they were. A wiper of data kept per
+    /// session must be made for the environment it is given, since the Mac scopes each of its sessions' preferences and files.
+    public var wipers: [any UserDataWiper]
 
     public init(
         transport: any HTTPTransport, sessions: any SessionStore, preferences: any PreferenceStore,
@@ -119,9 +123,11 @@ public struct AppEnvironment {
         owner: any OwnerMemory,
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
         attention: any AttentionPresenter = SilentAttention(),
-        loginItem: any LoginItemControl = NoLoginItem()
+        loginItem: any LoginItemControl = NoLoginItem(),
+        wipers: [any UserDataWiper] = []
     ) {
         self.loginItem = loginItem
+        self.wipers = wipers
         self.transport = transport
         self.sessions = sessions
         self.preferences = preferences

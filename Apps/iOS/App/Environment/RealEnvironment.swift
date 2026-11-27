@@ -42,7 +42,10 @@ enum RealEnvironment {
                 }
                 return { task.cancel() }
             },
-            owner: DefaultsOwner())
+            owner: DefaultsOwner(),
+            // None yet (P-6 in docs/design/entry-shell-account.md): the engine's drafts and outbox, and the cache this app will
+            // keep for cold start (A-003), are added as they are built. The badge is cleared by the model.
+            wipers: [])
     }
 }
 

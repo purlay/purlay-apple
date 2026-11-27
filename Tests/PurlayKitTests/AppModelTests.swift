@@ -107,7 +107,8 @@ final class ModelHarness {
     init(
         browser: ScriptedBrowser = .approving, allowsLocalHTTP: Bool = true,
         preferences: MemoryPreferences = MemoryPreferences(),
-        identity: AppIdentity = AppIdentity(bundleIdentifier: "dev.purlay.kit-tests", platform: .macOS)
+        identity: AppIdentity = AppIdentity(bundleIdentifier: "dev.purlay.kit-tests", platform: .macOS),
+        wipers: [any UserDataWiper] = []
     ) {
         self.preferences = preferences
         let server = server
@@ -136,7 +137,7 @@ final class ModelHarness {
                     return { flag.live = false }
                 },
                 random: { 0 }, clock: { Date(timeIntervalSince1970: Double(epochMs) / 1_000) }, owner: owner,
-                sleep: { _ in }, attention: attention, loginItem: loginItem))
+                sleep: { _ in }, attention: attention, loginItem: loginItem, wipers: wipers))
     }
 
     func settle() async {

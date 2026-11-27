@@ -19,6 +19,10 @@ extension EngineWords {
             LocalizedStringResource(
                 "You are signed out here. The server could not be reached, so this session stays valid there until it expires.",
                 bundle: .module)
+        case .dataNotWiped:
+            LocalizedStringResource(
+                "Some of your data on this device could not be removed. Purlay tries again at the next sign-in or sign-out.",
+                bundle: .module)
         case .signOutEverywhereFailed:
             LocalizedStringResource("Could not sign out everywhere. You are still signed in.", bundle: .module)
         case .signOutFailed:
