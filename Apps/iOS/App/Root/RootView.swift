@@ -99,3 +99,5 @@ struct NoticeList: View {
         return new.filter { !shown.contains($0.id) }
     }
 }
+
+// Throwaway: makes CI run the pull request simulator lane once; reverted in the next commit.
