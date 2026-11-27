@@ -211,6 +211,10 @@ public final class AppModel {
     /// An account read under way: one asked for meanwhile (the Mac's Check Again beside its activation) waits for it and
     /// shares its answer instead of asking the server again.
     @ObservationIgnored var refreshingAccount: Task<Void, Never>?
+    /// What this workspace kept of a person who left through another workspace of the server, being removed after this one
+    /// ended (`invalidateLocalSession`). A sign-in here waits for it: finished later, it would end the new session and
+    /// remove what the new session wrote.
+    @ObservationIgnored private var leaving: Task<Void, Never>?
     /// A sign-in again under way: one asked for meanwhile waits for it and shares its answer, so one browser is opened.
     @ObservationIgnored private var reauthenticating: Task<ReauthenticationResult, Never>?
     /// When this run signed the person in through the browser (`signIn`, `reauthenticate`); nil for a session restored at
@@ -747,6 +751,10 @@ public final class AppModel {
     }
 
     private func resumeOrAskToSignIn(_ address: ServerAddress) async {
+        if let leaving {
+            await leaving.value
+            self.leaving = nil
+        }
         let manager = makeManager(for: address)
         self.manager = manager
         // A browser sign-in whose first read was lost: read again with it, rather than look in a Keychain that does not have it.
@@ -808,6 +816,11 @@ public final class AppModel {
         }
         guard let server, let origin, let manager, phase != .ready, phase != .loading, phase != .signingIn else {
             return
+        }
+        if let leaving {
+            phase = .signingIn
+            await leaving.value
+            self.leaving = nil
         }
         // A new sign-in proves the account is there, or is a new account: no earlier unconfirmed erasure applies to it.
         forgetUnconfirmedErasure()
@@ -1240,7 +1253,11 @@ public final class AppModel {
         // Only the same person's: a workspace of the server held by somebody else keeps what it kept.
         if let person, person == (me?.user.id.value ?? environment.owner.load()), let manager {
             engine?.forgetOutbox()
-            Task { await manager.personLeft() }
+            let earlier = leaving
+            leaving = Task {
+                await earlier?.value
+                await manager.personLeft()
+            }
         }
         observation?.cancel()
         observation = nil
