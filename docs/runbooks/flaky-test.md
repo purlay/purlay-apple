@@ -18,5 +18,5 @@ lane until it is green, and never add a retry for a test: `scripts/ci/retry-infr
    the test assumes.
 4. **Fix it** with a test that proves the fix (the repeated run passes), in one pull request.
 5. **If main is blocked and the fix will take longer:** disable that one test with its reason and an issue
-   (`@Test(.disabled("flaky: #123"))`), labelled `type: bug` and `priority: p1`, in its own pull request. Remove the trait in the
+   (`@Test(.disabled("flaky: #123"))`), labelled `bug` and `p1`, in its own pull request. Remove the trait in the
    fix.

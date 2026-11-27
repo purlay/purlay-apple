@@ -16,7 +16,7 @@ starting a simulator took about three and a half minutes whatever was tested.
   the design system it runs too, as a check that is **not required**, and only after `verify` has passed, so that it never runs
   beside its own run's required lanes; a merge or close of the pull request cancels it (`ci-cancel.yml`, a workflow of its own so that no `closed` run posts `verify`) (amended 2026-11-27). A release requires main's
   run of the tagged commit to have passed, its simulator job included; a red simulator on main opens or updates one
-  `ci-red-main` issue. (Amended 2026-11-26, after measuring it at 369–594 s warm on the hosted runner, most of it the fresh
+  `broken` issue. (Amended 2026-11-26, after measuring it at 369–594 s warm on the hosted runner, most of it the fresh
   device's boot and first launch: it ran every package test that builds for iOS, weekly, and `verify` waited for it.)
 - Xcode's content-addressed compilation cache is restored by every macOS job. Main saves it; a pull request saves only when it
   found nothing at all to restore, into a scope GitHub keeps to that pull request, so it cannot leave anything behind for

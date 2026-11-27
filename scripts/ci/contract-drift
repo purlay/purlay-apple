@@ -2,7 +2,7 @@
 # Whether the server has released past the contract this repository pins, and if so one open issue that says so.
 #
 #   scripts/ci/contract-drift            report only
-#   scripts/ci/contract-drift --issue    also open the issue, unless one labelled contract-drift is open already
+#   scripts/ci/contract-drift --issue    also open the issue, unless one labelled drift is open already
 #
 # Reads Contract/contract.lock and the latest release of the server repository (PURLAY_SERVER_REPOSITORY, purlay/purlay by
 # default). A drift is not an error: the pin moves deliberately (docs/runbooks/contract-drift.md). The script fails only when it
@@ -10,7 +10,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 SERVER="${PURLAY_SERVER_REPOSITORY:-purlay/purlay}"
-LABEL=contract-drift
+LABEL=drift
 
 pinned="$(python3 -c 'import json; print(json.load(open("Contract/contract.lock"))["serverVersion"])')"
 latest="$(gh release view --repo "$SERVER" --json tagName --jq .tagName)" || { echo "FAIL: cannot read $SERVER's latest release" >&2; exit 1; }

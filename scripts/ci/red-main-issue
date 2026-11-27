@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One open issue, labelled ci-red-main, for a lane that is red on main: opened the first time, and brought up to date (its body
+# One open issue, labelled broken, for a lane that is red on main: opened the first time, and brought up to date (its body
 # names the latest red run) every time after, so a lane that stays red never opens a second issue or sends a comment a night.
 # Whoever makes the lane green again closes it.
 #
@@ -7,7 +7,7 @@
 set -euo pipefail
 lane="${1:?usage: scripts/ci/red-main-issue LANE}"
 : "${GITHUB_REPOSITORY:?}" "${GITHUB_RUN_ID:?}" "${GITHUB_SHA:?}"
-label=ci-red-main
+label=broken
 run_url="${GITHUB_SERVER_URL:-https://github.com}/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 title="The $lane lane is red on main"
 body="The \`$lane\` lane of CI failed on main.

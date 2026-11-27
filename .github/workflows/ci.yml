@@ -306,7 +306,7 @@ jobs:
       contents: read
     steps: *simulator-steps
 
-  # A red simulator on main opens one issue labelled ci-red-main, or brings the open one up to date: never a second one.
+  # A red simulator on main opens one issue labelled broken, or brings the open one up to date: never a second one.
   simulator-red-on-main:
     needs: simulator
     # The simulator's own result: failure() is also true when `changes` failed and the simulator never ran.

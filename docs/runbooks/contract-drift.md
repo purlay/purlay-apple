@@ -1,6 +1,6 @@
 # The server has released past the pinned contract
 
-`contract-drift.yml` opens one issue, labelled `contract-drift`, when the server's latest release is newer than the server version
+`contract-drift.yml` opens one issue, labelled `drift`, when the server's latest release is newer than the server version
 in `Contract/contract.lock`. Run the same check by hand: `scripts/ci/contract-drift`.
 
 A drift is not an error: the pin moves deliberately. Decide:
