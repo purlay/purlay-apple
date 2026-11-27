@@ -28,6 +28,7 @@ let package = Package(
         .library(name: "PurlayDesign", targets: ["PurlayDesign"]),
         .library(name: "PurlayModuleAPI", targets: ["PurlayModuleAPI"]),
         .library(name: "PurlayMacUI", targets: ["PurlayMacUI"]),
+        .library(name: "FeatureChat", targets: ["FeatureChat"]),
     ],
     targets: [
         // Generated from the server's contract bundle (scripts/generate); never edited by hand.
@@ -44,6 +45,8 @@ let package = Package(
         module("PurlayModuleAPI"),
         // Today's Mac screens, moved into features one by one.
         module("PurlayMacUI", ["PurlayKit", "PurlayContract", "PurlayTokens", "PurlayWords"]),
+        // The chat module's screens: the workspace's channels and their feeds.
+        module("FeatureChat", ["PurlayModuleAPI", "PurlayKit", "PurlayContract", "PurlayTokens"]),
 
         tests("PurlayContractTests", ["PurlayContract"]),
         tests("PurlayTokensTests", ["PurlayTokens"]),
@@ -52,6 +55,7 @@ let package = Package(
         tests("PurlayDesignTests", ["PurlayDesign"]),
         tests("PurlayModuleAPITests", ["PurlayModuleAPI"]),
         tests("PurlayWordsTests", ["PurlayWords", "PurlayKit", "PurlayContract"]),
+        tests("FeatureChatTests", ["FeatureChat", "PurlayContract"]),
         tests("PurlayMacUITests", ["PurlayMacUI", "PurlayKit", "PurlayContract", "PurlayTokens", "PurlayTestSupport"]),
         // The real client against a real server of the pinned version (§16.3): skipped, and saying so, without one;
         // scripts/contract-test starts one. Compiled in every pull request, so a change that breaks them is seen there.

@@ -36,8 +36,16 @@ struct UnresolvedPageView: View {
                 }
                 .fixedSize()
                 Spacer()
-                Button("Refresh", systemImage: "arrow.clockwise") { Task { await model.loadUnresolved() } }
-                    .disabled(model.unresolvedLoading)
+                Button {
+                    Task { await model.loadUnresolved() }
+                } label: {
+                    Label {
+                        Text(SharedWords.refresh)
+                    } icon: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
+                .disabled(model.unresolvedLoading)
             }
             .padding()
             Divider()

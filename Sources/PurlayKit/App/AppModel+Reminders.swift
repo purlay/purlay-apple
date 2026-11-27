@@ -2,10 +2,11 @@ import Foundation
 import PurlayContract
 
 public enum ReminderFailure: Error, LocalizedError {
-    case unavailable, time, validation, access, failed, sessionChanged
+    case unavailable, temporarilyUnavailable, time, validation, access, failed, sessionChanged
     public var errorDescription: String? {
         switch self {
         case .unavailable: "This server does not support message reminders yet."
+        case .temporarilyUnavailable: "Message reminders are temporarily unavailable. Try again."
         case .time: "Choose a time at least a minute from now and within the next year."
         case .validation: "Check the reminder time. You can keep up to 100 pending reminders per workspace."
         case .access: "This message is no longer available to you."
@@ -13,14 +14,23 @@ public enum ReminderFailure: Error, LocalizedError {
         case .sessionChanged: "The account changed. Open this action again in the current account."
         }
     }
-    static func from(_ error: any Error) -> Self {
+    static func from(_ error: any Error, currentContext: Bool) -> Self {
         guard let error = error as? APIError else { return .failed }
+        if error.isMissingRoute, !TransportError.isCancellation(error) {
+            return currentContext ? .temporarilyUnavailable : .sessionChanged
+        }
         switch error.code {
         case .messageNotFound, .channelNotFound, .workspaceNotFound: return .access
         case .validationFailed: return .validation
         default: return .failed
         }
     }
+}
+
+private enum ReminderRead {
+    case handled
+    case unavailable(generation: Int)
+    case failed
 }
 
 extension AppModel {
@@ -39,8 +49,21 @@ extension AppModel {
     }
 
     @discardableResult public func loadReminders() async -> Bool {
-        if let sessionOwner { return await sessionOwner.loadReminders() }
-        guard supportsReminders, let api, let workspace else { return true }
+        let owner = sessionOwner ?? self
+        let context = contextGeneration
+        let result = await owner.readReminders()
+        guard context == contextGeneration, !Task.isCancelled else { return true }
+        switch result {
+        case .handled: return true
+        case .unavailable(let generation):
+            if generation == owner.reminderGeneration { remindersOpen = false }
+            return true
+        case .failed: return false
+        }
+    }
+
+    private func readReminders() async -> ReminderRead {
+        guard supportsReminders, let api, let workspace else { return .handled }
         reminderGeneration += 1
         let generation = reminderGeneration
         let context = contextGeneration
@@ -49,14 +72,21 @@ extension AppModel {
         defer { if generation == reminderGeneration { loadingReminders = false } }
         do {
             let items = try await api.listMessageReminders(workspaceId: workspace.id.value)
-            guard generation == reminderGeneration, context == contextGeneration else { return true }
+            guard generation == reminderGeneration, context == contextGeneration else { return .handled }
+            try Task.checkCancellation()
             storedReminders = items.filter { !isPersonallyDeleted($0.message.id) }
             syncReminderNotices()
-            return true
+            return .handled
         } catch {
-            guard generation == reminderGeneration, context == contextGeneration else { return true }
+            guard generation == reminderGeneration, context == contextGeneration,
+                !TransportError.isCancellation(error)
+            else { return .handled }
+            if (error as? APIError)?.isMissingRoute == true {
+                // The next node can still serve this list. Keep the alarms already set for the account.
+                return .unavailable(generation: generation)
+            }
             failedReminders = true
-            return false
+            return .failed
         }
     }
 
@@ -76,7 +106,7 @@ extension AppModel {
         do {
             result = try await api.setMessageReminder(
                 messageId: message.id.value, body: SetMessageReminderRequest(remindAt: Timestamp(date)))
-        } catch { throw ReminderFailure.from(error) }
+        } catch { throw ReminderFailure.from(error, currentContext: context == contextGeneration) }
         guard context == contextGeneration else { throw ReminderFailure.sessionChanged }
         guard !isPersonallyDeleted(message.id) else { throw ReminderFailure.access }
         reminderGeneration += 1
@@ -95,7 +125,7 @@ extension AppModel {
         guard let api else { throw ReminderFailure.unavailable }
         let context = contextGeneration
         do { try await api.cancelMessageReminder(messageId: reminder.message.id.value) } catch {
-            throw ReminderFailure.from(error)
+            throw ReminderFailure.from(error, currentContext: context == contextGeneration)
         }
         guard context == contextGeneration else { throw ReminderFailure.sessionChanged }
         reminderGeneration += 1

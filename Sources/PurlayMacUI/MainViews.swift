@@ -363,7 +363,10 @@ private struct MessageDeletionDialog: ViewModifier {
             if model.canDeleteForEveryone(message) {
                 Button("Delete for Everyone", role: .destructive) { Task { await model.delete(message) } }
             }
-            Button("Cancel", role: .cancel) {}
+            Button(role: .cancel) {
+            } label: {
+                Text(SharedWords.cancel)
+            }
         } message: { message in
             if model.canDeleteForMe(message) && model.canDeleteForEveryone(message) {
                 Text(
@@ -411,7 +414,7 @@ struct ChannelView: View {
                             if model.loadingOlder {
                                 ProgressView().controlSize(.small)
                             } else {
-                                Text("Load Earlier Messages")
+                                Text(SharedWords.loadEarlier)
                             }
                         }
                         .glassButton()
@@ -502,7 +505,11 @@ struct ChannelView: View {
                     Button {
                         withAnimation(scrollAnimation) { proxy.scrollTo("bottom", anchor: .bottom) }
                     } label: {
-                        Label("Jump to Latest", systemImage: "arrow.down")
+                        Label {
+                            Text(SharedWords.jumpToLatest)
+                        } icon: {
+                            Image(systemName: "arrow.down")
+                        }
                     }
                     .glassButton()
                     .padding(.bottom, Spacing.space3)
@@ -674,11 +681,19 @@ struct PendingRow: View {
                 }
                 switch pending.delivery {
                 case .sending:
-                    Label("Sending…", systemImage: "clock")
-                        .typeStyle(Typography.caption).foregroundStyle(NativePalette.tertiary.style)
+                    Label {
+                        Text(SharedWords.sending)
+                    } icon: {
+                        Image(systemName: "clock")
+                    }
+                    .typeStyle(Typography.caption).foregroundStyle(NativePalette.tertiary.style)
                 case .sent:
-                    Label("Sent", systemImage: "checkmark")
-                        .typeStyle(Typography.caption).foregroundStyle(NativePalette.tertiary.style)
+                    Label {
+                        Text(SharedWords.sent)
+                    } icon: {
+                        Image(systemName: "checkmark")
+                    }
+                    .typeStyle(Typography.caption).foregroundStyle(NativePalette.tertiary.style)
                 case .failed:
                     HStack(spacing: Spacing.space3) {
                         Label(failureText, systemImage: "exclamationmark.circle")
@@ -702,7 +717,10 @@ struct PendingRow: View {
         }
         .confirmationDialog("Delete this unsent message?", isPresented: $confirmingDiscard, titleVisibility: .visible) {
             Button("Delete", role: .destructive, action: discard)
-            Button("Cancel", role: .cancel) {}
+            Button(role: .cancel) {
+            } label: {
+                Text(SharedWords.cancel)
+            }
         } message: {
             Text("It was not sent, and its words cannot be brought back.")
         }

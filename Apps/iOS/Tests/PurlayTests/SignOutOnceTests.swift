@@ -18,8 +18,8 @@ struct SignOutOnceTests {
         await harness.model.connect()
         #expect(harness.model.phase == .ready)
 
-        async let first: Void = RootActions.signOut(harness.model, everywhere: false)
-        async let second: Void = RootActions.signOut(harness.model, everywhere: false)
+        async let first = RootActions.signOut(harness.model, everywhere: false)
+        async let second = RootActions.signOut(harness.model, everywhere: false)
         _ = await (first, second)
 
         let logouts = await harness.transport.requests.filter { $0.url.path.hasSuffix("/auth/logout") }

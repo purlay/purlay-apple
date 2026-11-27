@@ -310,7 +310,7 @@ struct KnowledgeSheet: View {
             }
             HStack {
                 Spacer()
-                Button("Cancel", role: .cancel, action: done).keyboardShortcut(.cancelAction)
+                Button(role: .cancel, action: done) { Text(SharedWords.cancel) }.keyboardShortcut(.cancelAction)
                 Button("Save", action: save)
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)

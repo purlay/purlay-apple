@@ -118,7 +118,7 @@ runtime, with Sparkle's nested helpers signed first (`scripts/sign-release`); li
   required check ([ci.md](../development/ci.md), [ADR 0008](../decisions/0008-ci-lanes-and-one-required-check.md)).
 - `scripts/enforcement` holds the rules a compiler cannot state, and `--demo` proves each one refuses its violation
   ([modules-and-layers.md](modules-and-layers.md)).
-- Every build is numbered with the commit count (`scripts/build-number`), above build 10, the Mac's 0.3.0.
+- Every build is numbered with the commit count (`scripts/build-number`), above build 11, the Mac's 0.3.1.
 - Each platform has its own version, tag (`ios/v*`, `macos/v*`), changelog and channel
   ([ADR 0007](../decisions/0007-releases-per-platform.md), [releasing.md](../development/releasing.md)).
 

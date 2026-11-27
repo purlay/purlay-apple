@@ -11,7 +11,10 @@ extension AppModel {
         navigationGeneration += 1
         closePages(except: .inbox)
         inboxOpen = true
-        await reloadInbox()
+        if inboxCategory != .updates {
+            await reloadInbox()
+            guard inboxOpen, inboxCategory != .updates, inboxStatus != .idle else { return }
+        }
         await reloadUpdates()
     }
 
@@ -36,10 +39,7 @@ extension AppModel {
         inboxGeneration += 1
         let generation = inboxGeneration
         inboxStatus = .loading
-        inboxLoadingMore = false
-        inboxNotes = []
-        inboxCursor = nil
-        rebuildInbox()
+        resetInboxResults()
         do {
             let page = try await readInboxPage(
                 api: api,
@@ -49,12 +49,20 @@ extension AppModel {
                     workspaceId: workspace.id))
             // An answer to a look the person has since changed, or left, is not used.
             guard generation == inboxGeneration else { return }
+            try Task.checkCancellation()
             inboxNotes = page.data
             inboxCursor = page.nextCursor
             inboxStatus = .loaded
         } catch {
             guard generation == inboxGeneration else { return }
-            inboxStatus = .failed
+            if TransportError.isCancellation(error) {
+                inboxStatus = .idle
+            } else if (error as? APIError)?.isMissingRoute == true {
+                dismissChatInbox()
+                return
+            } else {
+                inboxStatus = .failed
+            }
         }
         rebuildInbox()
     }
@@ -75,12 +83,17 @@ extension AppModel {
                     unreadOnly: inboxFilter == .unread,
                     workspaceId: workspace.id))
             guard generation == inboxGeneration else { return }
+            try Task.checkCancellation()
             inboxNotes += page.data
             inboxCursor = page.nextCursor
             rebuildInbox()
         } catch {
-            guard generation == inboxGeneration else { return }
-            say(.loadFailed)
+            guard generation == inboxGeneration, !TransportError.isCancellation(error) else { return }
+            if (error as? APIError)?.isMissingRoute == true {
+                dismissChatInbox()
+            } else {
+                say(.loadFailed)
+            }
         }
     }
 
@@ -100,7 +113,7 @@ extension AppModel {
         inboxRows = Inbox.rows(inboxNotes, calendar: .current, now: Date()).filter { inboxCategory.includes($0.reason) }
     }
 
-    /// Reads what a row gathers: painted at once, and put back with a word if the server refuses.
+    /// Reads what a row gathers. Keep confirmed receipts if a later request is refused.
     public func markInboxRead(_ row: InboxRow) async {
         await markInboxRead(ids: row.isUnread ? row.ids : [])
     }
@@ -115,22 +128,37 @@ extension AppModel {
         let wanted = Set(ids)
         let unread = inboxNotes.filter { wanted.contains($0.id) && $0.readAt == nil }
         guard !unread.isEmpty else { return }
+        let context = contextGeneration
+        let generation = inboxGeneration
         let asked = unread.map(\.id)
         let stamp = Timestamp(Date())
         for at in inboxNotes.indices where wanted.contains(inboxNotes[at].id) && inboxNotes[at].readAt == nil {
             inboxNotes[at].readAt = stamp
         }
         rebuildInbox()
+        var confirmed = 0
         do {
             for start in stride(from: 0, to: asked.count, by: 100) {
+                guard context == contextGeneration else { return }
+                try Task.checkCancellation()
                 let chunk = Array(asked[start..<min(start + 100, asked.count)])
                 try await api.markNotificationsRead(body: ReadNotificationsRequest(ids: chunk))
+                confirmed += chunk.count
             }
         } catch {
-            let back = Set(asked)
-            for at in inboxNotes.indices where back.contains(inboxNotes[at].id) { inboxNotes[at].readAt = nil }
+            guard context == contextGeneration, generation == inboxGeneration else { return }
+            let cancelled = TransportError.isCancellation(error)
+            if !cancelled, (error as? APIError)?.isMissingRoute == true {
+                dismissChatInbox()
+                return
+            }
+            let unconfirmed = Set(asked.dropFirst(confirmed))
+            for at in inboxNotes.indices
+            where unconfirmed.contains(inboxNotes[at].id) && inboxNotes[at].readAt == stamp {
+                inboxNotes[at].readAt = nil
+            }
             rebuildInbox()
-            say(.readFailed)
+            if !cancelled { say(.readFailed) }
         }
     }
 
@@ -142,14 +170,24 @@ extension AppModel {
     }
 
     func clearInbox() {
-        inboxGeneration += 1
-        inboxOpen = false
         inboxFilter = .all
         inboxCategory = .all
+        dismissChatInbox()
+        clearUpdates()
+    }
+
+    private func dismissChatInbox() {
+        inboxGeneration += 1
+        // Updates belongs to the core and may have been selected while the Chat read was in flight.
+        if inboxCategory != .updates { inboxOpen = false }
         inboxStatus = .idle
+        resetInboxResults()
+    }
+
+    private func resetInboxResults() {
+        inboxLoadingMore = false
         inboxNotes = []
         inboxCursor = nil
         inboxRows = []
-        clearUpdates()
     }
 }

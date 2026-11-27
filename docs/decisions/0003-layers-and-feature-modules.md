@@ -11,8 +11,8 @@ without later modules reshaping earlier ones, and the engine must stay usable on
   Contract; `PurlayTestSupport` on Kit and Contract; `PurlayDesign` on Tokens; `PurlayModuleAPI` on nothing; `PurlayMacUI` on Kit,
   Contract, Tokens, Design and Words. A module the table does not name is refused. The engine, its words, the contract and the
   tokens import no UI framework.
-- What both apps say about what the engine reports (its phases, server problems, sign-in failures, notices, upload failures) has
-  one home, `PurlayWords`, with its own catalogue, translated once. Each app's catalogue holds only that app's own sentences, and
+- What both apps say about what the engine reports (its phases, server problems, sign-in failures, notices, upload failures), and
+  any other sentence both apps' screens say (`SharedWords`), has one home, `PurlayWords`, with its own catalogue, translated once. Each app's catalogue holds only that app's own sentences, and
   `scripts/enforcement` refuses a sentence in two catalogues, and a sentence no code that reads its catalogue says (each key
   must be a string literal in that app's code, or in `PurlayWords`' for its own).
 - Each server module becomes a `Feature<Module>` target that conforms to `FeatureModule`, may depend on Kit, Contract, Tokens,

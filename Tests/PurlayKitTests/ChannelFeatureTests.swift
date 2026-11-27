@@ -128,6 +128,125 @@ struct ChannelFeatureTests {
         #expect(!h.model.retainedDescription.contains("bookmarks"))
     }
 
+    @Test("a missing bookmarks route preserves links, while a genuine refusal still gets a background retry")
+    func bookmarksRefreshDuringRollout() async {
+        let docs = bookmark("Docs", "https://docs.example.com")
+        let h = await opened(bookmarks: [docs])
+        let before = calls(h, "GET", "/bookmarks").count
+        h.server.edit { $0.bookmarkReadError = (404, "ROUTE_NOT_FOUND") }
+        h.model.handle(.bookmarks(channel: first))
+        #expect(await eventually { calls(h, "GET", "/bookmarks").count == before + 1 })
+        await h.settle()
+        await h.advance(milliseconds: AppModel.refreshRetries.reduce(0, +) + 1_000)
+        #expect(calls(h, "GET", "/bookmarks").count == before + 1)
+        #expect(h.model.channelBookmarks == [docs])
+
+        h.server.edit { $0.bookmarkReadError = (403, "FORBIDDEN") }
+        h.model.handle(.bookmarks(channel: first))
+        #expect(await eventually { calls(h, "GET", "/bookmarks").count == before + 2 })
+        await h.settle()
+        h.server.edit {
+            $0.bookmarkReadError = nil
+            $0.bookmarks[first.value] = []
+        }
+        await h.advance(milliseconds: AppModel.refreshRetries[0])
+        #expect(await eventually { h.model.channelBookmarks.isEmpty })
+        #expect(calls(h, "GET", "/bookmarks").count == before + 3)
+    }
+
+    @Test("a refused bookmark removal restores the link when the reread meets a closed Chat route")
+    func bookmarkRollbackWithClosedRead() async {
+        let docs = bookmark("Docs", "https://docs.example.com")
+        let h = await opened(bookmarks: [docs])
+        h.server.edit {
+            $0.bookmarkError = (403, "FORBIDDEN")
+            $0.bookmarkReadError = (404, "ROUTE_NOT_FOUND")
+        }
+        await h.model.removeBookmark(docs)
+        #expect(h.model.channelBookmarks == [docs])
+        #expect(h.model.notices.contains { $0.kind == .bookmarkFailed })
+    }
+
+    @Test("a closed bookmark write leaves the cache as read and does not fetch the list again")
+    func closedBookmarkWrites() async {
+        let docs = bookmark("Docs", "https://docs.example.com")
+        let board = bookmark("Board", "https://board.example.com", at: 2_000)
+        let h = await opened(bookmarks: [docs, board])
+        let reads = calls(h, "GET", "/bookmarks").count
+        h.server.edit { $0.bookmarkError = (404, "ROUTE_NOT_FOUND") }
+
+        #expect(
+            await h.model.addBookmarkWithOutcome(title: "Unavailable", address: "example.com", in: first)
+                == .temporarilyUnavailable)
+        #expect(await h.model.addBookmark(title: "Unavailable", address: "example.com", in: first) == .failed)
+        await h.model.removeBookmark(docs)
+        #expect(h.model.channelBookmarks == [docs, board])
+        #expect(!h.model.notices.contains { $0.kind == .bookmarkFailed })
+        #expect(calls(h, "GET", "/bookmarks").count == reads)
+        #expect(calls(h, "POST", "/bookmarks").count == 2)
+        #expect(calls(h, "DELETE", "/bookmarks/").count == 1)
+
+        h.server.edit { $0.bookmarkError = nil }
+        await h.model.removeBookmark(docs)
+        #expect(h.model.channelBookmarks == [board])
+    }
+
+    @Test("typed bookmark addition preserves invalid, limit, refusal and confirmed success outcomes")
+    func bookmarkAddOutcomes() async {
+        let h = await opened()
+        #expect(await h.model.addBookmarkWithOutcome(title: "x", address: "invalid address", in: first) == .invalid)
+        let refusals: [(Int, String, AppModel.BookmarkAddOutcome)] = [
+            (409, "BOOKMARKS_LIMIT", .full), (400, "VALIDATION_FAILED", .invalid),
+            (403, "FORBIDDEN", .failed), (404, "CHANNEL_NOT_FOUND", .failed), (403, "ROUTE_NOT_FOUND", .failed),
+        ]
+        for (status, code, expected) in refusals {
+            h.server.edit { $0.bookmarkError = (status, code) }
+            #expect(await h.model.addBookmarkWithOutcome(title: "Docs", address: "example.com", in: first) == expected)
+        }
+        #expect(h.model.channelBookmarks.isEmpty)
+        h.server.edit { $0.bookmarkError = nil }
+        #expect(await h.model.addBookmarkWithOutcome(title: "Docs", address: "example.com", in: first) == .added)
+        #expect(h.model.channelBookmarks.map(\.title) == ["Docs"])
+    }
+
+    @Test("a closed bookmark addition from the previous session cannot report temporary unavailability here")
+    func closedBookmarkAddAfterSignOut() async {
+        let h = await opened()
+        let gate = Gate()
+        h.server.edit {
+            $0.bookmarkError = (404, "ROUTE_NOT_FOUND")
+            $0.beforeBookmarkWriteResponse = { await gate.wait() }
+        }
+        let adding = Task {
+            await h.model.addBookmarkWithOutcome(title: "Docs", address: "example.com", in: first)
+        }
+        #expect(await eventually { calls(h, "POST", "/bookmarks").count == 1 })
+        await h.model.signOut(.thisDevice)
+        await gate.open()
+        #expect(await adding.value == .failed)
+        #expect(h.model.bookmarks(in: first).isEmpty)
+    }
+
+    @Test("a late closed bookmark write cannot restore a link after sign-out")
+    func closedBookmarkAfterSignOut() async {
+        let docs = bookmark("Docs", "https://docs.example.com")
+        let h = await opened(bookmarks: [docs])
+        let gate = Gate()
+        h.server.edit {
+            $0.bookmarkError = (404, "ROUTE_NOT_FOUND")
+            $0.beforeBookmarkWriteResponse = { await gate.wait() }
+        }
+        let removing = Task { await h.model.removeBookmark(docs) }
+        #expect(await eventually { calls(h, "DELETE", "/bookmarks/").count == 1 })
+        #expect(h.model.channelBookmarks.isEmpty)
+
+        await h.model.signOut(.thisDevice)
+        await gate.open()
+        await removing.value
+        #expect(h.model.bookmarks(in: first).isEmpty)
+        #expect(!h.model.notices.contains { $0.kind == .bookmarkFailed })
+    }
+
     // MARK: Mark unread
 
     @Test(

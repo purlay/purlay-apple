@@ -3,9 +3,12 @@
 > 2026-11-26 · Owner: the Purlay owner · Platform: iPhone and iPad · Requirements: FR-001–FR-004, FR-008, FR-009, FR-020,
 > FR-023, FR-025 in [requirements](../product/requirements.md)
 >
-> **Status:** slice 1 in progress. Built: `PurlayDesign`'s mark, brand, motion and the button, bar and notice seams; the launch
-> screen, connecting and Welcome; the notice banners in glass; the decisions for two-step verification and no workspace
-> (`RootScreen`). Still to build in slice 1: the Problem screen's design, and the two-step and no-workspace screens.
+> **Status:** slice 1 in progress, and a first shell built. Built: `PurlayDesign`'s mark, brand, motion and the button, bar and
+> notice seams; the launch screen, connecting and Welcome; the notice banners in glass; the decisions for two-step verification
+> and no workspace (`RootScreen`), shown by the shell's empty state; the shell (tabs or sidebar, the workspace switcher, an
+> account menu with Sign Out) and native Chat (channels, history, sending), which came from purlay-ios before the move to this
+> repository ([Shell as built](#shell-as-built)). Still to build: the Problem screen's design, Refresh and Open on the Web on the
+> two-step and no-workspace screens, and the Account sheet.
 
 ## Intent
 
@@ -31,7 +34,8 @@ never stuck.
 
 ## Non-goals (this design)
 
-- The chat screens (FR-021, FR-022). They come after the shell and get a design of their own.
+- The chat screens' visual design (FR-021, FR-022). A first native Chat is built (channels, history, sending: `FeatureChat`);
+  its design comes on its own.
 - Push notifications, an app lock, several accounts at once, and invite links that open the app.
 - A web view of the app's own. Pages that belong to the server open in Safari.
 
@@ -125,6 +129,38 @@ without drawing.
   a zoom transition on iOS 26 and later.
 - Changing workspace resets the tab selection before the tabs change (an iOS 27 pitfall).
 
+### Shell as built
+
+The first shell came from purlay-ios (its pull requests 12, 15, 16 and 17) and was brought onto this design's entry screens. It
+differs from the shell above in these ways, each kept until the shell is built to the design:
+
+- **Navigation.** A `TabView` in a compact width and a `NavigationSplitView` sidebar in a regular one, both from the
+  `ModuleRegistry` the composition root builds with `FeatureChat` and the membership's grant (`WorkspaceDestinations`), not one
+  `.sidebarAdaptable` `TabView`. Each feature's root is in its own `NavigationStack`, rebuilt when the workspace changes.
+- **The model's owner.** `WorkspaceSessions` holds the engine's `DesktopSessions` (the call made below) and presents one
+  workspace's `AppModel` at a time; `RootView` reads `RootScreen` from that model, so the entry screens are as designed.
+- **Empty.** With no destination the shell shows the screen `RootScreen` decides: two-step verification required (Set Up in
+  the browser, and Refresh, which reads the account again), no workspace ("No Workspaces Yet", and Refresh, which connects
+  again so an accepted invitation is found), or a workspace whose server runs no module this build draws ("No Modules
+  Available"). Each keeps the toolbar, so Sign Out is always reachable.
+- **Workspace switcher.** A toolbar menu with the workspace's name, listing the memberships by name (the slug beside a name two
+  share) with a check on the current one; one membership shows the name and no menu. A switch that fails stands on the Problem
+  screen with Back to the previous workspace beside Try Again. Not yet the title menu, nor the role beside each name.
+- **Account.** An account menu (the person symbol) in the toolbar: Sign Out on This Device, and Sign Out Everywhere…, which
+  asks first. Both go through `RootActions.signOut`, the guard that reads the phase. The menu waits while a sign-out or a switch
+  is under way, and shows progress during a sign-out. **Interim, pending the owner's design session:** signing out deletes
+  what is unsent (the engine's wipe), so with unsent messages either item first shows a system confirmation dialog ("N unsent
+  messages will be deleted") with the sign-out and Cancel; the Account sheet's design decides the final form. The engine runs a
+  sign-out once however often it is asked, and holds what was waiting to send until the server answers. The Account sheet
+  replaces the menu in slice 2.
+- **Notices.** The engine's notice that messages did not load is not shown on iOS, and is dismissed as it arrives: the chat
+  feed says so in place, with Try Again, both for a channel with nothing on screen and, beside the messages it keeps, for newer
+  messages that did not load (the engine marks the channel on every failed read). Every other notice is the engine's words, as
+  on the Mac. A later iOS screen that reads `.loadFailed` (Search, Inbox, Issues) must say it in place too.
+- **Workspaces kept running.** `DesktopSessions` launches every kept session at start and keeps each workspace opened since
+  launch connected, as the Mac does. On an iPhone that costs memory, battery and a socket per workspace; whether iOS should
+  stop the workspaces not in front is open (TD-029).
+
 ### Account sheet (FR-023, part of FR-032)
 
 A `NavigationStack` with a grouped `Form`, `.large` detent, the close button (`Button(role: .close)` on iOS 26).
@@ -176,8 +212,9 @@ Only what these screens use (YAGNI):
 1. **Design foundation and entry:** `PurlayDesign` (the mark, brand, motion, the button, bar and banner seams), the launch
    screen, connecting, Welcome, Problem, two-step, no workspace, the notice banners.
 2. **Shell and Account:** the registry, `TabView`, the workspace switcher, the avatar, the Account sheet, Sign Out (FR-023).
+   A first shell is built ([Shell as built](#shell-as-built)); this slice brings it to the design.
 3. **Use another server (FR-025):** the address sheet, remembering the server, rebuilding the model for it.
-4. **Chat (FR-021, FR-022):** a design of its own.
+4. **Chat (FR-021, FR-022):** a design of its own, over the native Chat that is built.
 
 ## Calls made after the builder check
 

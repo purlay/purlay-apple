@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 struct SheetHeading: View {
@@ -55,7 +56,7 @@ struct SheetHeader: View {
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
     let image: String
-    var closeTitle: LocalizedStringKey = "Done"
+    var closeTitle: LocalizedStringResource = "Done"
     /// A list that can be read again offers it beside Done.
     var refresh: (() -> Void)?
     var refreshing = false
@@ -66,12 +67,18 @@ struct SheetHeader: View {
         HStack(spacing: Spacing.space4) {
             SheetHeading(title: title, subtitle: subtitle, image: image)
             if let refresh {
-                Button("Refresh", systemImage: "arrow.clockwise", action: refresh)
-                    .labelStyle(.iconOnly).buttonStyle(.borderless).foregroundStyle(NativePalette.secondary.style)
-                    .help("Refresh").fixedSize().disabled(refreshing)
+                Button(action: refresh) {
+                    Label {
+                        Text(SharedWords.refresh)
+                    } icon: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
+                .labelStyle(.iconOnly).buttonStyle(.borderless).foregroundStyle(NativePalette.secondary.style)
+                .help(Text(SharedWords.refresh)).fixedSize().disabled(refreshing)
             }
             if !isPage {
-                Button(closeTitle, action: close)
+                Button(action: close) { Text(closeTitle) }
                     .keyboardShortcut(.cancelAction)
                     .glassButton()
                     .fixedSize()
@@ -110,6 +117,18 @@ struct EmptyState: View {
         EmptyState(
             "No Results", systemImage: "magnifyingglass",
             description: Text("No matches for “\(text)”. Try another search."))
+    }
+}
+
+struct ActionFeedback: View {
+    let message: LocalizedStringKey
+    let isError: Bool
+
+    var systemImage: String { isError ? "exclamationmark.circle" : "info.circle" }
+
+    var body: some View {
+        Label(message, systemImage: systemImage)
+            .foregroundStyle(isError ? Colors.dangerText.style : NativePalette.secondary.style)
     }
 }
 

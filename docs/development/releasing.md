@@ -20,7 +20,7 @@ CI already passed.
 - At release, the section's "Unreleased" becomes the date (`## [X.Y.Z] — YYYY-MM-DD`). The Mac's notes accept only paragraphs,
   level-three headings, bullets and bold text; check them with `scripts/release-notes X.Y.Z "$(mktemp -d)"`.
 - The build number is the commit count at the tagged commit (`scripts/build-number`), the same for both apps, and always above
-  10, the Mac's 0.3.0 (Sparkle offers only a higher build).
+  11, the Mac's 0.3.1 (Sparkle offers only a higher build).
 
 ## What every release workflow does first: the gate
 

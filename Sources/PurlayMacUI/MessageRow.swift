@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// One message in the feed: who (their face and name, left out when it continues a run of theirs), when, what, the reactions it
@@ -313,7 +314,7 @@ private struct EditBox: View {
                 Text("Escape to cancel, Return to save").font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 // The box answers Return and Escape itself; window-wide shortcuts here would fire from the palette too.
-                Button("Cancel", action: done)
+                Button(action: done) { Text(SharedWords.cancel) }
                 Button("Save", action: save).buttonStyle(.borderedProminent).disabled(saving)
             }
             .controlSize(.small)

@@ -102,7 +102,11 @@ struct ThreadPanel: View {
                                     proxy.scrollTo("bottom", anchor: .bottom)
                                 }
                             } label: {
-                                Label("Jump to Latest", systemImage: "arrow.down")
+                                Label {
+                                    Text(SharedWords.jumpToLatest)
+                                } icon: {
+                                    Image(systemName: "arrow.down")
+                                }
                             }
                             .glassButton().padding(.bottom, Spacing.space3)
                         }

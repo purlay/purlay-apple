@@ -22,6 +22,24 @@ struct LoadFailureTests {
         #expect(h.model.chat.windows[channel] != nil)
     }
 
+    /// iOS shows no notice for `.loadFailed` (its feed says it in place), so the mark is what a feed that already shows
+    /// messages reads to say that newer ones did not load (found by the PR #8 audit).
+    @Test("a failed re-read of a channel already shown keeps its messages and is marked")
+    func failedRereadIsMarked() async {
+        let h = ModelHarness()
+        await h.signedIn()
+        let channel = Uuid(channel(2))!
+        await h.model.showChannel(channel)
+        #expect(h.model.chat.windows[channel] != nil)
+
+        h.server.edit { $0.messagesStatus = 500 }
+        await h.model.showChannel(channel)
+
+        #expect(h.model.notices.contains { $0.kind == .loadFailed })
+        #expect(h.model.channelLoadFailed.contains(channel))
+        #expect(h.model.chat.windows[channel] != nil, "the messages already shown stay")
+    }
+
     @Test("a thread that could not be read is marked, and reading it again clears the mark")
     func threadFailure() async {
         let h = ModelHarness()

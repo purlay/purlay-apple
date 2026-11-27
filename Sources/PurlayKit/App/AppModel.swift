@@ -103,6 +103,7 @@ public final class AppModel {
     }
 
     var chatRouteUnavailable = false
+    var chatSocketUnavailable = false
     public internal(set) var settingsPage: SettingsPage = .general
     public private(set) var phase: Phase = .launching {
         didSet { onPhaseChange?() }
@@ -203,6 +204,10 @@ public final class AppModel {
     var sendsHeld: Bool { !sendHolds.isEmpty }
     /// The sign-outs holding this session's sends, one each: one that does not happen releases only its own.
     @ObservationIgnored private var sendHolds: Set<UUID> = []
+    /// The holds that stopped the engine (a sign-out's; an erasure keeps its socket): the last one released starts it again.
+    @ObservationIgnored private var engineHolds: Set<UUID> = []
+    /// Sends are held here: by this model's sign-out or erasure, or, for a conversation window, by its owner's.
+    var holdsSends: Bool { (sessionOwner ?? self).sendsHeld }
     /// An account read under way: one asked for meanwhile (the Mac's Check Again beside its activation) waits for it and
     /// shares its answer instead of asking the server again.
     @ObservationIgnored var refreshingAccount: Task<Void, Never>?
@@ -267,8 +272,11 @@ public final class AppModel {
     /// Channels whose newest messages could not be read, for the same reason.
     public internal(set) var channelLoadFailed: Set<Uuid> = []
     public internal(set) var threadFollow: FollowState = .reading
+    /// A rolling deployment may serve replies while a node temporarily refuses the follow route.
+    public internal(set) var threadFollowUnavailable = false
     var threadRootCopy: Message?
     var threadGeneration = 0
+    @ObservationIgnored var threadFollowReadGeneration: Int?
     var threadMarked: [Uuid: Uuid] = [:]
     /// Roots whose questions and decisions are being written: one write at a time each, since each carries the version it read.
     public internal(set) var knowledgeSaving: Set<Uuid> = []
@@ -410,7 +418,10 @@ public final class AppModel {
     /// The palette (`⌘K`) and the search sheet are open. A command of the menu asks for them; the window shows them.
     public var paletteOpen = false
     public var searchOpen = false
-    public var pinsOpen = false
+    public var pinsOpen = false {
+        didSet { if pinsOpen != oldValue { pinsPresentationGeneration += 1 } }
+    }
+    @ObservationIgnored private(set) var pinsPresentationGeneration = 0
     public var remindersOpen = false { didSet { if remindersOpen { closePages(except: .reminders) } } }
     public var reminderTarget: Message?
     public var deletionTarget: Message?
@@ -697,18 +708,24 @@ public final class AppModel {
     }
 
     /// Nothing more is sent from this session, from the moment a sign-out of its server starts (here, or in another of the
-    /// Mac's workspaces of the server).
-    func holdSends(for signOut: UUID) {
-        let first = sendHolds.isEmpty
-        sendHolds.insert(signOut)
+    /// Mac's workspaces of the server). An erasure holds only the sends waiting for their files and keeps the engine running
+    /// (`stoppingEngine: false`): its socket is where the server may say `account-deleted` before the erasure's answer.
+    func holdSends(for hold: UUID, stoppingEngine: Bool = true) {
+        sendHolds.insert(hold)
+        guard stoppingEngine else { return }
+        let first = engineHolds.isEmpty
+        engineHolds.insert(hold)
         if first { engine?.stop() }
     }
 
-    /// The sign-out did not happen: its hold goes, and once no sign-out holds this session, what was held goes on as before.
-    func releaseSends(for signOut: UUID) {
-        guard sendHolds.remove(signOut) != nil, sendHolds.isEmpty else { return }
-        engine?.start()
-        for place in waitingSends.keys { settleWaitingSend(place) }
+    /// The sign-out or erasure did not happen: its hold goes, and once nothing holds this session, what was held goes on as
+    /// before.
+    func releaseSends(for hold: UUID) {
+        guard sendHolds.remove(hold) != nil else { return }
+        if engineHolds.remove(hold) != nil, engineHolds.isEmpty { engine?.start() }
+        guard sendHolds.isEmpty else { return }
+        // A conversation window's waiting send was held by this model too: it goes now, with the signed-in account.
+        for model in [self] + liveConversationWindows { model.settleWaitingSends() }
     }
 
     /// The person's data is being removed, so the session is ending: nothing more is sent (a send waiting for its files is
@@ -1125,7 +1142,7 @@ public final class AppModel {
         // told and the data removed.
         let hold = UUID()
         holdSends(for: hold)
-        sharedServer?.holdSends(hold)
+        sharedServer?.holdSends(hold, true)
         let result = await manager.signOut(scope)
         switch result {
         case .done: break
@@ -1179,6 +1196,11 @@ public final class AppModel {
         // the same letter equal: what the server would refuse is refused here without a request.
         guard confirmation.utf8.elementsEqual(me.user.username.utf8) else { return .confirmationMismatch }
         erasedBySocket = false
+        // While the erasure is out nothing more is sent, here or in the person's other workspaces of the server: a send that
+        // was waiting for its files would otherwise go under an account that is being erased, racing the outbox's removal.
+        let hold = UUID()
+        holdSends(for: hold, stoppingEngine: false)
+        sharedServer?.holdSends(hold, false)
         var result: EraseAccountResult
         do {
             try await api.eraseMyAccount(body: EraseAccountRequest(confirm: confirmation))
@@ -1199,6 +1221,9 @@ public final class AppModel {
         // A session that ended while the request was out (a `401`, or the socket) was left to this: ended now, as the
         // observer would have, and said once, by the result.
         guard case .signedOut(let reason) = await manager.state, phase == .ready || phase == .loading else {
+            // The session goes on: what was held goes on as before.
+            releaseSends(for: hold)
+            sharedServer?.releaseSends(hold)
             return result
         }
         if erasureUnconfirmed {
@@ -1279,7 +1304,7 @@ public final class AppModel {
             let channels: ChannelList
             do {
                 channels = try await api.listChannels(workspaceId: membership.workspace.id.value)
-            } catch let error as APIError where error.status == 404 && error.code.rawValue == "ROUTE_NOT_FOUND" {
+            } catch let error as APIError where error.isMissingRoute {
                 guard context == contextGeneration else { return }
                 // During a rollout, the node serving channels can have a different module set from /api/me.
                 chatRouteUnavailable = true
@@ -1399,6 +1424,7 @@ public final class AppModel {
         heldSession = nil
         unkeptCredential = nil
         sendHolds = []
+        engineHolds = []
         signedInAt = nil
         awayChange += 1
         for window in liveConversationWindows {
@@ -1488,6 +1514,7 @@ public final class AppModel {
         chat = ChatState()
         pending = []
         connection = .idle
+        chatSocketUnavailable = false
         degraded = [:]
     }
 
@@ -1497,6 +1524,7 @@ public final class AppModel {
         pending = engine.pending
         let wasOpen = connection == .open
         connection = engine.status
+        chatSocketUnavailable = engine.chatOperationsUnavailable
         // Connected while the person is in front of the app: they are here, and a server that restarted has to be told.
         if !wasOpen, connection == .open { noteActivity() }
         degraded = engine.degraded
@@ -1549,7 +1577,8 @@ public final class AppModel {
     /// view, and the window reaches the present. Nothing is marked read from a window short of the present, and a message already read
     /// is not marked again.
     private func markReadIfSeen() {
-        guard isActive, atBottom, !inboxOpen, !unresolvedOpen, let channel = selectedChannel, unreadHold != channel,
+        guard chatAvailable, isActive, atBottom, !inboxOpen, !unresolvedOpen, let channel = selectedChannel,
+            unreadHold != channel,
             let window = chat.windows[channel],
             window.reachesNewest,
             let newest = window.messages.last?.id, let api, engine != nil, !marking.contains(channel),
@@ -1757,6 +1786,6 @@ struct SharedServer {
     /// The unsent messages of the other sessions of the server held by the same person: a sign-out here removes them too.
     var unsentElsewhere: () -> Int = { 0 }
     /// A sign-out of the server started here: the other sessions send nothing more; released if it does not happen.
-    var holdSends: (_ signOut: UUID) -> Void = { _ in }
+    var holdSends: (_ hold: UUID, _ stoppingEngine: Bool) -> Void = { _, _ in }
     var releaseSends: (_ signOut: UUID) -> Void = { _ in }
 }

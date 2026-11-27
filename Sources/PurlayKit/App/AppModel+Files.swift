@@ -18,7 +18,7 @@ extension AppModel {
     /// retried or removed.
     public func canSend(text: String, channel: Uuid, parent: Uuid?) -> Bool {
         let place = Place(channel: channel, parent: parent)
-        guard waitingSends[place] == nil else { return false }
+        guard chatAvailable, !holdsSends, waitingSends[place] == nil else { return false }
         let held = uploadsByPlace[place] ?? []
         guard !held.contains(where: \.hasFailed) else { return false }
         return !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !held.isEmpty
@@ -60,7 +60,7 @@ extension AppModel {
     func settleWaitingSend(_ place: Place) { settle(place) }
 
     private func settle(_ place: Place) {
-        guard !sendsHeld, let words = waitingSends[place] else { return }
+        guard !holdsSends, let words = waitingSends[place] else { return }
         let held = uploadsByPlace[place] ?? []
         guard !held.contains(where: \.isUploading) else { return }
         waitingSends[place] = nil
@@ -74,6 +74,10 @@ extension AppModel {
         } else {
             dispatch(words, place)
         }
+    }
+
+    func settleWaitingSends() {
+        for place in Array(waitingSends.keys) { settle(place) }
     }
 
     /// Chosen files are uploaded at once, a few at a time, each under an id of the app's making so that the same upload again is the same

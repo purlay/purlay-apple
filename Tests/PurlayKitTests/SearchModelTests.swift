@@ -106,6 +106,80 @@ struct SearchModelTests {
         #expect(h.model.searchStatus == .done)
     }
 
+    @Test("a closed Chat route dismisses Search, clears results and allows a new search", arguments: [false, true])
+    func closedChatRoute(paging: Bool) async {
+        let h = await opened([channel(1): [msg(1_000, "migration one"), msg(2_000, "migration two")]])
+        h.server.edit { $0.searchPageSize = 1 }
+        await h.model.search("migration")
+        h.model.openSearch()
+        #expect(h.model.searchOpen)
+        #expect(h.model.searchHasMore)
+        let before = calls(h, "/search").count
+        h.server.edit {
+            $0.searchStatus = 404
+            $0.searchErrorCode = "ROUTE_NOT_FOUND"
+        }
+        if paging { await h.model.loadMoreResults() } else { await h.model.search("migration") }
+        #expect(calls(h, "/search").count == before + 1)
+        #expect(h.model.phase == .ready)
+        #expect(h.model.chatAvailable)
+        #expect(!h.model.searchOpen)
+        #expect(h.model.searchStatus == .idle)
+        #expect(h.model.searchQuery == "migration")
+        #expect(h.model.searchResults.isEmpty)
+        #expect(h.model.searchIssues.isEmpty)
+        #expect(!h.model.searchHasMore)
+        #expect(!h.model.loadingMoreResults)
+
+        h.server.edit { $0.searchStatus = 200 }
+        h.model.openSearch()
+        #expect(await eventually { h.model.searchStatus == .done })
+        #expect(h.model.searchOpen)
+        #expect(h.model.searchResults.map(\.id) == [idAt(2_000)])
+    }
+
+    @Test("authorization, resource lookup and validation refusals remain distinct")
+    func genuineReadFailure() async {
+        let h = await opened()
+        h.model.openSearch()
+        for (status, code) in [(403, "FORBIDDEN"), (404, "CHANNEL_NOT_FOUND"), (403, "ROUTE_NOT_FOUND")] {
+            h.server.edit {
+                $0.searchStatus = status
+                $0.searchErrorCode = code
+            }
+            await h.model.search("migration")
+            #expect(h.model.searchOpen)
+            #expect(h.model.searchStatus == .failed)
+        }
+        h.server.edit {
+            $0.searchStatus = 400
+            $0.searchErrorCode = "VALIDATION_FAILED"
+        }
+        await h.model.search("migration")
+        #expect(h.model.searchOpen)
+        #expect(h.model.searchStatus == .refused)
+        #expect(h.model.phase == .ready)
+    }
+
+    @Test("an earlier closed-node answer does not dismiss the newer healthy search")
+    func staleClosedChatRoute() async {
+        let h = await opened([channel(1): [msg(1_000, "deploy")]])
+        h.model.openSearch()
+        h.server.edit {
+            $0.searchStatus = 404
+            $0.searchErrorCode = "ROUTE_NOT_FOUND"
+            $0.searchDelays["migration"] = 250
+        }
+        let stale = Task { await h.model.search("migration") }
+        #expect(await eventually { calls(h, "/search").count == 1 })
+        h.server.edit { $0.searchStatus = 200 }
+        await h.model.search("deploy")
+        await stale.value
+        #expect(h.model.searchOpen)
+        #expect(h.model.searchStatus == .done)
+        #expect(h.model.searchResults.map(\.id) == [idAt(1_000)])
+    }
+
     @Test("clearing forgets the query and its results, and a late answer does not bring them back")
     func clears() async {
         let h = await opened([channel(1): [msg(1_000, "migration")]])
@@ -220,32 +294,39 @@ struct SearchModelTests {
     @Test("cancelling a running read is quiet, and reopening the same query resumes it")
     func cancellationAndReopen() async {
         let h = await opened([channel(1): [msg(1_000, "migration")]])
-        h.server.edit { $0.searchDelays["migration"] = 120 }
+        let gate = Gate()
+        h.server.edit { $0.searchGate = gate }
         let read = Task { await h.model.search("migration") }
-        try? await Task.sleep(for: .milliseconds(20))
+        #expect(await eventually { calls(h, "/search").count == 1 })
+        #expect(h.model.searchStatus == .searching)
         read.cancel()
+        await gate.open()
         await read.value
         #expect(h.model.searchStatus == .idle)
         #expect(h.model.searchQuery == "migration")
-        h.server.edit { $0.searchDelays = [:] }
+        h.server.edit { $0.searchGate = nil }
         h.model.openSearch()
-        await h.settle()
-        #expect(h.model.searchStatus == .done)
+        #expect(await eventually { h.model.searchStatus == .done })
         #expect(h.model.searchResults.map(\.content) == ["migration"])
     }
 
     @Test("closing search immediately releases its loading state, and its late read cannot replace a resumed query")
     func closeDuringRead() async {
-        let h = await opened([channel(1): [msg(1_000, "migration")]])
-        h.server.edit { $0.searchDelays["migration"] = 120 }
+        let h = await opened([channel(1): [msg(1_000, "old migration")]])
+        let gate = Gate()
+        h.server.edit { $0.searchGate = gate }
         let read = Task { await h.model.search("migration") }
-        try? await Task.sleep(for: .milliseconds(20))
+        #expect(await eventually { calls(h, "/search").count == 1 })
+        #expect(h.model.searchStatus == .searching)
         h.model.cancelSearch()
         #expect(h.model.searchStatus == .idle)
-        h.server.edit { $0.searchDelays = [:] }
+        h.server.edit {
+            $0.searchGate = nil
+            $0.messages = [channel(1): [msg(2_000, "migration")]]
+        }
         h.model.openSearch()
-        await h.settle()
-        #expect(h.model.searchStatus == .done)
+        #expect(await eventually { h.model.searchStatus == .done })
+        await gate.open()
         await read.value
         #expect(h.model.searchStatus == .done)
         #expect(h.model.searchResults.map(\.content) == ["migration"])
@@ -412,9 +493,8 @@ struct SearchModelTests {
             $0.savedSearchPageSize = 2
         }
         h.model.openSearch()
-        await h.settle()
+        #expect(await eventually { h.model.savedSearchesStatus == .loaded })
         #expect(h.model.savedSearches.map(\.name) == ["three", "two", "one"])
-        #expect(h.model.savedSearchesStatus == .loaded)
         #expect(calls(h, "/saved-searches").count == 2)
     }
 
