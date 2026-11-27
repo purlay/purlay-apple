@@ -1,5 +1,7 @@
 import Foundation
 import PurlayContract
+import PurlayTestSupport
+import Synchronization
 import Testing
 
 @testable import PurlayKit
@@ -14,7 +16,7 @@ struct AccountErasureGapTests {
     @Test(
         "an account erased from another device (the socket says account-deleted) is wiped here and said as an erasure")
     func erasedElsewhere() async {
-        let wiper = CountingWiper()
+        let wiper = RecordingWiper()
         let h = ModelHarness(wipers: [wiper])
         await h.signedIn()
         h.last.handlers.message(Self.accountDeleted)
@@ -28,7 +30,7 @@ struct AccountErasureGapTests {
         "an answer lost after the server erased (its socket said account-deleted) is still an erasure, not 'sign in and try again'"
     )
     func answerLostAfterCommit() async throws {
-        let wiper = CountingWiper()
+        let wiper = RecordingWiper()
         let h = ModelHarness(wipers: [wiper])
         await h.signedIn()
         let socket = h.last
@@ -56,16 +58,23 @@ struct AccountErasureGapTests {
 
     @Test("a sign-out asked while an erasure is out runs every wiper once, not twice, and ends the session once")
     func signOutDuringErase() async {
-        let wiper = CountingWiper()
+        let wiper = RecordingWiper()
         let h = ModelHarness(wipers: [wiper])
         await h.signedIn()
         var ended = 0
         h.model.onSessionEnded = { ended += 1 }
         let model = h.model!
+        let signOut = Mutex<Task<SessionManager.SignOutResult, Never>?>(nil)
         h.server.edit {
-            $0.beforeEraseResponse = { _ = await model.signOut(.thisDevice) }
+            // Asked while the erasure waits for its answer; not awaited here, since the sign-out waits for the erasure.
+            $0.beforeEraseResponse = {
+                let run = Task { @MainActor in await model.signOut(.thisDevice) }
+                signOut.withLock { $0 = run }
+                for _ in 0..<20 { await MainActor.run {} }
+            }
         }
         _ = await h.model.eraseAccount(confirmation: "ada")
+        _ = await signOut.withLock { $0 }?.value
         await h.settle()
         #expect(h.model.phase == .signedOut)
         #expect(wiper.wipes == 1, "wiped \(wiper.wipes) times")

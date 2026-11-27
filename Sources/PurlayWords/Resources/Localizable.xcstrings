@@ -467,6 +467,16 @@
         }
       }
     },
+    "Purlay could not tell whether your account was deleted: the answer did not arrive. Check your connection and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesabının silinip silinmediği anlaşılamadı: yanıt gelmedi. Bağlantını kontrol edip yeniden dene."
+          }
+        }
+      }
+    },
     "Server Unavailable" : {
       "localizations" : {
         "tr" : {
@@ -477,12 +487,12 @@
         }
       }
     },
-    "Some of your data on this device could not be removed. Purlay tries again at the next sign-in or sign-out." : {
+    "Some of your data on this device could not be removed. Purlay tries again when you next sign out, or when someone else signs in here." : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu cihazdaki verilerinin bir kısmı silinemedi. Purlay bir sonraki giriş ya da çıkışta yeniden dener."
+            "value" : "Bu cihazdaki verilerinin bir kısmı silinemedi. Purlay bir sonraki çıkışında ya da burada başka biri giriş yaptığında yeniden dener."
           }
         }
       }
@@ -1035,6 +1045,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hesabın silindi."
+          }
+        }
+      }
+    },
+    "Your account was probably deleted: you were signed out before the server could confirm it. What Purlay kept on this device was removed." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesabın büyük olasılıkla silindi: sunucu bunu doğrulayamadan oturumun kapandı. Purlay'in bu cihazda tuttukları kaldırıldı."
           }
         }
       }

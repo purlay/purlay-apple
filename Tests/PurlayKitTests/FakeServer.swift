@@ -118,6 +118,10 @@ final class FakeServer: HTTPTransport {
         var eraseStatus = 204
         var eraseError: String?
         var beforeEraseResponse: (@Sendable () async -> Void)?
+        /// What the transport throws for `POST /api/me/erase` after the server received it: an answer lost on the way back.
+        var eraseThrows: TransportError?
+        /// The person `/api/me` names: their username as the server keeps it.
+        var username = "ada"
         var online = true
         var sessionValid = true
         var readStatus = 200
@@ -231,10 +235,10 @@ final class FakeServer: HTTPTransport {
         deepWorkUntil: String? = nil, role: String = "member", mustEnrolTwoFactor: Bool = false,
         nameFromGitHub: Bool = false, scheduledDeletions: [WorkspaceDeletion] = [], awayChosen: Bool = false,
         modules: [String] = ["chat", "issues"], workspaceModules: [String]? = nil,
-        profile: String = #"{"title":null,"timeZone":null,"status":null}"#
+        profile: String = #"{"title":null,"timeZone":null,"status":null}"#, username: String = "ada"
     ) -> String {
         """
-        {"user":{"id":"\(userID)","username":"ada","displayName":"Ada","avatarUrl":null,"email":"ada@example.test"},\
+        {"user":{"id":"\(userID)","username":"\(username)","displayName":"Ada","avatarUrl":null,"email":"ada@example.test"},\
         "profile":\(profile),\
         "memberships":[{"workspace":{"id":"\(workspaceID)","name":"Acme","slug":"acme","avatarUrl":null},"role":"\(role)",\
         "joinedAt":"2026-10-09T12:00:00.000Z","deepWorkUntil":\(deepWorkUntil.map { "\"\($0)\"" } ?? "null")\(workspaceModules.map { ",\"modules\":\(encoded($0))" } ?? "")}],"mayCreateWorkspace":false,"isServerAdmin":false,\
@@ -399,7 +403,8 @@ final class FakeServer: HTTPTransport {
                     deepWorkUntil: snapshot.deepWorkUntil, role: snapshot.role,
                     mustEnrolTwoFactor: snapshot.mustEnrolTwoFactor, nameFromGitHub: snapshot.nameFromGitHub,
                     scheduledDeletions: snapshot.scheduledDeletions, awayChosen: snapshot.awayChosen,
-                    modules: snapshot.modules, workspaceModules: snapshot.workspaceModules, profile: snapshot.profile))
+                    modules: snapshot.modules, workspaceModules: snapshot.workspaceModules, profile: snapshot.profile,
+                    username: snapshot.username))
         case ("GET", "/api/workspaces/\(Self.workspaceID)/channels"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
             if snapshot.channelsStatus == 404 {
@@ -1159,6 +1164,7 @@ final class FakeServer: HTTPTransport {
         case ("POST", "/api/me/erase"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
             await snapshot.beforeEraseResponse?()
+            if let lost = snapshot.eraseThrows { throw lost }
             if snapshot.eraseStatus == 204 {
                 state.withLock { $0.sessionValid = false }
                 return HTTPResponse(status: 204)

@@ -210,10 +210,11 @@ public actor SessionManager {
         return told ? .done : .serverNotTold
     }
 
-    /// The server erased the account (`204` from `POST /api/me/erase`) and ended every session of it, this one included. Run
-    /// even when the socket's `SESSION_ENDED` signed this app out first: that ending was the erasure's, and nothing of the
-    /// person's is kept for a sign-in that cannot come. A credential the Keychain will not forget is harmless now, and is
-    /// logged.
+    /// The server erased the account (`204` from `POST /api/me/erase`, or the socket's `SESSION_ENDED` saying
+    /// `account-deleted`) and ended every session of it, this one included. Run even when the server's ending signed this app
+    /// out first: that ending was the erasure's, and nothing of the person's is kept for a sign-in that cannot come. A
+    /// sign-out that already removed everything (its owner forgotten) is not repeated: the wipers run once. A credential the
+    /// Keychain will not forget is harmless now, and is logged.
     public func accountErased() async {
         if case .signedIn(_, let server) = state {
             do {
@@ -222,7 +223,16 @@ public actor SessionManager {
                 log.session.error("the sign-in could not be removed: \(String(describing: error), privacy: .public)")
             }
         }
-        await wipeAndForgetOwner()
+        if !alreadyWiped { await wipeAndForgetOwner() }
         move(to: .signedOut(.accountErased))
+    }
+
+    /// Signed out in a way that ran the wipers, and they all succeeded.
+    private var alreadyWiped: Bool {
+        switch state {
+        case .signedOut(.signedOutByPerson), .signedOut(.signedOutEverywhere), .signedOut(.accountErased):
+            owner.load() == nil
+        default: false
+        }
     }
 }

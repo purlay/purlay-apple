@@ -2,11 +2,11 @@ import Foundation
 import PurlayKit
 
 extension EngineWords {
-    /// What an erasure that did not happen says, for the screen that asked. `nil` for `erased`: the model says that itself, as
-    /// a notice, once the app is signed out. The switch names every result, so a new one does not compile until it has words.
+    /// What an erasure that did not happen says, for the screen that asked. `nil` for `erased` and `possiblyErased`: the model
+    /// says those itself, as a notice, once the app is signed out. The switch names every result, so a new one does not compile until it has words.
     public static func erasure(_ result: EraseAccountResult) -> LocalizedStringResource? {
         switch result {
-        case .erased: nil
+        case .erased, .possiblyErased: nil
         case .reauthenticationRequired:
             LocalizedStringResource("To delete your account, sign in again first.", bundle: .module)
         case .lastOwner(let workspaces): lastOwner(workspaces.count)
@@ -22,6 +22,10 @@ extension EngineWords {
         case .failed:
             LocalizedStringResource(
                 "Your account could not be deleted. Check your connection and try again.", bundle: .module)
+        case .unconfirmed:
+            LocalizedStringResource(
+                "Purlay could not tell whether your account was deleted: the answer did not arrive. Check your connection and try again.",
+                bundle: .module)
         }
     }
 

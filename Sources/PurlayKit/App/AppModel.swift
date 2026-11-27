@@ -15,11 +15,14 @@ public struct Notice: Equatable, Identifiable, Sendable {
         case signedOutElsewhere
         /// The person's account was erased, and this app signed out with it.
         case accountErased
+        /// The session ended after an erasure whose answer never came: the account is very likely gone, and this app signed
+        /// out and removed what it kept of the person (`EraseAccountResult.possiblyErased`).
+        case accountPossiblyErased
         /// This device is signed out and the server could not be told: its session lives until it expires or is ended from elsewhere.
         case serverNotTold
         case signOutEverywhereFailed
-        /// Some of what the app kept of the person on this device could not be removed: it is tried again at the next sign-in of
-        /// another person, or the next sign-out.
+        /// Some of what the app kept of the person on this device could not be removed: it is tried again at the next sign-out,
+        /// or the next sign-in of another person.
         case dataNotWiped
         /// Signing out here could neither reach the server nor remove the sign-in from this Mac: still signed in.
         case signOutFailed
@@ -137,13 +140,22 @@ public final class AppModel {
     var api: PurlayAPI?
     @ObservationIgnored weak var sessionOwner: AppModel?
     @ObservationIgnored private var conversationWindows: [WeakConversationModel] = []
-    /// A sign-out or an account read under way: one asked for meanwhile (a second click, the Mac's Check Again beside its
-    /// activation) waits for it and shares its answer instead of asking the server again. Signing out and refreshing leave the
-    /// phase `.ready` while the server answers, so the phase cannot say they are under way.
-    @ObservationIgnored private var signingOut: Task<SessionManager.SignOutResult, Never>?
-    /// An erasure under way: one asked for meanwhile shares its answer. While it runs, a session the server ends is the
-    /// erasure's to say (its `SESSION_ENDED` can come before its `204`), so the observer leaves it alone.
-    @ObservationIgnored private var erasing: Task<EraseAccountResult, Never>?
+    /// What is ending the session, one at a time: a sign-out, or an erasure of the account (asked here, or said by the
+    /// socket). One asked for meanwhile waits for it instead of racing it, so the wipers and `onSessionEnded` run once. Both
+    /// leave the phase `.ready` while the server answers, so the phase cannot say they are under way. While one runs, a session
+    /// the server ends is its to say (an erasure's `SESSION_ENDED` can come before its `204`), so the observer leaves it alone.
+    private enum Ending {
+        case signingOut(Task<SessionManager.SignOutResult, Never>)
+        case erasing(Task<EraseAccountResult, Never>)
+    }
+    @ObservationIgnored private var ending: Ending?
+    /// The socket said `account-deleted` while this app's erasure was out: the account is gone, whatever its answer says.
+    @ObservationIgnored private var erasedBySocket = false
+    /// An erasure left and its answer never came (`EraseAccountResult.unconfirmed`). Until the session ends, an end the
+    /// server gives it is read as that erasure's (`possiblyErased`), never as "sign in again", which would make a new account.
+    @ObservationIgnored private var erasureUnconfirmed = false
+    /// An account read under way: one asked for meanwhile (the Mac's Check Again beside its activation) waits for it and
+    /// shares its answer instead of asking the server again.
     @ObservationIgnored var refreshingAccount: Task<Void, Never>?
     private var observation: Task<Void, Never>?
     private var noticeCounter = 0
@@ -643,32 +655,92 @@ public final class AppModel {
         observation = Task { @MainActor [weak self] in
             for await state in await manager.states() {
                 guard let self, !Task.isCancelled else { return }
-                if case .signedOut(let reason) = state, phase == .ready || phase == .loading, erasing == nil {
+                guard case .signedOut(let reason) = state, phase == .ready || phase == .loading, ending == nil else {
+                    continue
+                }
+                if erasureUnconfirmed && reason == .endedByServer {
+                    await endAsErased(.accountPossiblyErased, answering: .possiblyErased)
+                } else {
                     sessionEnded(reason)
                 }
             }
         }
     }
 
-    private func sessionEnded(_ reason: SessionManager.Reason?) {
+    /// `announce`: false when the caller's own result says it, so the person is not told twice.
+    private func sessionEnded(_ reason: SessionManager.Reason?, announce: Bool = true) {
         tearDown()
         phase = .signedOut
         switch reason {
-        case .expired: say(.sessionExpired)
-        case .endedByServer: say(.sessionEndedByServer)
-        case .signedOutByPerson, .signedOutEverywhere, .accountErased, nil: break
+        case .expired where announce: say(.sessionExpired)
+        case .endedByServer where announce: say(.sessionEndedByServer)
+        case .expired, .endedByServer, .signedOutByPerson, .signedOutEverywhere, .accountErased, nil: break
         }
         onSessionEnded?()
     }
 
-    /// Ends the session here, or everywhere. The result says whether the server was told.
+    /// The socket's `SESSION_ENDED`. Only an erasure (`account-deleted`) removes what the person kept here: their account is
+    /// gone, and the sign-in the data would wait for cannot come (a returning person is given a new account). Every other
+    /// reason ends the session as the server's, and keeps it.
+    private func socketEndedSession(_ reason: SessionEndedFrame.Payload.Reason, manager: SessionManager) {
+        guard reason == .accountDeleted else {
+            Task { await manager.sessionEndedByServer() }
+            return
+        }
+        switch ending {
+        case .erasing:
+            // This app's own erasure, or one already being said: the request says it, as `.erased`, when it ends.
+            erasedBySocket = true
+            Task { await manager.sessionEndedByServer() }
+        case .signingOut(let run):
+            // The sign-out removes everything; one that left the person signed in is ended here after it.
+            Task {
+                _ = await run.value
+                await self.endAsErased(.accountErased, answering: .erased)
+            }
+        case nil:
+            Task { await self.endAsErased(.accountErased, answering: .erased) }
+        }
+    }
+
+    /// Ends a signed-in session as an erasure the server said (the socket, or a session ended after an unconfirmed one),
+    /// holding the ending slot: an erasure asked meanwhile is answered `answer`, and a sign-out waits.
+    private func endAsErased(_ notice: Notice.Kind, answering answer: EraseAccountResult) async {
+        guard ending == nil, phase == .ready || phase == .loading else { return }
+        let run = Task {
+            await endErased(notice)
+            return answer
+        }
+        ending = .erasing(run)
+        _ = await run.value
+        ending = nil
+    }
+
+    /// The account is gone, or very likely gone: this app signs out as a sign-out does, every wiper run once, and says so.
+    private func endErased(_ notice: Notice.Kind) async {
+        await manager?.accountErased()
+        tearDown()
+        phase = .signedOut
+        say(notice)
+        onSessionEnded?()
+    }
+
+    /// Ends the session here, or everywhere. The result says whether the server was told. Asked while an erasure is under way,
+    /// it waits for it, and asks the server only if the person is still signed in after it.
     @discardableResult
     public func signOut(_ scope: SignOutScope) async -> SessionManager.SignOutResult {
         if let sessionOwner { return await sessionOwner.signOut(scope) }
-        if let signingOut { return await signingOut.value }
+        switch ending {
+        case .signingOut(let run): return await run.value
+        case .erasing(let run):
+            _ = await run.value
+            guard phase == .ready || phase == .loading else { return .done }
+            return await signOut(scope)
+        case nil: break
+        }
         let run = Task { await signOutOnce(scope) }
-        signingOut = run
-        defer { signingOut = nil }
+        ending = .signingOut(run)
+        defer { ending = nil }
         return await run.value
     }
 
@@ -692,45 +764,63 @@ public final class AppModel {
     }
 
     /// Erases the person's account (`POST /api/me/erase`): `confirmation` is their username, typed, and one that is not is
-    /// refused here without asking the server. On `erased` this app signs out as a sign-out does, every wiper run once, and
-    /// says so; every other answer is the screen's to act on (sign in again and retry, hand a workspace over) and changes
-    /// nothing here, unless the session ended meanwhile. One asked for while one is under way waits for it and shares its
-    /// answer, so the server is asked once.
+    /// refused here without asking the server. On `erased` (or `possiblyErased`) this app signs out as a sign-out does, every
+    /// wiper run once, and says so; every other answer is the screen's to act on (sign in again and retry, hand a workspace
+    /// over) and changes nothing here, unless the session ended meanwhile. One asked for while one is under way waits for it
+    /// and shares its answer, so the server is asked once: its own confirmation is not looked at, since the one screen that
+    /// asks sends the same. One asked for while a sign-out is under way does not ask the server: the session is ending.
     public func eraseAccount(confirmation: String) async -> EraseAccountResult {
         if let sessionOwner { return await sessionOwner.eraseAccount(confirmation: confirmation) }
-        if let erasing { return await erasing.value }
+        switch ending {
+        case .erasing(let run): return await run.value
+        case .signingOut(let run):
+            switch await run.value {
+            case .done, .serverNotTold: return .sessionEnded
+            case .notDone, .credentialKept: return .failed
+            }
+        case nil: break
+        }
         let run = Task { await eraseAccountOnce(confirmation: confirmation) }
-        erasing = run
-        defer { erasing = nil }
+        ending = .erasing(run)
+        defer { ending = nil }
         return await run.value
     }
 
     private func eraseAccountOnce(confirmation: String) async -> EraseAccountResult {
-        guard phase == .ready, let api, let manager, let me else { return .sessionEnded }
-        // The server compares exactly, so this does too: what would be refused is refused without a request.
-        guard confirmation == me.user.username else { return .confirmationMismatch }
-        let result: EraseAccountResult
+        // Signed out, there is nothing to erase; not yet signed in (launching, loading), asking again later is safe.
+        guard phase == .ready, let api, let manager, let me else {
+            return phase == .signedOut ? .sessionEnded : .failed
+        }
+        // The server compares with JavaScript's `!==`, code unit by code unit, where Swift's `==` would call two spellings of
+        // the same letter equal: what the server would refuse is refused here without a request.
+        guard confirmation.utf8.elementsEqual(me.user.username.utf8) else { return .confirmationMismatch }
+        erasedBySocket = false
+        var result: EraseAccountResult
         do {
             try await api.eraseMyAccount(body: EraseAccountRequest(confirm: confirmation))
             result = .erased
         } catch {
             result = EraseAccountResult(error)
         }
-        guard result == .erased else {
-            // A session that ended while the request was out (a `401`, or the socket) was left to this: said now, as the
-            // observer would have.
-            if case .signedOut(let reason) = await manager.state, phase == .ready || phase == .loading {
-                sessionEnded(reason)
-                return .sessionEnded
-            }
+        if erasedBySocket { result = .erased }
+        switch result {
+        case .erased:
+            await endErased(.accountErased)
+            return .erased
+        case .unconfirmed: erasureUnconfirmed = true
+        default: break
+        }
+        // A session that ended while the request was out (a `401`, or the socket) was left to this: ended now, as the
+        // observer would have, and said once, by the result.
+        guard case .signedOut(let reason) = await manager.state, phase == .ready || phase == .loading else {
             return result
         }
-        await manager.accountErased()
-        tearDown()
-        phase = .signedOut
-        say(.accountErased)
-        onSessionEnded?()
-        return .erased
+        if erasureUnconfirmed {
+            await endErased(.accountPossiblyErased)
+            return .possiblyErased
+        }
+        sessionEnded(reason, announce: false)
+        return .sessionEnded
     }
 
     /// Stops this workspace without revoking the shared server credential a second time.
@@ -873,7 +963,7 @@ public final class AppModel {
                     try await api.listMessages(channelId: channel.value, query: PageQuery(after: after))
                 },
                 refresh: { [weak self] refresh in self?.handle(refresh) },
-                onSessionEnded: { _ in Task { await session.sessionEndedByServer() } },
+                onSessionEnded: { [weak self] reason in self?.socketEndedSession(reason, manager: session) },
                 onRefused: { [weak self] status in self?.upgradeRefused(status) },
                 onLost: { [weak self] count in self?.say(.unsentLost(count)) },
                 onStorageProblem: { [weak self] _ in self?.say(.storageProblem) },
@@ -904,6 +994,7 @@ public final class AppModel {
     }
 
     private func tearDown() {
+        erasureUnconfirmed = false
         awayChange += 1
         for window in liveConversationWindows {
             // Only the session owner stops the connection and clears shared state.

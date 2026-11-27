@@ -14,6 +14,10 @@ extension EngineWords {
             LocalizedStringResource("You were signed out by the server. Sign in again.", bundle: .module)
         case .signedOutElsewhere: LocalizedStringResource("You were signed out.", bundle: .module)
         case .accountErased: LocalizedStringResource("Your account was deleted.", bundle: .module)
+        case .accountPossiblyErased:
+            LocalizedStringResource(
+                "Your account was probably deleted: you were signed out before the server could confirm it. What Purlay kept on this device was removed.",
+                bundle: .module)
         case .sessionEndsSoon(let end):
             sessionEnds(end.formatted(date: .abbreviated, time: .shortened))
         case .serverNotTold:
@@ -22,7 +26,7 @@ extension EngineWords {
                 bundle: .module)
         case .dataNotWiped:
             LocalizedStringResource(
-                "Some of your data on this device could not be removed. Purlay tries again at the next sign-in or sign-out.",
+                "Some of your data on this device could not be removed. Purlay tries again when you next sign out, or when someone else signs in here.",
                 bundle: .module)
         case .signOutEverywhereFailed:
             LocalizedStringResource("Could not sign out everywhere. You are still signed in.", bundle: .module)

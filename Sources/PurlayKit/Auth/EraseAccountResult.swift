@@ -2,7 +2,8 @@ import Foundation
 import PurlayContract
 
 /// What came of asking the server to erase the person's account (`POST /api/me/erase`, D-139 §5): what the screen acts on.
-/// Only `erased` changes anything here; every other answer leaves the person signed in, except `sessionEnded`.
+/// Only `erased` and `possiblyErased` remove anything here; every other answer leaves the person signed in, except
+/// `sessionEnded`.
 public enum EraseAccountResult: Equatable, Sendable {
     /// The account is gone: this app is signed out and what it kept of the person is removed.
     case erased
@@ -18,17 +19,36 @@ public enum EraseAccountResult: Equatable, Sendable {
     case refused
     /// The session ended before the account was erased: the app is signed out, as when the server ends a session.
     case sessionEnded
-    /// The server could not be reached or did not answer as it should: nothing was erased, and asking again is safe.
+    /// The server could not be reached, or answered that it could not do it: nothing was erased, and asking again is safe.
     case failed
+    /// The request left and its answer never came (a connection that broke, a gateway's `502` or `504`): the server may have
+    /// erased the account, since it erases first and answers after. Nothing changed here and the person is still signed in.
+    /// Asking again is safe: an account that is gone answers as signed out, and that is then `possiblyErased`.
+    case unconfirmed
+    /// The session ended after an erasure whose answer never came: the account is very likely gone, and the server cannot
+    /// say so, since an erased account's sessions answer as any ended one does. This app signs out and removes what it kept
+    /// of the person, as for `erased`, and does not invite a sign-in, which would make a new account.
+    case possiblyErased
 
-    /// What a failed request means. A `401` is `sessionEnded`, since the client has already ended the session it refused.
+    /// What a failed request means. A `401` is `sessionEnded`, since the client has already ended the session it refused. A
+    /// request that may have reached the server and whose answer was lost is `unconfirmed`: a connection that broke or timed
+    /// out after it left, an answer that was not one, or a gateway's `502` or `504` (the server behind it may have finished).
+    /// Every answer of the server's own, and a request that never left (no network, no secure connection), is definite.
     init(_ error: any Error) {
+        if let error = error as? TransportError {
+            switch error {
+            case .timedOut, .connection, .cancelled, .invalidResponse, .contractViolation: self = .unconfirmed
+            case .offline, .secureConnectionFailed, .noSession, .malformedRequest: self = .failed
+            }
+            return
+        }
         guard let error = error as? APIError else {
             self = .failed
             return
         }
         switch (error.status, error.code) {
         case (401, _): self = .sessionEnded
+        case (502, _), (504, _): self = .unconfirmed
         case (_, .reauthenticationRequired): self = .reauthenticationRequired
         case (_, .validationFailed): self = .confirmationMismatch
         case (_, .lastOwner): self = .lastOwner(workspaceIDs: Self.workspaceIDs(in: error.details))

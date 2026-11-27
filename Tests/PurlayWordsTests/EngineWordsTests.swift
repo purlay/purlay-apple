@@ -23,7 +23,7 @@ struct EngineWordsTests {
         .map { .invalidAddress($0) } + signIns.map { .signInFailed($0) } + [
             .sessionExpired, .sessionEndsSoon(Date(timeIntervalSince1970: 0)), .sessionEndedByServer,
             .signedOutElsewhere, .serverNotTold, .signOutEverywhereFailed, .signOutFailed, .dataNotWiped,
-            .accountErased,
+            .accountErased, .accountPossiblyErased,
             .unsentLost(2),
             .unrestorable(1), .outboxCorrupt, .storageProblem, .originMismatch, .sendTooLong, .tooManyFiles,
             .readFailed, .loginItemFailed, .sendHeld(""), .sendHeld("# general"), .saveFailed, .fileNotWritten,
@@ -40,7 +40,7 @@ struct EngineWordsTests {
     private static let erasures: [EraseAccountResult] = [
         .reauthenticationRequired, .lastOwner(workspaceIDs: []),
         .lastOwner(workspaceIDs: [Uuid("0199155c-6200-7b7f-8c11-0000000000aa")!]), .confirmationMismatch, .refused,
-        .sessionEnded, .failed,
+        .sessionEnded, .unconfirmed, .failed,
     ]
 
     /// Every sentence the engine's words can say, with what it takes to say the ones that carry a value.
@@ -120,11 +120,23 @@ struct EngineWordsTests {
     @Test("an erasure that did not happen says why, and one that did says nothing here: the notice says it")
     func erasures() {
         #expect(EngineWords.erasure(.erased) == nil)
+        #expect(EngineWords.erasure(.possiblyErased) == nil, "the notice says it, as for an erasure")
         for result in Self.erasures {
             let words = EngineWords.erasure(result).map { text($0, in: "en") }
             #expect(words?.isEmpty == false, "\(result)")
         }
         #expect(EngineWords.notice(.accountErased).map { text($0, in: "tr") } == "Hesabın silindi.")
+        let probable = EngineWords.notice(.accountPossiblyErased).map { text($0, in: "en") } ?? ""
+        #expect(!probable.contains("Sign in"), "an erased account that signs in again is a new account: not invited")
+    }
+
+    @Test("a wipe that failed says when it is tried again as the engine does: the next sign-out, or another's sign-in")
+    func dataNotWipedSaysWhen() {
+        let words = EngineWords.notice(.dataNotWiped).map { text($0, in: "en") }
+        #expect(
+            words
+                == "Some of your data on this device could not be removed. Purlay tries again when you next sign out, or when someone else signs in here."
+        )
     }
 
     @Test("the workspaces a last owner must hand over are counted in the form their number takes")

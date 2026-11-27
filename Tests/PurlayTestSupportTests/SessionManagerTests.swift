@@ -340,6 +340,27 @@ struct SessionManagerTests {
         #expect(await p.manager.state == .signedOut(.accountErased))
     }
 
+    @Test("an erasure after a sign-out that removed everything does not remove it twice")
+    func accountErasedAfterSignOut() async throws {
+        let p = parts(owner: "u1")
+        try p.store.save(session(), for: server)
+        try await p.manager.restore(for: server)
+        #expect(await p.manager.signOut(.thisDevice) == .done)
+        await p.manager.accountErased()
+        #expect(p.wiper.wipes == 1)
+        #expect(await p.manager.state == .signedOut(.accountErased))
+    }
+
+    @Test("an erasure after a sign-out whose wipe failed tries again: what is left is still the person's")
+    func accountErasedAfterFailedSignOutWipe() async throws {
+        let p = parts(owner: "u1", wiper: RecordingWiper(fails: true))
+        try p.store.save(session(), for: server)
+        try await p.manager.restore(for: server)
+        _ = await p.manager.signOut(.thisDevice)
+        await p.manager.accountErased()
+        #expect(p.wiper.wipes == 2)
+    }
+
     @Test("an erased account with a wiper that fails runs the rest and tells the failure")
     func accountErasedWipeFails() async throws {
         let after = RecordingWiper()

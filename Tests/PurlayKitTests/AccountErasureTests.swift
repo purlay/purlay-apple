@@ -1,5 +1,7 @@
 import Foundation
 import PurlayContract
+import PurlayTestSupport
+import Synchronization
 import Testing
 
 @testable import PurlayKit
@@ -22,7 +24,7 @@ struct AccountErasureTests {
 
     @Test("an account erased signs out here: the credential, the socket and every wiper go, and the person is told")
     func erased() async throws {
-        let wiper = CountingWiper()
+        let wiper = RecordingWiper()
         let h = ModelHarness(wipers: [wiper])
         await h.signedIn()
         #expect(await h.model.eraseAccount(confirmation: "ada") == .erased)
@@ -65,7 +67,7 @@ struct AccountErasureTests {
             (503, "DATABASE_UNAVAILABLE", .failed),
         ])
     func refusals(status: Int, code: String, expected: EraseAccountResult) async {
-        let wiper = CountingWiper()
+        let wiper = RecordingWiper()
         let h = ModelHarness(wipers: [wiper])
         await h.signedIn()
         h.server.edit {
@@ -107,7 +109,7 @@ struct AccountErasureTests {
 
     @Test("with no network nothing is erased and nothing is removed here")
     func offline() async {
-        let wiper = CountingWiper()
+        let wiper = RecordingWiper()
         let h = ModelHarness(wipers: [wiper])
         await h.signedIn()
         h.server.edit { $0.online = false }
@@ -116,16 +118,16 @@ struct AccountErasureTests {
         #expect(wiper.wipes == 0)
     }
 
-    @Test("a session the server ended meanwhile is a sign-out, said as the server's, and nothing is wiped")
+    @Test("a session the server ended meanwhile is a sign-out said once, by the result, and nothing is wiped")
     func sessionEnded() async {
-        let wiper = CountingWiper()
+        let wiper = RecordingWiper()
         let h = ModelHarness(wipers: [wiper])
         await h.signedIn()
         h.server.edit { $0.sessionValid = false }
         #expect(await h.model.eraseAccount(confirmation: "ada") == .sessionEnded)
         await h.settle()
         #expect(h.model.phase == .signedOut)
-        #expect(h.model.notices.map(\.kind) == [.sessionEndedByServer])
+        #expect(h.model.notices.isEmpty, "the result's words say it: \(h.model.notices.map(\.kind))")
         #expect(wiper.wipes == 0)
     }
 
@@ -137,9 +139,127 @@ struct AccountErasureTests {
         #expect(erases(h).isEmpty)
     }
 
+    @Test("not yet signed in or out (launching), nothing is asked, and the answer is not 'you were signed out'")
+    func notReady() async {
+        let h = ModelHarness()
+        #expect(await h.model.eraseAccount(confirmation: "ada") == .failed)
+        #expect(erases(h).isEmpty)
+    }
+
+    @Test("the username is compared as the server compares it, unit by unit: a look-alike spelling is not it")
+    func comparedByUnits() async {
+        let h = ModelHarness()
+        h.server.edit { $0.username = "e\u{301}" }
+        await h.signedIn()
+        #expect(await h.model.eraseAccount(confirmation: "\u{e9}") == .confirmationMismatch)
+        #expect(erases(h).isEmpty)
+    }
+
+    // MARK: Ending elsewhere, and answers that never came
+
+    @Test("a socket that ends the session for any reason but an erasure keeps what the person made")
+    func otherReasonsKeep() async {
+        let wiper = RecordingWiper()
+        let h = ModelHarness(wipers: [wiper])
+        await h.signedIn()
+        h.last.handlers.message(#"{"event":"SESSION_ENDED","ts":1,"data":{"reason":"signed-out"}}"#)
+        await h.settle()
+        #expect(h.model.phase == .signedOut)
+        #expect(wiper.wipes == 0)
+        #expect(h.model.notices.map(\.kind) == [.sessionEndedByServer])
+    }
+
+    @Test(
+        "an answer a gateway lost, with no word from the socket, is unconfirmed: still signed in, nothing removed",
+        arguments: [502, 504])
+    func gatewayLost(status: Int) async {
+        let wiper = RecordingWiper()
+        let h = ModelHarness(wipers: [wiper])
+        await h.signedIn()
+        h.server.edit {
+            $0.eraseStatus = status
+            $0.eraseError = "<html>gateway</html>"
+        }
+        #expect(await h.model.eraseAccount(confirmation: "ada") == .unconfirmed)
+        #expect(h.model.phase == .ready)
+        #expect(wiper.wipes == 0)
+        #expect(h.model.notices.isEmpty, "\(h.model.notices.map(\.kind))")
+    }
+
+    @Test("a connection that broke after the request left is unconfirmed too")
+    func connectionLost() async {
+        let h = ModelHarness()
+        await h.signedIn()
+        h.server.edit { $0.eraseThrows = .timedOut }
+        #expect(await h.model.eraseAccount(confirmation: "ada") == .unconfirmed)
+        #expect(h.model.phase == .ready)
+    }
+
+    @Test(
+        "after an unconfirmed erasure, a retry refused as signed out is a probable erasure: signed out, wiped, no sign-in invited"
+    )
+    func retryAfterLostAnswer() async {
+        let wiper = RecordingWiper()
+        let h = ModelHarness(wipers: [wiper])
+        await h.signedIn()
+        h.server.edit { $0.eraseThrows = .timedOut }
+        #expect(await h.model.eraseAccount(confirmation: "ada") == .unconfirmed)
+        h.server.edit {
+            // The first one went through: every session of the account went with it.
+            $0.eraseThrows = nil
+            $0.sessionValid = false
+        }
+        #expect(await h.model.eraseAccount(confirmation: "ada") == .possiblyErased)
+        await h.settle()
+        #expect(h.model.phase == .signedOut)
+        #expect(wiper.wipes == 1)
+        #expect(h.owner.load() == nil)
+        #expect(h.model.notices.map(\.kind) == [.accountPossiblyErased])
+    }
+
+    @Test("after an unconfirmed erasure, the server ending the session in any other way is read as that erasure's")
+    func endedAfterLostAnswer() async {
+        let wiper = RecordingWiper()
+        let h = ModelHarness(wipers: [wiper])
+        await h.signedIn()
+        h.server.edit { $0.eraseThrows = .timedOut }
+        #expect(await h.model.eraseAccount(confirmation: "ada") == .unconfirmed)
+        h.server.edit {
+            $0.eraseThrows = nil
+            $0.sessionValid = false
+        }
+        await h.model.refreshAccount()
+        await h.settle()
+        #expect(h.model.phase == .signedOut)
+        #expect(wiper.wipes == 1)
+        #expect(h.model.notices.map(\.kind) == [.accountPossiblyErased])
+    }
+
+    @Test("an erasure asked while a sign-out is under way waits for it, does not ask the server, and says it ended")
+    func eraseDuringSignOut() async throws {
+        let target = Mutex<AppModel?>(nil)
+        let erasure = Mutex<Task<EraseAccountResult, Never>?>(nil)
+        // Asked while the sign-out is removing the person's data: the sign-out is under way, and not yet done.
+        let wiper = RecordingWiper(onWipe: {
+            let model = target.withLock { $0 }
+            let run = Task { @MainActor in await model?.eraseAccount(confirmation: "ada") ?? .failed }
+            erasure.withLock { $0 = run }
+            // The erasure has its turns on the main actor while the sign-out is still here.
+            for _ in 0..<20 { await MainActor.run {} }
+        })
+        let h = ModelHarness(wipers: [wiper])
+        target.withLock { $0 = h.model }
+        await h.signedIn()
+        #expect(await h.model.signOut(.thisDevice) == .done)
+        let run = try #require(erasure.withLock { $0 })
+        #expect(await run.value == .sessionEnded)
+        #expect(erases(h).isEmpty)
+        #expect(wiper.wipes == 1)
+    }
+
     @Test("two quick erasures ask the server once and share its answer")
     func once() async {
-        let wiper = CountingWiper()
+        let wiper = RecordingWiper()
         let h = ModelHarness(wipers: [wiper])
         await h.signedIn()
         async let first = h.model.eraseAccount(confirmation: "ada")
@@ -153,7 +273,7 @@ struct AccountErasureTests {
 
     @Test("the socket's SESSION_ENDED arriving before the answer is the erasure's: erased, wiped, and said once")
     func socketFirst() async throws {
-        let wiper = CountingWiper()
+        let wiper = RecordingWiper()
         let h = ModelHarness(wipers: [wiper])
         await h.signedIn()
         let socket = h.last
@@ -179,7 +299,7 @@ struct AccountErasureTests {
 
     @Test("a conversation window erases through the window that owns the session")
     func fromConversationWindow() async throws {
-        let wiper = CountingWiper()
+        let wiper = RecordingWiper()
         let h = ModelHarness(wipers: [wiper])
         await h.signedIn()
         let request = try #require(h.model.conversationWindowRequest(for: Uuid(channel(1))!))
