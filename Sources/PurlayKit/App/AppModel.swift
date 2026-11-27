@@ -200,7 +200,9 @@ public final class AppModel {
     var hasUnkeptSession: Bool { unkeptCredential != nil }
     /// A sign-out is under way: a send waiting for its files does not go, so nothing is delivered after the person accepted
     /// that what is unsent is removed. Released if the sign-out does not happen.
-    @ObservationIgnored var sendsHeld = false
+    var sendsHeld: Bool { !sendHolds.isEmpty }
+    /// The sign-outs holding this session's sends, one each: one that does not happen releases only its own.
+    @ObservationIgnored private var sendHolds: Set<UUID> = []
     /// An account read under way: one asked for meanwhile (the Mac's Check Again beside its activation) waits for it and
     /// shares its answer instead of asking the server again.
     @ObservationIgnored var refreshingAccount: Task<Void, Never>?
@@ -668,7 +670,7 @@ public final class AppModel {
     /// refuses it is logged: the session still lives in memory, and only a quit before it is kept would lose it.
     private func rememberPendingSession(_ session: StoredSession, for server: ServerAddress) {
         do {
-            try environment.pendingSessions?.save(session, for: server)
+            try environment.pendingSessions?.store.save(session, for: server)
         } catch {
             environment.log.session.error(
                 "a pending sign-in could not be kept: \(String(describing: type(of: error)), privacy: .public)")
@@ -677,7 +679,7 @@ public final class AppModel {
 
     private func loadPendingSession(for server: ServerAddress) -> StoredSession? {
         do {
-            return try environment.pendingSessions?.load(for: server)
+            return try environment.pendingSessions?.store.load(for: server)
         } catch {
             environment.log.session.error(
                 "a pending sign-in could not be read: \(String(describing: type(of: error)), privacy: .public)")
@@ -687,7 +689,7 @@ public final class AppModel {
 
     private func forgetPendingSession(for server: ServerAddress) {
         do {
-            try environment.pendingSessions?.delete(for: server)
+            try environment.pendingSessions?.store.delete(for: server)
         } catch {
             environment.log.session.error(
                 "a pending sign-in could not be removed: \(String(describing: type(of: error)), privacy: .public)")
@@ -696,14 +698,15 @@ public final class AppModel {
 
     /// Nothing more is sent from this session, from the moment a sign-out of its server starts (here, or in another of the
     /// Mac's workspaces of the server).
-    func holdSends() {
-        sendsHeld = true
-        engine?.stop()
+    func holdSends(for signOut: UUID) {
+        let first = sendHolds.isEmpty
+        sendHolds.insert(signOut)
+        if first { engine?.stop() }
     }
 
-    /// The sign-out did not happen: what was held goes on as before.
-    func releaseSends() {
-        sendsHeld = false
+    /// The sign-out did not happen: its hold goes, and once no sign-out holds this session, what was held goes on as before.
+    func releaseSends(for signOut: UUID) {
+        guard sendHolds.remove(signOut) != nil, sendHolds.isEmpty else { return }
         engine?.start()
         for place in waitingSends.keys { settleWaitingSend(place) }
     }
@@ -731,15 +734,19 @@ public final class AppModel {
         self.manager = manager
         // A browser sign-in whose first read was lost: read again with it, rather than look in a Keychain that does not have it.
         if let pending = unkeptCredential {
-            guard pending.origin == origin?.description else {
-                unkeptCredential = nil
-                await endSession(holding: pending.cookie, on: address)
-                return await resumeOrAskToSignIn(address)
+            unkeptCredential = nil
+            if pending.origin == origin?.description {
+                unkeptCredential = pending
+                await manager.adopt(pending, for: address)
+                heldSession = pending
+                observe(manager)
+                await bootstrap()
+                return
             }
-            await manager.adopt(pending, for: address)
-            heldSession = pending
-            observe(manager)
-            await bootstrap()
+            // Made for another address than the server's now: ended and forgotten once, and the launch goes on as without it.
+            forgetPendingSession(for: address)
+            await endSession(holding: pending.cookie, on: address)
+            phase = .signedOut
             return
         }
         // One the app was quit with: read again with it, unless a session is kept for the server already (one session per
@@ -1116,8 +1123,9 @@ public final class AppModel {
         let person = me?.user.id.value ?? environment.owner.load()
         // From the moment the person asks: nothing more is sent, here or in any workspace of the server, while the server is
         // told and the data removed.
-        holdSends()
-        sharedServer?.holdSends()
+        let hold = UUID()
+        holdSends(for: hold)
+        sharedServer?.holdSends(hold)
         let result = await manager.signOut(scope)
         switch result {
         case .done: break
@@ -1127,8 +1135,8 @@ public final class AppModel {
         }
         switch result {
         case .notDone, .credentialKept:
-            releaseSends()
-            sharedServer?.releaseSends()
+            releaseSends(for: hold)
+            sharedServer?.releaseSends(hold)
             return result
         case .done, .serverNotTold: break
         }
@@ -1390,7 +1398,7 @@ public final class AppModel {
         }
         heldSession = nil
         unkeptCredential = nil
-        sendsHeld = false
+        sendHolds = []
         signedInAt = nil
         awayChange += 1
         for window in liveConversationWindows {
@@ -1749,6 +1757,6 @@ struct SharedServer {
     /// The unsent messages of the other sessions of the server held by the same person: a sign-out here removes them too.
     var unsentElsewhere: () -> Int = { 0 }
     /// A sign-out of the server started here: the other sessions send nothing more; released if it does not happen.
-    var holdSends: () -> Void = {}
-    var releaseSends: () -> Void = {}
+    var holdSends: (_ signOut: UUID) -> Void = { _ in }
+    var releaseSends: (_ signOut: UUID) -> Void = { _ in }
 }

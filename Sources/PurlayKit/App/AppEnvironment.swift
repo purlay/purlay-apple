@@ -92,9 +92,9 @@ public struct AppEnvironment {
     public var transport: any HTTPTransport
     public var sessions: any SessionStore
     /// Where the Mac keeps a browser sign-in's session until `/api/me` says whose it is (ADR 0011), apart from the session in
-    /// use, so a quit does not lose it or leave it alive on the server with nothing holding it. None on iOS, which keeps a
-    /// sign-in at once.
-    public var pendingSessions: (any SessionStore)?
+    /// use and one entry per workspace session, so a quit does not lose it or leave it alive on the server with nothing
+    /// holding it. None on iOS, which keeps a sign-in at once.
+    public var pendingSessions: PendingSessionStores?
     public var preferences: any PreferenceStore
     public var authenticator: any WebAuthenticator
     public var appVersion: SemanticVersion
@@ -143,7 +143,7 @@ public struct AppEnvironment {
         attention: any AttentionPresenter = SilentAttention(),
         loginItem: any LoginItemControl = NoLoginItem(),
         wipers: [any UserDataWiper] = [],
-        pendingSessions: (any SessionStore)? = nil
+        pendingSessions: PendingSessionStores? = nil
     ) {
         self.loginItem = loginItem
         self.wipers = wipers
@@ -169,5 +169,26 @@ public struct AppEnvironment {
         self.clock = clock
         self.owner = owner
         self.sleep = sleep
+    }
+}
+
+/// The Mac's pending sign-ins (`AppEnvironment.pendingSessions`): one store per workspace session (`slot`), so one
+/// workspace's pending sign-in never replaces another's.
+public struct PendingSessionStores: Sendable {
+    /// The workspace session this one is for: "main" for the first, the descriptor's id for each other.
+    public let slot: String
+    private let make: @Sendable (_ slot: String) -> any SessionStore
+
+    public init(slot: String = "main", make: @escaping @Sendable (_ slot: String) -> any SessionStore) {
+        self.slot = slot
+        self.make = make
+    }
+
+    /// This workspace session's store.
+    public var store: any SessionStore { make(slot) }
+
+    /// The same stores, for another workspace session.
+    public func scoped(to slot: String) -> PendingSessionStores {
+        PendingSessionStores(slot: slot, make: make)
     }
 }
