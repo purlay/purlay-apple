@@ -3,14 +3,16 @@
 The entry point: where things stand, what holds the code in shape, and which document to read when. The repository's own
 [README](../README.md) is the short version for a visitor.
 
-## Where things stand (2026-11-26)
+## Where things stand (2026-11-27)
 
 - **Mac:** released. 0.3.1 (2026-11-27, from purlay-macos) is the latest; fixes wait under 0.3.2 in
   [`Apps/macOS/CHANGELOG.md`](../Apps/macOS/CHANGELOG.md). FR-101 to FR-124 work; followed threads (FR-125) wait for the contract.
   The first release from this repository waits for the stable update feed (TD-019, [runbook](runbooks/mac-update-feed.md)).
-- **iPhone and iPad:** the walking skeleton works against a real server (launch, handshake, sign-in through the system browser,
-  resuming a session), in English and Turkish. Slice 1 of the [entry design](design/entry-shell-account.md) is in progress: the
-  launch screen, connecting and Welcome are built. Nothing is distributed: Q-001 blocks it.
+- **iPhone and iPad:** works against a real server (launch, handshake, sign-in through the system browser, resuming a session),
+  in English and Turkish, with the launch screen, connecting and Welcome of the [entry design](design/entry-shell-account.md),
+  a first shell (tabs or sidebar, the workspace switcher, Sign Out) and native Chat (channels, history, sending), built before
+  their design (TD-027). Nothing is distributed: Q-001 blocks it.
+- **Old repositories:** purlay-swift, purlay-macos and purlay-ios are frozen; their merged work up to 2026-11-27 is here, and new work is done only here.
 - **The engine:** shared by both apps; speaks the contract of server 0.8.0 and reads servers from 0.5.0. The server has
   released 0.9.0 ([contract drift](runbooks/contract-drift.md)).
 - **CI and releases:** the lanes run side by side behind one required check; releases run from tags

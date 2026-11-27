@@ -37,8 +37,8 @@ address, so the bridge is still owed, and it can no longer be numbered 0.3.1. Th
 
 - **A bridge release from purlay-macos, 0.3.2.** In that repository, change only the feed its app reads (`SUFeedURL`) to
   `https://updates.purlay.app/macos/appcast.xml`, set the version to 0.3.2 and add the changelog entry, and release it with that
-  repository's own workflow. Its build (that repository numbers builds by run, in the tens) stays below the release of step 2 (this one numbers builds by commit count, in
-  the hundreds). The pull request of step 2 then raises this repository's `MARKETING_VERSION` to 0.3.3 and renames the
+  repository's own workflow. Its build (that repository numbers builds by run, in the tens) stays below the release of step 2
+  (this one numbers builds by commit count, in the hundreds). The pull request of step 2 then raises this repository's `MARKETING_VERSION` to 0.3.3 and renames the
   changelog's 0.3.2 section, so no version is used twice.
 - **A bridge appcast, no new build there.** Release this repository's 0.3.2 (step 2) first. Then publish one more release in
   purlay-macos, marked latest, whose only asset is an `appcast.xml` that offers that 0.3.2 archive (signed with the same
