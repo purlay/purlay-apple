@@ -140,17 +140,24 @@ differs from the shell above in these ways, each kept until the shell is built t
 - **The model's owner.** `WorkspaceSessions` holds the engine's `DesktopSessions` (the call made below) and presents one
   workspace's `AppModel` at a time; `RootView` reads `RootScreen` from that model, so the entry screens are as designed.
 - **Empty.** With no destination the shell shows the screen `RootScreen` decides: two-step verification required (Set Up in
-  the browser), no workspace ("No Workspaces Yet"), or a workspace whose server runs no module this build draws ("No Modules
+  the browser, and Refresh, which reads the account again), no workspace ("No Workspaces Yet", and Refresh, which connects
+  again so an accepted invitation is found), or a workspace whose server runs no module this build draws ("No Modules
   Available"). Each keeps the toolbar, so Sign Out is always reachable.
 - **Workspace switcher.** A toolbar menu with the workspace's name, listing the memberships by name (the slug beside a name two
   share) with a check on the current one; one membership shows the name and no menu. A switch that fails stands on the Problem
   screen with Back to the previous workspace beside Try Again. Not yet the title menu, nor the role beside each name.
 - **Account.** An account menu (the person symbol) in the toolbar: Sign Out on This Device, and Sign Out Everywhere…, which
-  asks first. The menu waits while a sign-out or a switch is under way, and shows progress during a sign-out. The engine runs a
+  asks first. Both go through `RootActions.signOut`, the guard that reads the phase. The menu waits while a sign-out or a switch
+  is under way, and shows progress during a sign-out. The engine runs a
   sign-out once however often it is asked, and holds what was waiting to send until the server answers. The Account sheet
   replaces the menu in slice 2.
-- **Notices.** The engine's notice that messages did not load is not shown on iOS: the chat feed says so in place, with Try
-  Again. Every other notice is the engine's words, as on the Mac.
+- **Notices.** The engine's notice that messages did not load is not shown on iOS, and is dismissed as it arrives: the chat
+  feed says so in place, with Try Again, both for a channel with nothing on screen and, beside the messages it keeps, for newer
+  messages that did not load (the engine marks the channel on every failed read). Every other notice is the engine's words, as
+  on the Mac. A later iOS screen that reads `.loadFailed` (Search, Inbox, Issues) must say it in place too.
+- **Workspaces kept running.** `DesktopSessions` launches every kept session at start and keeps each workspace opened since
+  launch connected, as the Mac does. On an iPhone that costs memory, battery and a socket per workspace; whether iOS should
+  stop the workspaces not in front is open (TD-029).
 
 ### Account sheet (FR-023, part of FR-032)
 

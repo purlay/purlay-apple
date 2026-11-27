@@ -66,8 +66,9 @@ Adoption and retention targets are not set: Q-002.
 
 - **Mac:** released; 0.3.1 (2026-11-27, from purlay-macos) is the latest, with fixes waiting under 0.3.2 in
   [`Apps/macOS/CHANGELOG.md`](../../Apps/macOS/CHANGELOG.md). Functional scope FR-101 to FR-124.
-- **iPhone and iPad:** the walking skeleton is done (launch, handshake, sign-in, resuming a session) and the entry screens are
-  being designed into the app ([design](../design/entry-shell-account.md), slice 1). Nothing is distributed.
+- **iPhone and iPad:** launch, handshake, sign-in and resuming a session work, with the launch screen, connecting and Welcome of
+  the [entry design](../design/entry-shell-account.md); a first shell (tabs or sidebar, the workspace switcher, Sign Out) and
+  native Chat (channels, history, sending) are built, before their design (TD-027). Nothing is distributed.
 
 ## Non-goals
 
