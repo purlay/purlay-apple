@@ -180,7 +180,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Purlay'de yeni misin? Giriş yaparken hesap oluşturabilirsin."
+            "value" : "Purlay'de yeni misin? Oturum açarken hesap oluşturabilirsin."
           }
         }
       }
@@ -280,7 +280,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Giriş Yap"
+            "value" : "Oturum Aç"
           }
         }
       }

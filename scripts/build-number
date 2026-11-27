@@ -8,7 +8,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-# The last build the Mac shipped, from purlay-macos (v0.3.1, build 11). A smaller number would never be offered as an update.
+# The last build the Mac shipped, from purlay-macos (its last release, Apps/macOS/CHANGELOG.md). A smaller number would never be offered as an update.
 SHIPPED=11
 if [ "${1:-}" = "--shipped" ]; then echo "$SHIPPED"; exit 0; fi
 

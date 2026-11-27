@@ -5,8 +5,10 @@ the owner approves the `release` environment. Nothing is signed on a person's Ma
 
 ## Before tagging
 
-1. **The feed.** `scripts/ci/feed-url` prints where installed Macs read their updates. Until it prints a `pages_path`, a release
-   here does not reach installed Macs: do [mac-update-feed.md](mac-update-feed.md) first (TD-019).
+1. **The feed (release blocker, TD-019).** `scripts/ci/feed-url` prints where installed Macs read their updates. Until it prints
+   a `pages_path`, a release here does not reach installed Macs, and purlay-macos is archived so its feed can no longer move:
+   do not tag. Owner actions first: the DNS `CNAME` for `updates.purlay.app`, then the 0.3.2 bridge cut from the purlay-macos
+   `v0.3.1` tag ([mac-update-feed.md](mac-update-feed.md)).
 2. **Sparkle.** `gh release view --repo sparkle-project/Sparkle --json tagName,publishedAt`. If it is newer than the version
    `Apps/Purlay.xcodeproj` pins (2.10.1), move the pin in Xcode in its own pull request, check `licenses/Sparkle.txt`, and do not
    leave a security fix for later (TD-013).

@@ -5,16 +5,17 @@ The entry point: where things stand, what holds the code in shape, and which doc
 
 ## Where things stand (2026-11-27)
 
-- **Mac:** released. 0.3.1 (2026-11-27, from purlay-macos) is the latest; fixes wait under 0.3.2 in
-  [`Apps/macOS/CHANGELOG.md`](../Apps/macOS/CHANGELOG.md). FR-101 to FR-124 work; followed threads (FR-125) wait for the contract.
-  The first release from this repository waits for the stable update feed (TD-019, [runbook](runbooks/mac-update-feed.md)).
+- **Mac:** released; the versions, shipped and waiting, are in [`Apps/macOS/CHANGELOG.md`](../Apps/macOS/CHANGELOG.md). FR-101 to FR-124 work; followed threads (FR-125) wait for the contract.
+  **No Mac release from this repository until TD-019 is repaid:** installed Macs read the archived purlay-macos's releases, so
+  a release made here is never offered to them ([runbook](runbooks/mac-update-feed.md)).
 - **iPhone and iPad:** works against a real server (launch, handshake, sign-in through the system browser, resuming a session),
   in English and Turkish, with the launch screen, connecting and Welcome of the [entry design](design/entry-shell-account.md),
   a first shell (tabs or sidebar, the workspace switcher, Sign Out) and native Chat (channels, history, sending), built before
   their design (TD-027). Nothing is distributed: Q-001 blocks it.
 - **Old repositories:** purlay-swift, purlay-macos and purlay-ios are archived (read-only); this repository is the only home.
-  Their work up to their final commits (purlay-swift `83f32d7`, purlay-macos `b468562`, purlay-ios `c25436e`) is here; what
-  only managed the separate repositories (package pins, the Swift package's releases) has no place here and was left out.
+  Their work up to their final commits (purlay-swift `83f32d7`, purlay-macos `b468562`, purlay-ios `c25436e`) is here, except
+  unfinished work, which is carried in the draft pull request `wip/macos-parity`; what only managed the separate repositories
+  (package pins, the Swift package's releases) has no place here and was left out.
 - **The engine:** shared by both apps; speaks the contract of server 0.8.0 and reads servers from 0.5.0. The server has
   released 0.9.0 ([contract drift](runbooks/contract-drift.md)).
 - **CI and releases:** the lanes run side by side behind one required check; releases run from tags
@@ -54,7 +55,7 @@ Then open `Apps/Purlay.xcodeproj` (Xcode 27.2 or later). Everything else: [getti
 | [product/vision.md](product/vision.md) | asking what the apps are for, and what they must not become |
 | [product/requirements.md](product/requirements.md) | changing what an app does: the FRs, NFRs, assumptions and open questions |
 | [product/mac-behaviour.md](product/mac-behaviour.md) | a Mac behaviour that is not obvious from the screen |
-| [design/entry-shell-account.md](design/entry-shell-account.md) | building the iOS entry screens, the shell or the Account sheet; the owner's proposals P-1 to P-11 |
+| [design/entry-shell-account.md](design/entry-shell-account.md) | building the iOS entry screens, the shell or the Account sheet; the owner's proposals (P-1 to P-13) |
 | [architecture/overview.md](architecture/overview.md) | how the apps, the engine and the server fit together |
 | [architecture/modules-and-layers.md](architecture/modules-and-layers.md) | adding or moving a module; what `scripts/enforcement` checks |
 | [architecture/conventions.md](architecture/conventions.md) | before any code change |

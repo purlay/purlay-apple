@@ -120,6 +120,8 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
   typed (a ternary of literals too) or a literal its computed body gives, or an assignment to a property so typed, through
   `self` or a value whose type the code states. The same literal given to an API that takes a `String` does not count. The
   rules that read Swift and data are in `scripts/lib/rules.py`.
+- Turkish glossary, one term for one action in every catalogue: sign in = "Oturum Aç", sign out = "Oturumu Kapat" (and their
+  sentence forms, "oturum aç", "oturumu kapat"), cancel = "İptal"; the address is "sen".
 - A sentence with a count (`%lld`, `%d`, `%i`…) has English plural forms whose `one` is not its `other` (enforced), unless the
   count changes no English word ("Filters (%lld)"): those are listed in `scripts/lib/rules.py`, and a new one is a review
   point. A sentence with two counts has them as Xcode writes them, substitutions (`%#@messages@ in %#@channels@`), each with

@@ -31,7 +31,7 @@
 
 | | Status |
 |---|---|
-| **Mac** (macOS 26 or later, Apple silicon) | Released: 0.3.0. Signed and notarized builds that update themselves with Sparkle. [What’s new](Apps/macOS/CHANGELOG.md) |
+| **Mac** (macOS 26 or later, Apple silicon) | Released ([latest version](Apps/macOS/CHANGELOG.md)). Signed and notarized builds that update themselves with Sparkle. [What’s new](Apps/macOS/CHANGELOG.md) |
 | **iPhone and iPad** (iOS 18 or later) | In development; not yet distributed. [What’s new](Apps/iOS/CHANGELOG.md) |
 
 ## Build
@@ -78,8 +78,8 @@ repositories.
 ## History
 
 These apps were developed in three repositories before this one: [`purlay-ios`](https://github.com/purlay/purlay-ios),
-[`purlay-macos`](https://github.com/purlay/purlay-macos) (where the Mac's releases up to 0.3.0 are published) and
-[`purlay-swift`](https://github.com/purlay/purlay-swift). They are to be archived, read-only; their history, with every commit, is part of this repository's.
+[`purlay-macos`](https://github.com/purlay/purlay-macos) and [`purlay-swift`](https://github.com/purlay/purlay-swift). They are
+archived, read-only; what they held is here. The details are in [`docs/README.md`](docs/README.md).
 
 ## License
 
