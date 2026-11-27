@@ -33,13 +33,15 @@ png_field() { # file offset length: that many bytes of the PNG header as a numbe
 # The manifest is read through SwiftPM, which compiles it; what it says is kept by the manifest's digest, so the demonstration,
 # which copies the same manifest many times, reads it once.
 dump_package() { # root
-  local cache digest
+  local cache digest partial
   cache="${TMPDIR:-/tmp}/purlay-enforcement"
   digest="$(shasum -a 256 "$1/Package.swift" | cut -d' ' -f1)"
   if [ ! -s "$cache/$digest.json" ]; then
     mkdir -p "$cache"
-    (cd "$1" && swift package dump-package) > "$cache/$digest.json.partial" || { rm -f "$cache/$digest.json.partial"; return 1; }
-    mv "$cache/$digest.json.partial" "$cache/$digest.json"
+    # The demonstration reads it from parallel jobs: each writes its own partial file, and the rename is atomic.
+    partial="$(mktemp "$cache/$digest.XXXXXX")"
+    (cd "$1" && swift package dump-package) > "$partial" || { rm -f "$partial"; return 1; }
+    mv "$partial" "$cache/$digest.json"
   fi
   cat "$cache/$digest.json"
 }
@@ -688,39 +690,51 @@ copy_tree() { # a copy of what the rules read, without build products
     --exclude 'xcuserdata' "${TREE[@]}" "$copy"/
   echo "$copy"
 }
-judge() { # name copy
-  if check "$2" >/dev/null 2>&1; then echo "  NOT REFUSED  $1" >&2; fail=1; else echo "  refused      $1"; fi
-  rm -rf "$2"
-}
-plant() { # name, file (relative), line appended to it
-  local copy
+# Each plant and fixture is a job on its own copy, run in parallel (as many at once as the machine has processors) and
+# reported in the order written. A job writes one verdict line to its own file; a job whose setting-up fails reports BROKEN,
+# and none stops the others.
+RESULTS="$(mktemp -d)"
+JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)"
+job=0
+start() { # verdict function, name, setting-up function and its arguments: one job, in the background
+  local verdict="$1" name="$2"
+  shift 2
   wants "$group" || return 0
-  copy="$(copy_tree)"
-  mkdir -p "$(dirname "$copy/$2")"
-  printf '%s\n' "$3" >> "$copy/$2"
-  judge "$1" "$copy"
+  job=$((job + 1))
+  # bash 3.2 (macOS's) has no `wait -n`: a free slot is looked for instead.
+  while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do sleep 0.05; done
+  (
+    copy="$(copy_tree)"
+    if "$@" "$copy"; then "$verdict" "$name" "$copy"; else echo "  BROKEN       $name (its setting-up failed)"; fi
+    rm -rf "$copy"
+  ) >"$RESULTS/$(printf '%04d' "$job")" 2>&1 &
 }
-plant_in() { # name, folder (relative), shell command run there
-  local copy
-  wants "$group" || return 0
-  copy="$(copy_tree)"
-  (cd "$copy/$2" && eval "$3")
-  judge "$1" "$copy"
+# shellcheck disable=SC2329 # called by start()
+refused() { # name copy
+  if check "$2" >/dev/null 2>&1; then echo "  NOT REFUSED  $1"; else echo "  refused      $1"; fi
 }
-# A refusal shows a rule looks; it does not show the rule leaves good code alone. Each accept fixture writes code a rule must
-# not refuse (a call that does say a sentence, a colour named only in a comment) and requires the copy to hold every rule.
-accept_in() { # name, folder (relative), shell command run there
-  local copy
-  wants "$group" || return 0
-  copy="$(copy_tree)"
-  (cd "$copy/$2" && eval "$3")
-  if check "$copy" >/dev/null 2>&1; then
+# shellcheck disable=SC2329 # called by start()
+accepted() { # name copy
+  local output
+  if output="$(check "$2" 2>&1)"; then
     echo "  accepted     $1"
   else
-    echo "  NOT ACCEPTED $1" >&2; check "$copy" 2>&1 | grep FAIL | head -5 >&2; fail=1
+    echo "  NOT ACCEPTED $1"; printf '%s\n' "$output" | grep FAIL | head -5 || true
   fi
-  rm -rf "$copy"
 }
+# shellcheck disable=SC2329 # called by start()
+append() { # file (relative), line, copy
+  mkdir -p "$(dirname "$3/$1")" && printf '%s\n' "$2" >> "$3/$1"
+}
+# shellcheck disable=SC2329 # called by start()
+run_in() { # folder (relative), shell command, copy
+  (cd "$3/$1" && eval "$2")
+}
+plant() { start refused "$1" append "$2" "$3"; }      # name, file (relative), line appended to it
+plant_in() { start refused "$1" run_in "$2" "$3"; }   # name, folder (relative), shell command run there
+# A refusal shows a rule looks; it does not show the rule leaves good code alone. Each accept fixture writes code a rule must
+# not refuse (a call that does say a sentence, a colour named only in a comment) and requires the copy to hold every rule.
+accept_in() { start accepted "$1" run_in "$2" "$3"; } # name, folder (relative), shell command run there
 check . >/dev/null
 # The copies the violations are planted in must hold every rule before anything is planted, or a refusal would prove nothing.
 clean="$(copy_tree)"
@@ -975,10 +989,17 @@ accept_in "QA: a declared sentence chosen by a ternary, and Text.init" . \
   "python3 -c '$(recatalogue $MAC_STRINGS 'strings.update({f"Choice {n}": {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": f"Seçim {n}"}}}} for n in range(1, 4)})')' \
     && printf '%s\\n' 'let qaFlag = true' 'let qaChoice: LocalizedStringKey = qaFlag ? \"Choice 1\" : \"Choice 2\"' 'let qaInit = Text.init(\"Choice 3\")' >> Sources/PurlayMacUI/Strings.swift"
 # Two counts in one sentence are said in Xcode's substitutions (%#@name@), each with its own plural forms.
+# shellcheck disable=SC2016 # the catalogue's positional specifiers (%1$lld), written as they are
 accept_in "QA: a sentence with two counts, in English substitutions with plural forms" . \
   "python3 -c '$(recatalogue $MAC_STRINGS 'forms = lambda one, other: {"plural": {"one": {"stringUnit": {"state": "translated", "value": one}}, "other": {"stringUnit": {"state": "translated", "value": other}}}}; strings["%lld messages in %lld channels"] = {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "%#@messages@ in %#@channels@"}, "substitutions": {"messages": {"argNum": 1, "formatSpecifier": "lld", "variations": forms("%arg message", "%arg messages")}, "channels": {"argNum": 2, "formatSpecifier": "lld", "variations": forms("%arg channel", "%arg channels")}}}, "tr": {"stringUnit": {"state": "translated", "value": "%2$lld kanalda %1$lld mesaj"}}}}')' \
     && printf '%s\\n' 'let qaMulti = Text(\"\\(1) messages in \\(2) channels\")' >> Sources/PurlayMacUI/Strings.swift"
 # A literal assigned to a String property of another value is not said as a sentence, though a type of this module has a
 # property of that name typed as one.
 plant_in "QA: a Mac sentence assigned only to an AppKit String property sharing a typed name" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'import AppKit' 'func qaProbe(_ item: NSMenuItem) { item.title = \"Never said\" }' >> Sources/PurlayMacUI/Strings.swift"
+wait
+for result in "$RESULTS"/*; do
+  [ -e "$result" ] || continue
+  if grep -qE '^  (NOT |BROKEN)' "$result"; then cat "$result" >&2; fail=1; else cat "$result"; fi
+done
+rm -rf "$RESULTS"
 exit $fail
