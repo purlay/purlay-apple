@@ -826,6 +826,9 @@ plant_in "a Mac sentence said only in a block comment" . "python3 -c '$(recatalo
 plant_in "a Mac sentence said only in a trailing comment" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'let qaProbe = 1 // was Text(\"Never said\")' >> Sources/PurlayMacUI/Strings.swift"
 plant_in "a Mac sentence said only as a plain literal" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'let qaProbe = \"Never said\"' >> Sources/PurlayMacUI/Strings.swift"
 plant_in "a Mac sentence said only as an accessibility identifier" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'let qaProbe = Text(\"x\").accessibilityIdentifier(\"Never said\")' >> Sources/PurlayMacUI/Strings.swift"
+# QA (PR #6): a literal given to an AppKit String API is not said as a sentence, yet `title:` counts anywhere because some
+# parameter elsewhere is a LocalizedStringKey named `title`. Not refused yet.
+plant_in "a Mac sentence said only to an AppKit String API sharing a typed label" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'import AppKit' 'let qaProbe = NSMenuItem(title: \"Never said\", action: nil, keyEquivalent: \"\")' >> Sources/PurlayMacUI/Strings.swift"
 # A count said in English with one form reads "1 new replies".
 plant_in "a Mac count with no English plural forms" . "python3 -c '$(recatalogue $MAC_STRINGS 'del strings["%lld people"]["localizations"]["en"]')'"
 plant_in "an engine count with English plural forms but no one" . \
@@ -879,6 +882,15 @@ plant "a colour by components through .init" Apps/iOS/App/Entry/WelcomeView.swif
 plant "a colour by components wrapped after its parenthesis" Apps/iOS/App/Entry/WelcomeView.swift \
   'let leakedWrapped = Color(
     .displayP3, red: 0.1, green: 0.2, blue: 0.3)'
+# QA (PR #6): colour literals the rule does not read yet.
+plant "a colour by components with its colour space spelt in full" Apps/iOS/App/Entry/WelcomeView.swift \
+  'let leakedSpace = Color(Color.RGBColorSpace.sRGB, red: 0.1, green: 0.2, blue: 0.3)'
+plant "a Mac colour by calibrated hue" Sources/PurlayMacUI/Strings.swift \
+  'let leakedHue = NSColor(calibratedHue: 0.6, saturation: 0.8, brightness: 0.9, alpha: 1)'
+plant "a grey as a CGColor" Apps/iOS/App/Entry/WelcomeView.swift 'let leakedGrey = CGColor(gray: 0.4, alpha: 1)'
+plant "a hex colour with an upper-case prefix" Apps/iOS/App/Entry/WelcomeView.swift 'let leakedUpper: UInt32 = 0X2563EB'
+plant_in "a colour set in the iOS asset catalogue beside the accent" Apps/iOS/App/Resources/Assets.xcassets \
+  'mkdir Leaked.colorset && printf "%s" "{\"colors\":[{\"color\":{\"color-space\":\"srgb\",\"components\":{\"red\":\"0.1\",\"green\":\"0.2\",\"blue\":\"0.3\",\"alpha\":\"1\"}},\"idiom\":\"universal\"}],\"info\":{\"author\":\"xcode\",\"version\":1}}" > Leaked.colorset/Contents.json'
 plant_in "the accent not named by the build" Config \
   'sed -i.bak "/^ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME/d" Shared.xcconfig && rm Shared.xcconfig.bak'
 plant_in "the Mac's accent asset missing" Apps/macOS/App/Resources/Assets.xcassets 'rm -r AccentColor.colorset'
