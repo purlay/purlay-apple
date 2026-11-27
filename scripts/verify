@@ -72,9 +72,15 @@ quiet() { # xcodebuild arguments
 import json, sys
 s = json.load(sys.stdin)
 counts = tuple(s.get(key) for key in ("totalTestCount", "passedTests", "failedTests", "skippedTests"))
-print("tests: %s in all, %s passed, %s failed, %s skipped" % counts)' || true
+print("tests: %s in all, %s passed, %s failed, %s skipped" % counts)
+# Which test failed, and what it said, from the result bundle: the log names a failed test in forms that change with Xcode.
+for failure in s.get("testFailures", []):
+    print("FAILED  %s / %s: %s" % (failure.get("targetName"), failure.get("testIdentifierString") or failure.get("testName"),
+                                  " ".join(str(failure.get("failureText", "")).split())[:400]))' || true
   if [ "$status" -ne 0 ]; then
-    grep -E "error:|✘|recorded an issue|Expectation failed|Failing tests|\*\* (TEST|BUILD) FAILED" "$log" | sort -u | head -40 >&2 || true
+    # A test that passed or was skipped can have "error:" in its name; only the other lines say what failed.
+    grep -E "error:|✘|recorded an issue|Expectation failed|Failing tests|' failed |\*\* (TEST|BUILD) FAILED" "$log" \
+      | grep -vE "' (passed|skipped) on " | sort -u | head -40 >&2 || true
     echo "--- the end of the log:" >&2
     tail -25 "$log" >&2
   fi
