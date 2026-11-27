@@ -8,12 +8,16 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
 stub="$(mktemp -d)"; trap 'rm -rf "$stub"' EXIT
 # The stand-in answers the runs query with $STUB_RUN and the jobs query with $STUB_SIMULATOR; STUB_FAIL=1 makes every call fail.
+# With $STUB_JOBS (the API's JSON of a run's jobs), the jobs query applies the gate's own --jq filter to it, so the job the gate
+# picks by name is tested too, not only what it does with the answer.
 cat >"$stub/gh" <<'GH'
 #!/usr/bin/env bash
 [ "${STUB_FAIL:-0}" = 1 ] && { echo "HTTP 502" >&2; exit 1; }
+filter=""; previous=""
+for argument in "$@"; do [ "$previous" = --jq ] && filter="$argument"; previous="$argument"; done
 case "$*" in
   *"/actions/workflows/ci.yml/runs?"*) echo "${STUB_RUN:-}" ;;
-  *"/jobs?"*) echo "${STUB_SIMULATOR:-missing}" ;;
+  *"/jobs?"*) if [ -n "${STUB_JOBS:-}" ]; then printf '%s' "$STUB_JOBS" | jq -r "$filter"; else echo "${STUB_SIMULATOR:-missing}"; fi ;;
   *) echo "unexpected gh $*" >&2; exit 1 ;;
 esac
 GH
@@ -34,6 +38,14 @@ expect "a tag on a commit with no successful run on main" fail "$tag" STUB_RUN=
 expect "a tag whose main run skipped the simulator" fail "$tag" STUB_RUN=42 STUB_SIMULATOR=skipped
 expect "a tag whose main run's simulator failed" fail "$tag" STUB_RUN=42 STUB_SIMULATOR=failure
 expect "a tag whose main run has no simulator job" fail "$tag" STUB_RUN=42 STUB_SIMULATOR=missing
+# Main's push run also lists the pull request's simulator job (skipped) and the red-main job: only the job named `simulator` counts.
+job() { printf '{"name":"%s","conclusion":"%s"}' "$1" "$2"; }
+expect "main's simulator failed; the pull request's simulator job and the red-main job are not it" fail "$tag" STUB_RUN=42 \
+  STUB_JOBS="{\"jobs\":[$(job 'simulator (pull request)' success),$(job simulator-red-on-main success),$(job simulator failure)]}"
+expect "main's run has only the pull request's simulator job, passed" fail "$tag" STUB_RUN=42 \
+  STUB_JOBS="{\"jobs\":[$(job 'simulator (pull request)' success)]}"
+expect "main's simulator passed, beside the skipped pull request's job" pass "$tag" STUB_RUN=42 \
+  STUB_JOBS="{\"jobs\":[$(job 'simulator (pull request)' skipped),$(job simulator success)]}"
 expect "a tag that is not the configured version" fail GITHUB_REF=refs/tags/ios/v99.0.0 STUB_RUN=42 STUB_SIMULATOR=success
 expect "the API cannot be read" fail "$tag" STUB_FAIL=1
 expect "a rehearsal from a branch: tag and CI are warnings" pass GITHUB_REF=refs/heads/main DRY_RUN=true STUB_RUN=
