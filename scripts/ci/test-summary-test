@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# scripts/ci/test-summary against summaries xcresulttool wrote: what it prints for a run with a failure and for one without, and
+# that a summary it cannot read is said so and fails. The rules lane runs it.
+#
+#   scripts/ci/test-summary-test
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+
+# Recorded with Xcode 27.2 (`xcrun xcresulttool get test-results summary`) from an iOS run whose glyph test failed.
+failed_run="$(cat <<'JSON'
+{
+ "devicesAndConfigurations": [
+  {
+   "device": {
+    "architecture": "arm64",
+    "deviceId": "550C2E05-BDB0-46F6-A9FC-597C59446E47",
+    "deviceName": "iPhone 17",
+    "modelName": "iPhone 17",
+    "osBuildNumber": "24B8117",
+    "osVersion": "27.2",
+    "platform": "iOS Simulator"
+   },
+   "expectedFailures": 0,
+   "failedTests": 2,
+   "passedTests": 0,
+   "skippedTests": 0,
+   "testPlanConfiguration": {
+    "configurationId": "1",
+    "configurationName": "Default"
+   }
+  }
+ ],
+ "environmentDescription": "iOS · Built with macOS 27.2.1",
+ "expectedFailures": 0,
+ "failedTests": 1,
+ "finishTime": 1795784885.511,
+ "passedTests": 0,
+ "result": "Failed",
+ "runtimeWarnings": [],
+ "skippedTests": 0,
+ "startTime": 1795784836.045,
+ "statistics": [
+  {
+   "subtitle": "2 test runs",
+   "title": "1 test ran with dynamic parameters"
+  }
+ ],
+ "testFailures": [
+  {
+   "failureText": "Expectation failed: ratio >= 3\nratio → 2.8697441309618674\n3 → 3.0: .dark: the drawn glyph (0.07450980392156863, 0.6431372549019608, 1.0) is 2.8697441309618674:1 on the glass",
+   "targetName": "PurlayTests",
+   "testIdentifier": 1,
+   "testIdentifierString": "NoticeDismissContrastTests/drawnGlyphContrast(scheme:)",
+   "testIdentifierURL": "test://com.apple.xcode/Purlay/PurlayTests/NoticeDismissContrastTests/drawnGlyphContrast(scheme:)",
+   "testName": "the drawn dismiss glyph has 3:1 against the glass panel, in the accent's text ink, in light and dark"
+  }
+ ],
+ "title": "Test - Purlay-iOS",
+ "topInsights": [],
+ "totalTestCount": 1
+}
+JSON
+)"
+passed_run="$(printf '%s' "$failed_run" | python3 -c '
+import json, sys
+summary = json.load(sys.stdin)
+summary.update(failedTests=0, passedTests=1, result="Passed", testFailures=[])
+print(json.dumps(summary))')"
+
+failed=0
+expect() { # description, input, expected exit status, a line the output must hold
+  local output status=0
+  output="$(printf '%s' "$2" | scripts/ci/test-summary 2>&1)" || status=$?
+  if [ "$status" = "$3" ] && grep -qF -- "$4" <<<"$output"; then
+    echo "ok    $1"
+  else
+    echo "FAIL  $1: exit $status, said: $output" >&2; failed=1
+  fi
+}
+expect "a failed run: its counts" "$failed_run" 0 "tests: 1 in all, 0 passed, 1 failed, 0 skipped"
+expect "a failed run: the test and what it said" "$failed_run" 0 \
+  "FAILED  PurlayTests / NoticeDismissContrastTests/drawnGlyphContrast(scheme:): Expectation failed: ratio >= 3 ratio → 2.86"
+expect "a passed run: its counts" "$passed_run" 0 "tests: 1 in all, 1 passed, 0 failed, 0 skipped"
+expect "no summary at all" "" 1 "could not be read (xcresulttool gave nothing)"
+expect "a summary that is not JSON" "Error: no such bundle" 1 "could not be read"
+expect "a summary in another shape" '{"title": "Test"}' 1 "could not be read (no totalTestCount, passedTests, failedTests, skippedTests)"
+exit "$failed"

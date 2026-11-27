@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""What a test run did, from its result bundle: `xcrun xcresulttool get test-results summary --path RESULTS | scripts/ci/test-summary`.
+
+Prints how many tests ran, passed, failed and were skipped, then each failed test and what it said: the log names a failed test
+in forms that change with Xcode, the result bundle does not. A summary it cannot read is said so, with why, and exits 1: a run
+that failed is never left with no name for what failed. scripts/verify runs it after every test run; the rules lane tests it
+(scripts/ci/test-summary-test).
+"""
+import json
+import sys
+
+COUNTS = ("totalTestCount", "passedTests", "failedTests", "skippedTests")
+
+
+def lines(summary):
+    missing = [key for key in COUNTS if key not in summary]
+    if missing:
+        raise ValueError(f"no {', '.join(missing)}")
+    yield "tests: %s in all, %s passed, %s failed, %s skipped" % tuple(summary[key] for key in COUNTS)
+    for failure in summary.get("testFailures", []):
+        test = failure.get("testIdentifierString") or failure.get("testName")
+        said = " ".join(str(failure.get("failureText", "")).split())[:400]
+        yield f"FAILED  {failure.get('targetName')} / {test}: {said}"
+
+
+def main():
+    text = sys.stdin.read()
+    try:
+        if not text.strip():
+            raise ValueError("xcresulttool gave nothing")
+        output = list(lines(json.loads(text)))
+    except (ValueError, TypeError, AttributeError) as problem:
+        print(f"tests: the result bundle's summary could not be read ({problem})", file=sys.stderr)
+        return 1
+    print("\n".join(output))
+    return 0
+
+
+sys.exit(main())
