@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# The layers rule's manifest cache is trusted only in a folder no other user can write, as scripts/lib/rules.py's parse cache
+# is. Plants a reading that breaks the layer table in a cache folder others may write (0777) and requires the rule to ignore it.
+# Needs Swift (macOS).
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+home="$(mktemp -d)"
+trap 'rm -rf "$home"' EXIT
+mkdir -p "$home/purlay-enforcement" && chmod 777 "$home/purlay-enforcement"
+digest="$(shasum -a 256 Package.swift | cut -d' ' -f1)"
+printf '%s' '{"targets":[{"type":"regular","name":"PurlayKit","dependencies":[{"byName":["PurlayDesign",null]}]}]}' \
+  >"$home/purlay-enforcement/$digest.json"
+if ! XDG_CACHE_HOME="$home" scripts/enforcement layers >/dev/null 2>&1; then
+  echo "FAIL: the layers rule trusted a manifest reading in a cache folder other users can write" >&2; exit 1
+fi
+echo "a cache folder others can write is not trusted"

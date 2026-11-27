@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# On CI the SDK's sentence calls are always checked: an Xcode other than .github/toolchain.env's must fail there, not skip the
+# check (locally a note and exit 0 is right). Runs `scripts/dev/sentence-calls --check` with CI set and an xcodebuild that
+# answers another version, and requires it to fail. Needs no Xcode.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+shim="$(mktemp -d)"
+trap 'rm -rf "$shim"' EXIT
+printf '#!/bin/sh\necho "Xcode 0.0"\necho "Build version 0A0"\n' >"$shim/xcodebuild"
+chmod +x "$shim/xcodebuild"
+if CI=true GITHUB_ACTIONS=true PATH="$shim:$PATH" scripts/dev/sentence-calls --check >/dev/null 2>&1; then
+  echo "FAIL: on CI, sentence-calls --check passed with an Xcode other than .github/toolchain.env's" >&2; exit 1
+fi
+echo "on CI, a different Xcode fails the sentence-calls check"
