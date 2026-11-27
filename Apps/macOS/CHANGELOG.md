@@ -10,6 +10,8 @@ User-facing changes to Purlay for macOS. Releases require macOS 26 or later.
   The session and Updates stay available.
 - Threads, Saved Messages, Open Topics, Scheduled Messages, Reminders and Pins close the same way when a server node does not
   serve them, and reminders already set on this Mac still go off.
+- When a server node cannot take a change to a saved message, a pin or a bookmark, the change is undone in place instead of
+  being lost; read receipts already confirmed, scheduled edits and reminders are kept, and only the thread acted on closes.
 
 ### Fixed
 
