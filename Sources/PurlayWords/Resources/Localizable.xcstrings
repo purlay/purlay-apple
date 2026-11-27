@@ -541,6 +541,16 @@
         }
       }
     },
+    "Purlay could not read your saved sign-in on this device. Sign in again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purlay bu cihazdaki kayıtlı oturumunu okuyamadı. Yeniden oturum aç."
+          }
+        }
+      }
+    },
     "Purlay could not tell whether your account was deleted: the answer did not arrive. Check your connection and try again." : {
       "localizations" : {
         "tr" : {

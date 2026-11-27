@@ -8,9 +8,15 @@ import Testing
 final class MemorySessions: SessionStore {
     private let state = Mutex<[String: StoredSession]>([:])
     private let deletionRefused = Mutex(false)
+    private let readingRefused = Mutex(false)
     struct Refused: Error {}
     func refuseDeletion(_ refused: Bool) { deletionRefused.withLock { $0 = refused } }
-    func load(for server: ServerAddress) throws -> StoredSession? { state.withLock { $0[server.description] } }
+    /// Every read fails, as the Keychain of an unsigned build does (`errSecMissingEntitlement`, -34018).
+    func refuseReading(_ refused: Bool) { readingRefused.withLock { $0 = refused } }
+    func load(for server: ServerAddress) throws -> StoredSession? {
+        if readingRefused.withLock({ $0 }) { throw KeychainError(status: -34018, operation: "read") }
+        return state.withLock { $0[server.description] }
+    }
     func save(_ session: StoredSession, for server: ServerAddress) throws {
         state.withLock { $0[server.description] = session }
     }
@@ -312,6 +318,16 @@ struct StartingTests {
         await h.model.launch()
         #expect(h.model.phase == .signedOut)
         #expect(h.model.notices.map(\.kind) == [.sessionExpired])
+    }
+
+    @Test("a kept sign-in the device cannot read is said as that, not as a problem with unsent messages")
+    func storedSessionUnreadable() async throws {
+        let h = ModelHarness()
+        try h.rememberedSession()
+        h.sessions.refuseReading(true)
+        await h.model.launch()
+        #expect(h.model.phase == .signedOut)
+        #expect(h.model.notices.map(\.kind) == [.storedSessionUnreadable])
     }
 }
 

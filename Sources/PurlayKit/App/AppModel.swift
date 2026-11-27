@@ -30,6 +30,8 @@ public struct Notice: Equatable, Identifiable, Sendable {
         case unrestorable(Int)
         case outboxCorrupt
         case storageProblem
+        /// A sign-in kept on this device could not be read (the Keychain refused it): the person signs in again.
+        case storedSessionUnreadable
         case originMismatch
         case sendTooLong
         case tooManyFiles
@@ -797,7 +799,10 @@ public final class AppModel {
                 return
             }
         } catch {
-            say(.storageProblem)
+            // The Keychain's status alone: what it holds is the person's session.
+            let status = (error as? KeychainError).map { String($0.status) } ?? String(describing: type(of: error))
+            environment.log.session.error("a kept sign-in could not be read: \(status, privacy: .public)")
+            say(.storedSessionUnreadable)
         }
         // No session to apply an unconfirmed erasure to: whoever signs in next starts clean.
         forgetUnconfirmedErasure()
