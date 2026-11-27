@@ -159,6 +159,13 @@ public final class AppModel {
     /// An account read under way: one asked for meanwhile (the Mac's Check Again beside its activation) waits for it and
     /// shares its answer instead of asking the server again.
     @ObservationIgnored var refreshingAccount: Task<Void, Never>?
+    /// A sign-in again under way: one asked for meanwhile waits for it and shares its answer, so one browser is opened.
+    @ObservationIgnored private var reauthenticating: Task<ReauthenticationResult, Never>?
+    /// When this run signed the person in through the browser (`signIn`, `reauthenticate`); nil for a session restored at
+    /// launch, whose age the app does not know.
+    private var signedInAt: Date?
+    /// How long before the server's limit a sign-in is no longer called recent: the request takes time to arrive.
+    static let erasureSignInMargin: TimeInterval = 60
     private var observation: Task<Void, Never>?
     private var noticeCounter = 0
     private var launched = false
@@ -640,23 +647,23 @@ public final class AppModel {
         phase = .signedOut
     }
 
-    /// Signs in through the system browser.
+    /// Signs in through the system browser. Signed in (or signing in) already, it does nothing: a second session would be
+    /// adopted without the first being ended. Signing in again while signed in is `reauthenticate()`.
     public func signIn() async {
         if let sessionOwner {
             await sessionOwner.signIn()
             return
         }
-        guard let server, let origin, let manager else { return }
+        guard let server, let origin, let manager, phase != .ready, phase != .loading, phase != .signingIn else {
+            return
+        }
         phase = .signingIn
-        let flow = NativeSignIn(
-            transport: environment.transport, appVersion: environment.appVersion,
-            platform: environment.identity.platform,
-            authenticator: environment.authenticator,
-            store: environment.sessions, deviceName: environment.deviceName)
+        let flow = signInFlow(keepingIn: environment.sessions)
         do {
             let session = try await flow.signIn(to: server, origin: origin)
             await manager.adopt(session, for: server)
             cookieCache = session.cookie
+            signedInAt = environment.clock()
             warnedOfExpiry = false
             observe(manager)
             await bootstrap()
@@ -664,6 +671,122 @@ public final class AppModel {
             phase = .signedOut
             if error != .cancelled { say(.signInFailed(error)) }
         }
+    }
+
+    /// The browser sign-in (PKCE, the system's authentication session), keeping the session it gets in `store`.
+    private func signInFlow(keepingIn store: any SessionStore) -> NativeSignIn {
+        NativeSignIn(
+            transport: environment.transport, appVersion: environment.appVersion,
+            platform: environment.identity.platform, authenticator: environment.authenticator,
+            store: store, deviceName: environment.deviceName)
+    }
+
+    /// Whether erasing the account needs a sign-in again first: the server asks for one within `ERASURE_SIGN_IN_MINUTES`,
+    /// less a minute here for the request to arrive, and a session restored at launch is of an unknown age. A screen goes
+    /// straight to `reauthenticate()` rather than ask and be refused; the server still decides
+    /// (`EraseAccountResult.reauthenticationRequired`).
+    public var erasureNeedsReauthentication: Bool {
+        if let sessionOwner { return sessionOwner.erasureNeedsReauthentication }
+        guard let signedInAt else { return true }
+        let allowed = TimeInterval(ContractConstants.erasureSignInMinutes * 60) - Self.erasureSignInMargin
+        return environment.clock().timeIntervalSince(signedInAt) >= allowed
+    }
+
+    /// Signs the person in again through the browser, as `signIn` does, while they stay signed in: for erasing the account,
+    /// which needs a recent sign-in. The same person carries on with everything here on the new session (nothing is removed,
+    /// the socket opens again on it) and the old session is ended. Somebody else signed in by the browser changes nothing:
+    /// their session is ended at once (`differentPerson`). One asked for meanwhile shares the answer of the one under way.
+    public func reauthenticate() async -> ReauthenticationResult {
+        if let sessionOwner { return await sessionOwner.reauthenticate() }
+        if let reauthenticating { return await reauthenticating.value }
+        let run = Task { await reauthenticateOnce() }
+        reauthenticating = run
+        defer { reauthenticating = nil }
+        return await run.value
+    }
+
+    private func reauthenticateOnce() async -> ReauthenticationResult {
+        guard phase == .ready, ending == nil, let server, let origin, let manager, let me, let old = cookieCache else {
+            return .notSignedIn
+        }
+        // Not kept until it is known to be this person's: the Keychain holds the session in use until then.
+        let fresh: StoredSession
+        do {
+            fresh = try await signInFlow(keepingIn: UnkeptSessions()).signIn(to: server, origin: origin)
+        } catch {
+            return .failed(error)
+        }
+        let whose: MeResponse
+        do {
+            whose = try await api(holding: fresh.cookie, on: server).getMe()
+        } catch {
+            await endSession(holding: fresh.cookie, on: server)
+            return .failed(Self.signInError(error))
+        }
+        // The browser was open for a while: the session here may have ended or been replaced meanwhile.
+        guard phase == .ready, ending == nil, cookieCache == old else {
+            await endSession(holding: fresh.cookie, on: server)
+            return .notSignedIn
+        }
+        guard whose.user.id == me.user.id else {
+            await endSession(holding: fresh.cookie, on: server)
+            return .differentPerson
+        }
+        do {
+            try environment.sessions.save(fresh, for: server)
+        } catch {
+            await endSession(holding: fresh.cookie, on: server)
+            return .failed(.storage(error as? KeychainError ?? KeychainError(status: -1, operation: "write")))
+        }
+        await manager.adopt(fresh, for: server)
+        cookieCache = fresh.cookie
+        signedInAt = environment.clock()
+        warnedOfExpiry = false
+        // The socket moves to the new session before the old one ends, so the old one's ending is not heard here.
+        engine?.reconnect()
+        await endSession(holding: old, on: server)
+        return .done
+    }
+
+    /// A client of `server` that sends `session`, whatever the session in use is: for a session this app is not using.
+    private func api(holding session: String, on server: ServerAddress) -> PurlayAPI {
+        PurlayAPI(
+            client: APIClient(
+                configuration: APIConfiguration(
+                    baseURL: server.origin,
+                    clientHeader: ClientHeader.value(
+                        appVersion: environment.appVersion, platform: environment.identity.platform),
+                    sessionCookie: { session }),
+                transport: environment.transport, sleep: environment.sleep))
+    }
+
+    /// Ends a session this app is not using (`/auth/logout` with it). One the server could not be told of lives until it
+    /// expires or is ended from the person's sessions list: logged, since nothing here depends on it.
+    private func endSession(holding session: String, on server: ServerAddress) async {
+        do {
+            try await api(holding: session, on: server).logout()
+        } catch {
+            environment.log.session.error(
+                "a session left by signing in again could not be ended: \(String(describing: type(of: error)), privacy: .public)"
+            )
+        }
+    }
+
+    /// What a failure to read whose a new session is says, in the words of a sign-in that failed.
+    private static func signInError(_ error: any Error) -> SignInError {
+        if let error = error as? TransportError { return .unreachable(error) }
+        if let error = error as? APIError {
+            if error.status == 429 { return .rateLimited(retryAfter: error.retryAfter) }
+            return .refused(status: error.status, code: error.code)
+        }
+        return .noSessionInAnswer
+    }
+
+    /// Where a sign-in again leaves its session until it is known to be this person's: nowhere.
+    private struct UnkeptSessions: SessionStore {
+        func load(for server: ServerAddress) throws -> StoredSession? { nil }
+        func save(_ session: StoredSession, for server: ServerAddress) throws {}
+        func delete(for server: ServerAddress) throws {}
     }
 
     private func observe(_ manager: SessionManager) {
@@ -877,7 +1000,8 @@ public final class AppModel {
                 baseURL: server.origin,
                 clientHeader: ClientHeader.value(
                     appVersion: environment.appVersion, platform: environment.identity.platform),
-                sessionCookie: { await manager.cookie }, onSessionRejected: { await manager.sessionEndedByServer() },
+                sessionCookie: { await manager.cookie },
+                onSessionRejected: { await manager.sessionEndedByServer(rejecting: $0) },
                 onProblem: { [weak self] problem in await self?.recordProblem(problem) }),
             transport: environment.transport, sleep: environment.sleep)
         let api = PurlayAPI(client: client)
@@ -1029,6 +1153,7 @@ public final class AppModel {
 
     private func tearDown() {
         erasureUnconfirmed = false
+        signedInAt = nil
         awayChange += 1
         for window in liveConversationWindows {
             // Only the session owner stops the connection and clears shared state.

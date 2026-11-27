@@ -155,7 +155,8 @@ struct SessionManagerTests {
         let client = APIClient(
             configuration: APIConfiguration(
                 baseURL: URL(string: "https://chat.example.com")!, clientHeader: "macos/0.1.0 contract/1",
-                sessionCookie: { await manager.cookie }, onSessionRejected: { await manager.sessionEndedByServer() }),
+                sessionCookie: { await manager.cookie },
+                onSessionRejected: { await manager.sessionEndedByServer(rejecting: $0) }),
             transport: transport, sleep: { _ in })
         let route = try #require(Endpoints.all.first { $0.id == "getMe" })
         await #expect(throws: APIError.self) { _ = try await client.send(route, as: JSONValue.self) }
@@ -163,6 +164,34 @@ struct SessionManagerTests {
         // The next call has no session to send, and says so without going to the network.
         await #expect(throws: TransportError.noSession) { _ = try await client.send(route, as: JSONValue.self) }
         #expect(await transport.requests.count == 1)
+    }
+
+    @Test("a 401 for a session that is no longer the one in use does not end the one that is")
+    func staleRejection() async throws {
+        let p = parts()
+        try p.store.save(session("old"), for: server)
+        try await p.manager.restore(for: server)
+        await p.manager.adopt(session("new"), for: server)
+        await p.manager.sessionEndedByServer(rejecting: "old")
+        #expect(await p.manager.state == .signedIn(session("new"), server: server))
+        await p.manager.sessionEndedByServer(rejecting: "new")
+        #expect(await p.manager.state == .signedOut(.endedByServer))
+    }
+
+    @Test("a client tells which session the server refused, so a refusal of an older one is told as such")
+    func clientTellsRefusedSession() async throws {
+        let refused = Mutex<[String]>([])
+        let transport = ScriptedTransport([
+            ScriptedTransport.json(401, #"{"error":{"code":"UNAUTHENTICATED","message":"x"}}"#)
+        ])
+        let client = APIClient(
+            configuration: APIConfiguration(
+                baseURL: URL(string: "https://chat.example.com")!, clientHeader: "macos/0.1.0 contract/1",
+                sessionCookie: { "sent" }, onSessionRejected: { cookie in refused.withLock { $0.append(cookie) } }),
+            transport: transport, sleep: { _ in })
+        let route = try #require(Endpoints.all.first { $0.id == "getMe" })
+        await #expect(throws: APIError.self) { _ = try await client.send(route, as: JSONValue.self) }
+        #expect(refused.withLock { $0 } == ["sent"])
     }
 
     @Test(
@@ -181,7 +210,8 @@ struct SessionManagerTests {
         let client = APIClient(
             configuration: APIConfiguration(
                 baseURL: URL(string: "https://chat.example.com")!, clientHeader: "macos/0.1.0 contract/1",
-                sessionCookie: { await manager.cookie }, onSessionRejected: { await manager.sessionEndedByServer() }),
+                sessionCookie: { await manager.cookie },
+                onSessionRejected: { await manager.sessionEndedByServer(rejecting: $0) }),
             transport: transport, sleep: { _ in })
         let route = try #require(Endpoints.all.first { $0.id == id })
         let body: (any Encodable & Sendable)? =

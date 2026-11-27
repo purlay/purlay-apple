@@ -44,8 +44,8 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
   (`AttentionPresenter`, `WebAuthenticator`, `PreferenceStore`).
 - A screen is decided from a pure value (`RootScreen` on iOS) so each state is tested without drawing. A tap that must happen
   once goes through a guard that reads the phase (`RootActions`), never a flag in the view. What leaves the phase as it is while
-  the server answers (signing out, erasing the account, reading the account again) runs once in the model, for both apps: a
-  call meanwhile waits for the one under way.
+  the server answers (signing out, erasing the account, signing in again, reading the account again) runs once in the model,
+  for both apps: a call meanwhile waits for the one under way. Signing out and erasing share one slot, so they never overlap.
 - Colour, spacing, type and motion come from `PurlayTokens`: through `PurlayDesign` on iOS, through `TokenBinding.swift` and
   `NativePalette.swift` on the Mac. A view names a token, never a colour of its own; a colour literal is allowed only in the
   tokens, the logo and `NativePalette.swift` (enforced, comments aside). The only colour set in an asset catalogue is each
@@ -56,12 +56,12 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
 ## Errors
 
 - A failure is a typed value (`APIError`, `TransportError`, `HandshakeError`, `SignInError`, `ServerProblem`, `UploadFailure`,
-  `SendFailure`, `EraseAccountResult`) that the model turns into what the person is told. A server problem is a phase, never an alert that can be
+  `SendFailure`, `EraseAccountResult`, `ReauthenticationResult`) that the model turns into what the person is told. A server problem is a phase, never an alert that can be
   dismissed into a broken state.
 - Wire error codes are matched from the generated union; an unknown id or code is ignored or shown generically, never a crash.
 - A failure shown to a person is a sentence written for them. The server's `message` is English and written for a log, so it is
   never shown, and neither is `String(describing:)` of an error. Each `ServerProblem`, `SignInError`, notice, upload failure
-  and `EraseAccountResult` has its sentence in `PurlayWords`' `EngineWords`, matched exhaustively, so a new case fails to compile until it has words.
+  `EraseAccountResult` and `ReauthenticationResult` has its sentence in `PurlayWords`' `EngineWords`, matched exhaustively, so a new case fails to compile until it has words.
 - No empty `catch`, no `_ = error`, no silent fallback. A `try?` is acceptable only for work whose failure changes nothing
   (cancelling a sleep). A failure is shown, retried by a stated rule, or logged with its cause.
 

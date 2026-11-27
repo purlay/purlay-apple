@@ -43,12 +43,17 @@ struct EngineWordsTests {
         .sessionEnded, .unconfirmed, .failed,
     ]
 
+    private static let reauthentications: [ReauthenticationResult] = [
+        .differentPerson, .failed(.codeRejected), .notSignedIn,
+    ]
+
     /// Every sentence the engine's words can say, with what it takes to say the ones that carry a value.
     private static var everySentence: [LocalizedStringResource] {
         EngineWords.fixed
             + problems.flatMap { [EngineWords.problem($0).title, EngineWords.problem($0).detail] }
             + signIns.compactMap(EngineWords.signIn) + notices.compactMap(EngineWords.notice)
             + uploads.map(EngineWords.upload) + erasures.compactMap(EngineWords.erasure)
+            + reauthentications.compactMap(EngineWords.reauthentication)
     }
 
     private func text(_ resource: LocalizedStringResource, in language: String) -> String {
@@ -137,6 +142,15 @@ struct EngineWordsTests {
             words
                 == "Some of your data on this device could not be removed. Purlay tries again when you next sign out, or when someone else signs in here."
         )
+    }
+
+    @Test("a sign-in again that did not happen says why; one that did, or that the person closed, says nothing")
+    func reauthentications() {
+        #expect(EngineWords.reauthentication(.done) == nil)
+        #expect(EngineWords.reauthentication(.failed(.cancelled)) == nil)
+        for result in Self.reauthentications {
+            #expect(EngineWords.reauthentication(result).map { text($0, in: "en") }?.isEmpty == false, "\(result)")
+        }
     }
 
     @Test("the workspaces a last owner must hand over are counted in the form their number takes")

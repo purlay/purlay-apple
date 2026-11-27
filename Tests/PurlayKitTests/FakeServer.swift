@@ -122,6 +122,12 @@ final class FakeServer: HTTPTransport {
         var eraseThrows: TransportError?
         /// The person `/api/me` names: their username as the server keeps it.
         var username = "ada"
+        /// The session value the next sign-in hands out; the usual one when nil.
+        var nextSession: String?
+        /// Sessions ended one by one (`/auth/logout` with that cookie): refused as any ended session is.
+        var revoked: Set<String> = []
+        /// Whose each session is, when not the usual person's: a browser that signed in somebody else.
+        var userIDBySession: [String: String] = [:]
         var online = true
         var sessionValid = true
         var readStatus = 200
@@ -235,7 +241,8 @@ final class FakeServer: HTTPTransport {
         deepWorkUntil: String? = nil, role: String = "member", mustEnrolTwoFactor: Bool = false,
         nameFromGitHub: Bool = false, scheduledDeletions: [WorkspaceDeletion] = [], awayChosen: Bool = false,
         modules: [String] = ["chat", "issues"], workspaceModules: [String]? = nil,
-        profile: String = #"{"title":null,"timeZone":null,"status":null}"#, username: String = "ada"
+        profile: String = #"{"title":null,"timeZone":null,"status":null}"#, username: String = "ada",
+        userID: String = userID
     ) -> String {
         """
         {"user":{"id":"\(userID)","username":"\(username)","displayName":"Ada","avatarUrl":null,"email":"ada@example.test"},\
@@ -254,9 +261,10 @@ final class FakeServer: HTTPTransport {
         }
         guard snapshot.online else { throw TransportError.offline }
         let path = request.url.path
-        let hasSession =
-            request.headers["Cookie"] == "__Host-purlay_session=\(Self.sessionValue)"
-            || request.headers["Cookie"]?.hasPrefix("__Host-purlay_session=") == true
+        let cookie = request.headers["Cookie"].flatMap { header in
+            header.hasPrefix("__Host-purlay_session=") ? String(header.dropFirst("__Host-purlay_session=".count)) : nil
+        }
+        let hasSession = cookie.map { !snapshot.revoked.contains($0) } ?? false
         func json(_ status: Int, _ body: String) -> HTTPResponse {
             HTTPResponse(status: status, headers: ["Content-Type": "application/json"], body: Data(body.utf8))
         }
@@ -376,10 +384,14 @@ final class FakeServer: HTTPTransport {
                 return json(snapshot.tokenStatus, #"{"error":{"code":"NATIVE_CODE_NOT_FOUND","message":"x"}}"#)
             }
             // A new sign-in makes a session: one that was signed out is valid again.
-            state.withLock { $0.sessionValid = true }
+            let issued = snapshot.nextSession ?? Self.sessionValue
+            state.withLock {
+                $0.sessionValid = true
+                $0.revoked.remove(issued)
+            }
             let headers =
                 snapshot.cookieOnToken
-                ? ["Set-Cookie": "__Host-purlay_session=\(Self.sessionValue); Path=/; Max-Age=2592000; HttpOnly"] : [:]
+                ? ["Set-Cookie": "__Host-purlay_session=\(issued); Path=/; Max-Age=2592000; HttpOnly"] : [:]
             return HTTPResponse(status: 204, headers: headers)
         case ("PATCH", "/api/me/profile"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
@@ -404,7 +416,8 @@ final class FakeServer: HTTPTransport {
                     mustEnrolTwoFactor: snapshot.mustEnrolTwoFactor, nameFromGitHub: snapshot.nameFromGitHub,
                     scheduledDeletions: snapshot.scheduledDeletions, awayChosen: snapshot.awayChosen,
                     modules: snapshot.modules, workspaceModules: snapshot.workspaceModules, profile: snapshot.profile,
-                    username: snapshot.username))
+                    username: snapshot.username, userID: cookie.flatMap { snapshot.userIDBySession[$0] } ?? Self.userID)
+            )
         case ("GET", "/api/workspaces/\(Self.workspaceID)/channels"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
             if snapshot.channelsStatus == 404 {
@@ -1170,7 +1183,11 @@ final class FakeServer: HTTPTransport {
                 return HTTPResponse(status: 204)
             }
             return json(snapshot.eraseStatus, snapshot.eraseError ?? #"{"error":{"code":"INTERNAL","message":"x"}}"#)
-        case ("POST", "/auth/logout"), ("POST", "/auth/logout-all"):
+        case ("POST", "/auth/logout"):
+            // Ends the session it was sent with, and no other.
+            if snapshot.logoutStatus == 204, let cookie { state.withLock { _ = $0.revoked.insert(cookie) } }
+            return HTTPResponse(status: snapshot.logoutStatus)
+        case ("POST", "/auth/logout-all"):
             if snapshot.logoutStatus == 204 { state.withLock { $0.sessionValid = false } }
             return HTTPResponse(status: snapshot.logoutStatus)
         default:

@@ -90,6 +90,13 @@ final class FakeLoginItem: LoginItemControl {
     func openSystemSettings() { settingsOpened += 1 }
 }
 
+/// Time passed on a model's clock, set by a test.
+final class Elapsed: Sendable {
+    private let value = Mutex<TimeInterval>(0)
+    var seconds: TimeInterval { value.withLock { $0 } }
+    func set(_ seconds: TimeInterval) { value.withLock { $0 = seconds } }
+}
+
 @MainActor
 final class ModelHarness {
     let server = FakeServer()
@@ -103,6 +110,8 @@ final class ModelHarness {
     private var timers: [(due: Int, work: () -> Void, live: SendHarness.Flag)] = []
     private var now = 0
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent("model-" + UUID().uuidString)
+    /// How far the model's clock has moved on from the tests' epoch.
+    let elapsed = Elapsed()
     private(set) var model: AppModel!
 
     init(
@@ -119,6 +128,7 @@ final class ModelHarness {
         let attention = attention
         let directory = directory
         let loginItem = loginItem
+        let elapsed = elapsed
         model = AppModel(
             AppEnvironment(
                 transport: server, sessions: sessions, preferences: preferences, authenticator: browser,
@@ -137,7 +147,8 @@ final class ModelHarness {
                     self?.timers.append(((self?.now ?? 0) + milliseconds, work, flag))
                     return { flag.live = false }
                 },
-                random: { 0 }, clock: { Date(timeIntervalSince1970: Double(epochMs) / 1_000) }, owner: owner,
+                random: { 0 }, clock: { Date(timeIntervalSince1970: Double(epochMs) / 1_000 + elapsed.seconds) },
+                owner: owner,
                 sleep: { _ in }, attention: attention, loginItem: loginItem, wipers: wipers))
     }
 

@@ -148,6 +148,13 @@ public final class Engine {
 
     public func start() { connection.start() }
 
+    /// Opens the socket again, on the session in use now: a sign-in again replaced it, and the old socket, still on the old
+    /// session, is let go before that session is ended, so its ending is not heard as this one's.
+    public func reconnect() {
+        connection.stop()
+        connection.start()
+    }
+
     public func stop() {
         connection.stop()
         sends.stop()

@@ -897,6 +897,16 @@
         }
       }
     },
+    "You are signed out." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oturumun kapalı."
+          }
+        }
+      }
+    },
     "You are the last member of this private channel, so you can't leave it." : {
       "localizations" : {
         "tr" : {
@@ -995,6 +1005,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Artık buraya erişimin yok."
+          }
+        }
+      }
+    },
+    "You signed in with a different account. Sign in again with this one." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Farklı bir hesapla giriş yaptın. Bu hesapla yeniden giriş yap."
           }
         }
       }

@@ -171,9 +171,11 @@ public actor SessionManager {
     // MARK: Ending
 
     /// The server ended the session. Nothing the person made is removed: the draft and the outbox wait for the next
-    /// sign-in, which is the same person's or is found out by `identify`.
-    public func sessionEndedByServer() {
-        guard case .signedIn(_, let server) = state else { return }
+    /// sign-in, which is the same person's or is found out by `identify`. `rejecting`: the session value the server refused,
+    /// when known; a refusal of one that is no longer in use (replaced by a sign-in again) ends nothing.
+    public func sessionEndedByServer(rejecting refused: String? = nil) {
+        guard case .signedIn(let session, let server) = state else { return }
+        if let refused, refused != session.cookie { return }
         try? store.delete(for: server)
         move(to: .signedOut(.endedByServer))
     }

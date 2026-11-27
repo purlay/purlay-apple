@@ -29,6 +29,18 @@ extension EngineWords {
         }
     }
 
+    /// What a sign-in again that did not happen says. `nil` for `done`, and for a sign-in the person closed: a choice.
+    public static func reauthentication(_ result: ReauthenticationResult) -> LocalizedStringResource? {
+        switch result {
+        case .done: nil
+        case .differentPerson:
+            LocalizedStringResource(
+                "You signed in with a different account. Sign in again with this one.", bundle: .module)
+        case .failed(let error): signIn(error)
+        case .notSignedIn: LocalizedStringResource("You are signed out.", bundle: .module)
+        }
+    }
+
     private static func lastOwner(_ count: Int) -> LocalizedStringResource {
         count == 0
             ? LocalizedStringResource(
