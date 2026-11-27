@@ -35,10 +35,11 @@ png_field() { # file offset length: that many bytes of the PNG header as a numbe
 # which copies the same manifest many times, reads it once.
 dump_package() { # root
   local cache digest partial
-  cache="${TMPDIR:-/tmp}/purlay-enforcement"
+  # The user's own folder: a manifest's reading planted by someone else would be trusted.
+  cache="${XDG_CACHE_HOME:-$HOME/.cache}/purlay-enforcement"
   digest="$(shasum -a 256 "$1/Package.swift" | cut -d' ' -f1)"
   if [ ! -s "$cache/$digest.json" ]; then
-    mkdir -p "$cache"
+    (umask 077 && mkdir -p "$cache")
     # The demonstration reads it from parallel jobs: each writes its own partial file, and the rename is atomic.
     partial="$(mktemp "$cache/$digest.XXXXXX")"
     (cd "$1" && swift package dump-package) > "$partial" || { rm -f "$partial"; return 1; }

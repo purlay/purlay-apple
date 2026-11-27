@@ -102,3 +102,34 @@ def owner(scopes, position):
     """The innermost type whose body holds the position, or None."""
     inside = [scope for scope in scopes if scope[0] <= position < scope[1]]
     return max(inside, key=lambda scope: scope[0])[2] if inside else None
+
+
+def parameters(signature):
+    """A declaration's parameter list (without its parentheses), split at its own commas: a closure's type, a default value
+    with parentheses or a generic argument stays whole, and a function type's arrow closes nothing."""
+    parts, level, current = [], 0, ""
+    for index, character in enumerate(signature):
+        arrow = character == ">" and signature[index - 1:index] == "-"
+        if not arrow:
+            level += {"(": 1, "[": 1, "<": 1, ")": -1, "]": -1, ">": -1}.get(character, 0)
+        if character == "," and level == 0:
+            parts.append(current)
+            current = ""
+        else:
+            current += character
+    return parts + [current]
+
+
+def closing(shape, opening):
+    """The index of the bracket that closes the one at shape[opening], in a skeleton; len(shape) if it is never closed."""
+    pairs = {"(": ")", "[": "]", "{": "}"}
+    depth, i = 0, opening
+    while i < len(shape):
+        if shape[i] == shape[opening]:
+            depth += 1
+        elif shape[i] == pairs[shape[opening]]:
+            depth -= 1
+            if depth == 0:
+                return i
+        i += 1
+    return len(shape)

@@ -3,7 +3,7 @@
   python3 scripts/lib/rules.py ROOT    print a FAIL line for each problem in the tree at ROOT; exit 1 if there is one
 
 Python's standard library only: the rules lane runs on a runner without Swift. Each Swift file's parse is pure, so it is kept by
-the file's content (and this code's) under $TMPDIR/purlay-enforcement/parse: the demonstration's copies differ by one file.
+the file's content (and this code's) in the user's own cache folder (see CACHE): the demonstration's copies differ by one file.
 """
 import hashlib
 import json
@@ -12,14 +12,15 @@ import pathlib
 import plistlib
 import re
 import sys
-import tempfile
 
 from sentence_calls import CALLS
-from swift_source import code, literal, owner, skeleton, type_scopes
+from swift_source import closing, code, literal, owner, parameters, skeleton, type_scopes
 
 HERE = pathlib.Path(__file__).resolve().parent
 VERSION = hashlib.sha1(b"".join((HERE / name).read_bytes() for name in ("rules.py", "swift_source.py"))).hexdigest()
-CACHE = pathlib.Path(os.environ.get("TMPDIR", tempfile.gettempdir())) / "purlay-enforcement" / "parse"
+# The user's own folder (0700): a parse planted by someone else would be trusted, so a folder another user could write is
+# not used.
+CACHE = pathlib.Path(os.environ.get("XDG_CACHE_HOME") or pathlib.Path.home() / ".cache") / "purlay-enforcement" / "parse"
 
 # A format specifier, positional or not, with any length modifier; a count is an integer one. Xcode writes a sentence with more
 # than one count as substitutions, `%#@name@`, each read as its own specifier.
@@ -215,22 +216,32 @@ def parse(text):
     source = code(text)
     shape = skeleton(source)
     scopes = type_scopes(shape)
-    result = {"calls": [], "properties": [], "locals": {}, "sites": [], "colours": []}
-    for match in re.finditer(r"\b(?:func\s+(\w+)|init)\s*(?:<[^>]*>)?\(([^)]*)\)", shape):
+    result = {"calls": [], "properties": [], "sites": [], "colours": []}
+    blocks = [(i, closing(shape, i)) for i, c in enumerate(shape) if c == "{"]
+    # Each name declared with a type the code states, and where that declaration holds: (name, type, from, to). A parameter
+    # holds in its function's body; a let or var in the block that declares it; `let x = T(…)` states T as well.
+    declarations = []
+    for match in re.finditer(r"\b(?:func\s+(\w+)|init)\s*(?:<[^(]*?>)?\(", shape):
+        end = closing(shape, match.end() - 1)
         call = match.group(1) or owner(scopes, match.start())
-        for parameter in match.group(2).split(","):
-            typed = re.match(rf"\s*(\w+)(?:\s+\w+)?\s*:\s*(?:@\w+\s+)?{SENTENCE}", parameter)
+        body = shape.find("{", end)
+        body_end = closing(shape, body) if body != -1 else end
+        for parameter in parameters(shape[match.end():end]):
+            typed = re.match(rf"\s*(\w+)(?:\s+\w+)?\s*:\s*(?:@\w+(?:\([^)]*\))?\s+)*{SENTENCE}", parameter)
             if typed and call:
                 result["calls"].append([call, "" if typed.group(1) == "_" else typed.group(1)])
-    for match in re.finditer(r"\b(?:let|var)\s+(\w+)\s*:\s*(\[?[\w.]+\]?)", shape):
+            named = re.match(r"\s*(?:\w+\s+)?(\w+)\s*:\s*(?:@\w+(?:\([^)]*\))?\s+|inout\s+)*(\w+)", parameter)
+            if named and body != -1:
+                declarations.append([named.group(1), named.group(2), body, body_end])
+    for match in re.finditer(r"\b(?:let|var)\s+(\w+)\s*(?::\s*(\[?[\w.]+\]?)|=\s*([A-Z]\w*)\s*\()", shape):
         kind = owner(scopes, match.start())
-        sentence = bool(re.fullmatch(SENTENCE, match.group(2)))
-        if kind:
-            result["properties"].append([kind, match.group(1), match.group(2), sentence])
-        result["locals"].setdefault(match.group(1), match.group(2))
-    for match in re.finditer(r"[(,]\s*(?:\w+\s+)?(\w+)\s*:\s*(?:@\w+\s+|inout\s+)*(\w+)", shape):
-        result["locals"].setdefault(match.group(1), match.group(2))
-    result["sites"] = sites(source, scopes)
+        type_name = match.group(2) or match.group(3)
+        if kind and match.group(2):
+            result["properties"].append([kind, match.group(1), type_name, bool(re.fullmatch(SENTENCE, type_name))])
+        holding = [block for block in blocks if block[0] < match.start() < block[1]]
+        start, end = max(holding) if holding else (0, len(shape))
+        declarations.append([match.group(1), type_name, match.start(), end])
+    result["sites"] = sites(source, scopes, declarations)
     for match in COLOUR.finditer(source):
         # A colour's hex is six or eight digits, its separators (if any) between pairs: 0x25_63_EB. A mask grouped by fours
         # (0x7fff_ffff) is not a colour.
@@ -242,7 +253,13 @@ def parse(text):
     return result
 
 
-def sites(text, scopes):
+def receiver(declarations, name, position):
+    """The type stated for `name` where it is used: the innermost declaration that holds there and comes before it."""
+    holding = [d for d in declarations if d[0] == name and d[2] <= position <= d[3]]
+    return max(holding, key=lambda d: (d[2], -d[3]))[1].strip("[]?") if holding else None
+
+
+def sites(text, scopes, declarations):
     """Each literal of a file with the place it stands in: the call and argument it is given to, the bracket that holds it,
     and what it is assigned to. Whether the place says a sentence is decided later, once every file's declarations are known."""
     found, frames, word, i = [], [], "", 0  # a frame per open bracket: [bracket, call, argument label, typed]
@@ -262,10 +279,12 @@ def sites(text, scopes):
                 site["body"] = True
             if declared.search(before):
                 site["declared"] = True
-            assigned = re.search(r"(?<![\w.])((?:\w+\.)*)(\w+)\s*=\s*(?:[^=;\n]*\?\s*(?:\"[^\"\n]*\"\s*:\s*)?)?$", before)
+            assigned = re.search(
+                r"(?<![\w.?!])((?:\w+[?!]?\.)*)(\w+)\s*=\s*(?:[^=;\n]*\?\s*(?:\"[^\"\n]*\"\s*:\s*)?)?$", before)
             if assigned and not re.search(r"\b(?:let|var)\s+\w+\s*=", before[assigned.start():]):
-                site["assigned"] = [assigned.group(1).rstrip(".").split(".") if assigned.group(1) else [],
-                                    assigned.group(2), owner(scopes, i)]
+                chain = [link.rstrip("?!") for link in assigned.group(1).rstrip(".").split(".")] if assigned.group(1) else []
+                stated = receiver(declarations, chain[0], i) if chain and chain[0] != "self" else None
+                site["assigned"] = [chain, assigned.group(2), owner(scopes, i), stated]
             if re.match(r"\s*as\s+String\b", text[end:]):
                 site = {"value": value}  # said as a String, not as a sentence
             found.append(site)
@@ -301,18 +320,30 @@ def sites(text, scopes):
     return found
 
 
-def parsed(path):
-    """parse(path), kept by the file's content and this code's."""
+def private(folder):
+    """Whether the folder is the user's alone, made so if it is new."""
+    try:
+        folder.mkdir(mode=0o700, parents=True, exist_ok=True)
+        status = folder.stat()
+    except OSError:
+        return False
+    return status.st_uid == os.getuid() and not status.st_mode & 0o077
+
+
+def parsed(path, cache):
+    """parse(path), kept by the file's content and this code's when there is a private cache."""
     data = path.read_bytes()
     key = hashlib.sha1(VERSION.encode() + data).hexdigest()
     cached = CACHE / f"{key}.json"
-    try:
-        return json.loads(cached.read_text())
-    except (OSError, ValueError):
-        pass
+    if cache:
+        try:
+            return json.loads(cached.read_text())
+        except (OSError, ValueError):
+            pass
     result = parse(data.decode())
+    if not cache:
+        return result
     try:
-        CACHE.mkdir(parents=True, exist_ok=True)
         partial = cached.with_suffix(f".{os.getpid()}.partial")
         partial.write_text(json.dumps(result))
         partial.replace(cached)
@@ -335,7 +366,7 @@ def said(root, parses):
                 calls.setdefault(kind, set()).add(name)
                 sentence_properties.add((kind, name))
 
-    def says(site, locals_):
+    def says(site):
         call = site.get("call")
         if call and call[1] in calls.get(call[0], ()):
             return True
@@ -347,12 +378,14 @@ def said(root, parses):
         assigned = site.get("assigned")
         if not assigned:
             return False
-        chain, name, kind = assigned
+        chain, name, kind, stated = assigned
         if chain and chain[0] == "self":
             chain = chain[1:]
+            stated = None
         if chain:
-            # The receiver's type, as the code states it: a property of the enclosing type, or a declaration in the file.
-            kind = property_types.get((kind, chain[0])) or locals_.get(chain[0], "").strip("[]?")
+            # The receiver's type, as the code states it where it is used (a declaration in scope there, its type's
+            # property in this file among them), else a property of the enclosing type declared in another file.
+            kind = stated or property_types.get((kind, chain[0]))
             for member in chain[1:]:
                 kind = property_types.get((kind, member))
         return (kind, name) in sentence_properties
@@ -363,7 +396,7 @@ def said(root, parses):
         for folder in folders:
             for file, result in parses.items():
                 if file.is_relative_to(root / folder):
-                    words |= {site["value"] for site in result["sites"] if says(site, result["locals"])}
+                    words |= {site["value"] for site in result["sites"] if says(site)}
         for key, entry in json.loads((root / path).read_text())["strings"].items():
             if entry.get("shouldTranslate") is not False and SPEC.sub("\0", SUBSTITUTION.sub("\0", key)) not in words:
                 problems.append(
@@ -455,7 +488,8 @@ def url_types(root):
 
 
 def main(root):
-    parses = {path: parsed(path) for path in swift_files(root, "Sources", *(f"Apps/{app}/App" for app in APPS))}
+    cache = private(CACHE)
+    parses = {path: parsed(path, cache) for path in swift_files(root, "Sources", *(f"Apps/{app}/App" for app in APPS))}
     problems = [*privacy_reasons(root), *catalogues(root), *said(root, parses), *colours(root, parses), *accent(root),
                 *mac(root), *url_types(root)]
     for problem in problems:

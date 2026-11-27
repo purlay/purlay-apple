@@ -1,4 +1,5 @@
-# Written by scripts/dev/sentence-calls from the SDK's SwiftUI and Foundation interfaces; never edit it by hand.
+# Written by scripts/dev/sentence-calls from the interfaces of Xcode 27.2's SDK (SwiftUI, SwiftUICore, Foundation, AppIntents, WidgetKit, Charts, AppKit, UIKit);
+# never edit it by hand: run the script.
 """Each call that takes a sentence, by its name (a type's for an initialiser), and the labels of the arguments that take
 one ("" for an unlabelled one)."""
 CALLS = {
@@ -20,6 +21,8 @@ CALLS = {
     'ContentUnavailableView': [''],
     'ControlGroup': [''],
     'ControlWidgetButton': [''],
+    'ControlWidgetConfiguration.description': [''],
+    'ControlWidgetConfiguration.displayName': [''],
     'ControlWidgetToggle': [''],
     'DatePicker': [''],
     'DisclosureGroup': [''],
@@ -56,6 +59,8 @@ CALLS = {
     'NewDocumentButton': [''],
     'Parameter': ['description', 'requestDisambiguationDialog', 'requestValueDialog', 'title'],
     'Picker': [''],
+    'PlottableProjection.value': [''],
+    'PlottableValue.value': [''],
     'ProgressView': [''],
     'Section': [''],
     'SecureField': [''],
@@ -74,6 +79,7 @@ CALLS = {
     'Toggle': [''],
     'TypeDisplayRepresentation': ['name', 'numericFormat', 'synonyms'],
     'UtilityWindow': [''],
+    'WidgetConfiguration.description': [''],
     'Window': [''],
     'WindowGroup': [''],
     'accessibilityAction': ['named'],
@@ -97,10 +103,8 @@ CALLS = {
     'controlWidgetActionHint': [''],
     'controlWidgetStatus': [''],
     'custom': ['acceptAlternatives', 'acceptLabel', 'denyAlternatives', 'denyLabel'],
-    'description': [''],
     'dialogSuppressionToggle': [''],
     'dismissalConfirmationDialog': [''],
-    'displayName': [''],
     'documentLaunchSubtitle': [''],
     'documentLaunchTitle': [''],
     'fileDialogConfirmationLabel': [''],
@@ -121,6 +125,5 @@ CALLS = {
     'result': ['dialog'],
     'searchable': ['prompt'],
     'typeSelectEquivalent': [''],
-    'value': [''],
     'widgetLabel': [''],
 }
