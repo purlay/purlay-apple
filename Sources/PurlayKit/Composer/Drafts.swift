@@ -15,9 +15,12 @@ public struct Drafts: Sendable {
         self.user = user
     }
 
+    /// What every draft's key begins with, whoever's it is: removed at once when the person's data goes.
+    public static let keyPrefix = "purlay.draft."
+
     public static func key(user: Uuid, channel: Uuid, parent: Uuid?) -> String {
-        parent.map { "purlay.draft.\(user.value).\(channel.value).\($0.value)" }
-            ?? "purlay.draft.\(user.value).\(channel.value)"
+        parent.map { "\(keyPrefix)\(user.value).\(channel.value).\($0.value)" }
+            ?? "\(keyPrefix)\(user.value).\(channel.value)"
     }
 
     public func read(channel: Uuid, parent: Uuid?) -> String {

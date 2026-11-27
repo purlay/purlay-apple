@@ -16,13 +16,15 @@ struct EngineWordsTests {
     private static let signIns: [SignInError] = [
         .browserFailed("x"), .callbackRejected(.notOurs), .codeRejected, .rateLimited(retryAfter: nil),
         .refused(status: 403, code: .forbidden), .noSessionInAnswer, .unreachable(.offline),
-        .storage(KeychainError(status: -25291, operation: "write")),
+        .storage(KeychainError(status: -25291, operation: "write")), .anotherPersonSignedIn(server: "chat.example.com"),
     ]
     private static let notices: [Notice.Kind] =
         [ServerAddress.Problem.empty, .unreadable, .notAWebAddress, .hasCredentials, .hasMoreThanAHost, .insecure]
         .map { .invalidAddress($0) } + signIns.map { .signInFailed($0) } + [
             .sessionExpired, .sessionEndsSoon(Date(timeIntervalSince1970: 0)), .sessionEndedByServer,
-            .signedOutElsewhere, .serverNotTold, .signOutEverywhereFailed, .signOutFailed, .unsentLost(2),
+            .signedOutElsewhere, .serverNotTold, .signOutEverywhereFailed, .signOutFailed, .dataNotWiped,
+            .accountErased, .accountPossiblyErased,
+            .unsentLost(2),
             .unrestorable(1), .outboxCorrupt, .storageProblem, .originMismatch, .sendTooLong, .tooManyFiles,
             .readFailed, .loginItemFailed, .sendHeld(""), .sendHeld("# general"), .saveFailed, .fileNotWritten,
             .filesNotRead(["a.pdf", "b.png"]), .savedFull, .pinFailed, .pinsFull, .bookmarkFailed, .unreadFailed,
@@ -35,12 +37,23 @@ struct EngineWordsTests {
         .tooManyWaiting, .noConnection, .busy, .storageUnavailable, .sessionEnded, .noAccess, .unknown,
     ]
 
+    private static let erasures: [EraseAccountResult] = [
+        .reauthenticationRequired, .lastOwner(workspaceIDs: []),
+        .lastOwner(workspaceIDs: [Uuid("0199155c-6200-7b7f-8c11-0000000000aa")!]), .confirmationMismatch, .refused,
+        .sessionEnded, .unconfirmed, .failed,
+    ]
+
+    private static let reauthentications: [ReauthenticationResult] = [
+        .differentPerson, .failed(.codeRejected), .notSignedIn,
+    ]
+
     /// Every sentence the engine's words can say, with what it takes to say the ones that carry a value.
     private static var everySentence: [LocalizedStringResource] {
         EngineWords.fixed
             + problems.flatMap { [EngineWords.problem($0).title, EngineWords.problem($0).detail] }
             + signIns.compactMap(EngineWords.signIn) + notices.compactMap(EngineWords.notice)
-            + uploads.map(EngineWords.upload)
+            + uploads.map(EngineWords.upload) + erasures.compactMap(EngineWords.erasure)
+            + reauthentications.compactMap(EngineWords.reauthentication)
     }
 
     private func text(_ resource: LocalizedStringResource, in language: String) -> String {
@@ -96,6 +109,9 @@ struct EngineWordsTests {
         let minimum = ClientMinimum(appVersion: "9.0.0", contractVersion: nil, downloadUrl: nil)
         #expect(text(EngineWords.problem(.appTooOld(minimum)).detail, in: "en") == "It needs version 9.0.0 or newer.")
         #expect(text(EngineWords.problem(.appTooOld(minimum)).detail, in: "tr").contains("9.0.0"))
+        let refused = EngineWords.signIn(.anotherPersonSignedIn(server: "chat.example.com"))
+        #expect(refused.map { text($0, in: "en") } == "Sign out of chat.example.com first to use another account.")
+        #expect(refused.map { text($0, in: "tr") }?.contains("chat.example.com") == true)
         let held = EngineWords.notice(.sendHeld("# general"))
         #expect(held.map { text($0, in: "tr") }?.contains("# general") == true)
     }
@@ -107,5 +123,46 @@ struct EngineWordsTests {
         #expect(text(one, in: "en").hasPrefix("1 unsent message was removed"))
         #expect(text(two, in: "en").hasPrefix("2 unsent messages were removed"))
         #expect(text(two, in: "tr").contains("2 gönderilmemiş mesaj"))
+    }
+
+    @Test("an erasure that did not happen says why, and one that did says nothing here: the notice says it")
+    func erasures() {
+        #expect(EngineWords.erasure(.erased) == nil)
+        #expect(EngineWords.erasure(.possiblyErased) == nil, "the notice says it, as for an erasure")
+        for result in Self.erasures {
+            let words = EngineWords.erasure(result).map { text($0, in: "en") }
+            #expect(words?.isEmpty == false, "\(result)")
+        }
+        #expect(EngineWords.notice(.accountErased).map { text($0, in: "tr") } == "Hesabın silindi.")
+        let probable = EngineWords.notice(.accountPossiblyErased).map { text($0, in: "en") } ?? ""
+        #expect(!probable.contains("Sign in"), "an erased account that signs in again is a new account: not invited")
+    }
+
+    @Test("a wipe that failed says when it is tried again as the engine does: the next sign-out, or another's sign-in")
+    func dataNotWipedSaysWhen() {
+        let words = EngineWords.notice(.dataNotWiped).map { text($0, in: "en") }
+        #expect(
+            words
+                == "Some of your data on this device could not be removed. Purlay tries again when you next sign out, or when someone else signs in here."
+        )
+    }
+
+    @Test("a sign-in again that did not happen says why; one that did, or that the person closed, says nothing")
+    func reauthentications() {
+        #expect(EngineWords.reauthentication(.done) == nil)
+        #expect(EngineWords.reauthentication(.failed(.cancelled)) == nil)
+        for result in Self.reauthentications {
+            #expect(EngineWords.reauthentication(result).map { text($0, in: "en") }?.isEmpty == false, "\(result)")
+        }
+    }
+
+    @Test("the workspaces a last owner must hand over are counted in the form their number takes")
+    func lastOwnerPlurals() throws {
+        let ids = ["0199155c-6200-7b7f-8c11-0000000000aa", "0199155c-6200-7b7f-8c11-0000000000bb"].compactMap(Uuid.init)
+        let one = try #require(EngineWords.erasure(.lastOwner(workspaceIDs: Array(ids.prefix(1)))))
+        let two = try #require(EngineWords.erasure(.lastOwner(workspaceIDs: ids)))
+        #expect(text(one, in: "en").hasPrefix("You are the last owner of 1 workspace with other people in it."))
+        #expect(text(two, in: "en").hasPrefix("You are the last owner of 2 workspaces with other people in them."))
+        #expect(text(two, in: "tr").contains("2 çalışma alanının son sahibisin"))
     }
 }

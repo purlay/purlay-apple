@@ -101,6 +101,55 @@ struct DesktopSessionsTests {
         #expect(first.me == nil && first.engine == nil)
     }
 
+    @Test("signing out of one workspace removes what every workspace of the server kept: drafts, outboxes and previews")
+    func signOutWipesEveryScope() async throws {
+        let h = ModelHarness()
+        try h.rememberedSession()
+        let desktop = desktop(h)
+        await desktop.launch()
+        let first = desktop.active
+        let place = try #require(Uuid(channel(1)))
+        first.setDraft("workspace one", for: place)
+        #expect(first.send("queued in one"))
+        await addSecond(desktop)
+        let studio = desktop.active
+        studio.setDraft("workspace two", for: place)
+        #expect(studio.send("queued in two"))
+        #expect(first.previewsDirectory != studio.previewsDirectory, "each workspace keeps its own copies")
+        for model in [first, studio] {
+            try FileManager.default.createDirectory(at: model.previewsDirectory, withIntermediateDirectories: true)
+        }
+        _ = await studio.signOut(.thisDevice)
+        await h.settle()
+        for model in [first, studio] {
+            #expect(model.draft(for: place).isEmpty)
+            let outbox = model.environment.dataDirectory.appendingPathComponent("outbox", isDirectory: true)
+            #expect(!FileManager.default.fileExists(atPath: outbox.path), "\(outbox.path)")
+            #expect(!FileManager.default.fileExists(atPath: model.previewsDirectory.path))
+        }
+    }
+
+    @Test("a session the server ended in one workspace keeps what every workspace kept, for the next sign-in")
+    func serverEndKeepsEveryScope() async throws {
+        let h = ModelHarness()
+        try h.rememberedSession()
+        let desktop = desktop(h)
+        await desktop.launch()
+        let first = desktop.active
+        let place = try #require(Uuid(channel(1)))
+        first.setDraft("workspace one", for: place)
+        await addSecond(desktop)
+        let studio = desktop.active
+        h.server.edit { $0.sessionValid = false }
+        await studio.refreshAccount()
+        await h.settle()
+        #expect(first.phase == .signedOut && studio.phase == .signedOut)
+        #expect(
+            first.environment.preferences.string(
+                for: Drafts.key(user: try #require(Uuid(FakeServer.userID)), channel: place, parent: nil))
+                == "workspace one")
+    }
+
     @Test("launch restores every workspace, its selected session, and scoped drafts")
     func restore() async throws {
         let h = ModelHarness()

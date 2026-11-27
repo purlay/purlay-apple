@@ -318,12 +318,12 @@ private struct FileChip: View {
     }
 }
 
-/// Files Quick Look can open: the bytes written once into the app's caches under the file's own (made safe) name.
+/// Files Quick Look can open: the bytes written once into the session's caches (`AppModel.previewsDirectory`, removed when the
+/// person signs out) under the file's own (made safe) name.
 enum QuickLookFiles {
     @MainActor
     static func url(model: AppModel, attachment: PurlayContract.Attachment) async -> URL? {
-        guard let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
-        let folder = base.appending(path: "Previews/\(attachment.id.value)", directoryHint: .isDirectory)
+        let folder = model.previewsDirectory.appending(path: attachment.id.value, directoryHint: .isDirectory)
         let url = folder.appending(path: UploadRules.savingName(attachment.fileName))
         if FileManager.default.fileExists(atPath: url.path) { return url }
         guard let data = await model.attachmentData(attachment, thumbnail: false) else { return nil }

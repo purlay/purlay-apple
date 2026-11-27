@@ -148,6 +148,13 @@ public final class Engine {
 
     public func start() { connection.start() }
 
+    /// Opens the socket again, on the session in use now: a sign-in again replaced it, and the old socket, still on the old
+    /// session, is let go before that session is ended, so its ending is not heard as this one's.
+    public func reconnect() {
+        connection.stop()
+        connection.start()
+    }
+
     public func stop() {
         connection.stop()
         sends.stop()
@@ -217,6 +224,8 @@ public final class Engine {
     public func retry(_ id: Uuid) { sends.retry(id) }
     public func discard(_ id: Uuid) { sends.discard(id) }
     public var pending: [PendingMessage] { sends.pending }
+    /// The outbox is being removed with the rest of what the person kept: nothing more is written to it.
+    public func forgetOutbox() { sends.forgetOutbox() }
 
     /// Asks again for every channel whose live updates were refused or interrupted: unwatched and watched again, each is subscribed from
     /// its cursor as if new.

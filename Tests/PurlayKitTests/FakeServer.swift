@@ -114,6 +114,24 @@ final class FakeServer: HTTPTransport {
         var olderDelay: Int?
         var reactionDelay: Int?
         var logoutStatus = 204
+        /// What `POST /api/me/erase` answers: its status and error body; `204` ends the session as the server does.
+        var eraseStatus = 204
+        var eraseError: String?
+        var beforeEraseResponse: (@Sendable () async -> Void)?
+        /// What `POST /api/channels/{id}/messages` answers when set: a send over HTTP that is not taken.
+        var sendMessageStatus: Int?
+        /// Runs while `POST /auth/logout` is at the server, before it answers: what happens during a sign-out's round trip.
+        var beforeLogoutResponse: (@Sendable () async -> Void)?
+        /// What the transport throws for `POST /api/me/erase` after the server received it: an answer lost on the way back.
+        var eraseThrows: TransportError?
+        /// The person `/api/me` names: their username as the server keeps it.
+        var username = "ada"
+        /// The session value the next sign-in hands out; the usual one when nil.
+        var nextSession: String?
+        /// Sessions ended one by one (`/auth/logout` with that cookie): refused as any ended session is.
+        var revoked: Set<String> = []
+        /// Whose each session is, when not the usual person's: a browser that signed in somebody else.
+        var userIDBySession: [String: String] = [:]
         var online = true
         var sessionValid = true
         var readStatus = 200
@@ -227,10 +245,11 @@ final class FakeServer: HTTPTransport {
         deepWorkUntil: String? = nil, role: String = "member", mustEnrolTwoFactor: Bool = false,
         nameFromGitHub: Bool = false, scheduledDeletions: [WorkspaceDeletion] = [], awayChosen: Bool = false,
         modules: [String] = ["chat", "issues"], workspaceModules: [String]? = nil,
-        profile: String = #"{"title":null,"timeZone":null,"status":null}"#
+        profile: String = #"{"title":null,"timeZone":null,"status":null}"#, username: String = "ada",
+        userID: String = userID
     ) -> String {
         """
-        {"user":{"id":"\(userID)","username":"ada","displayName":"Ada","avatarUrl":null,"email":"ada@example.test"},\
+        {"user":{"id":"\(userID)","username":"\(username)","displayName":"Ada","avatarUrl":null,"email":"ada@example.test"},\
         "profile":\(profile),\
         "memberships":[{"workspace":{"id":"\(workspaceID)","name":"Acme","slug":"acme","avatarUrl":null},"role":"\(role)",\
         "joinedAt":"2026-10-09T12:00:00.000Z","deepWorkUntil":\(deepWorkUntil.map { "\"\($0)\"" } ?? "null")\(workspaceModules.map { ",\"modules\":\(encoded($0))" } ?? "")}],"mayCreateWorkspace":false,"isServerAdmin":false,\
@@ -246,9 +265,10 @@ final class FakeServer: HTTPTransport {
         }
         guard snapshot.online else { throw TransportError.offline }
         let path = request.url.path
-        let hasSession =
-            request.headers["Cookie"] == "__Host-purlay_session=\(Self.sessionValue)"
-            || request.headers["Cookie"]?.hasPrefix("__Host-purlay_session=") == true
+        let cookie = request.headers["Cookie"].flatMap { header in
+            header.hasPrefix("__Host-purlay_session=") ? String(header.dropFirst("__Host-purlay_session=".count)) : nil
+        }
+        let hasSession = cookie.map { !snapshot.revoked.contains($0) } ?? false
         func json(_ status: Int, _ body: String) -> HTTPResponse {
             HTTPResponse(status: status, headers: ["Content-Type": "application/json"], body: Data(body.utf8))
         }
@@ -368,10 +388,14 @@ final class FakeServer: HTTPTransport {
                 return json(snapshot.tokenStatus, #"{"error":{"code":"NATIVE_CODE_NOT_FOUND","message":"x"}}"#)
             }
             // A new sign-in makes a session: one that was signed out is valid again.
-            state.withLock { $0.sessionValid = true }
+            let issued = snapshot.nextSession ?? Self.sessionValue
+            state.withLock {
+                $0.sessionValid = true
+                $0.revoked.remove(issued)
+            }
             let headers =
                 snapshot.cookieOnToken
-                ? ["Set-Cookie": "__Host-purlay_session=\(Self.sessionValue); Path=/; Max-Age=2592000; HttpOnly"] : [:]
+                ? ["Set-Cookie": "__Host-purlay_session=\(issued); Path=/; Max-Age=2592000; HttpOnly"] : [:]
             return HTTPResponse(status: 204, headers: headers)
         case ("PATCH", "/api/me/profile"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
@@ -395,7 +419,9 @@ final class FakeServer: HTTPTransport {
                     deepWorkUntil: snapshot.deepWorkUntil, role: snapshot.role,
                     mustEnrolTwoFactor: snapshot.mustEnrolTwoFactor, nameFromGitHub: snapshot.nameFromGitHub,
                     scheduledDeletions: snapshot.scheduledDeletions, awayChosen: snapshot.awayChosen,
-                    modules: snapshot.modules, workspaceModules: snapshot.workspaceModules, profile: snapshot.profile))
+                    modules: snapshot.modules, workspaceModules: snapshot.workspaceModules, profile: snapshot.profile,
+                    username: snapshot.username, userID: cookie.flatMap { snapshot.userIDBySession[$0] } ?? Self.userID)
+            )
         case ("GET", "/api/workspaces/\(Self.workspaceID)/channels"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
             if snapshot.channelsStatus == 404 {
@@ -1152,7 +1178,25 @@ final class FakeServer: HTTPTransport {
                 return json(snapshot.readStatus, #"{"error":{"code":"INTERNAL","message":"x"}}"#)
             }
             return json(200, #"{"lastReadMessageId":"\#(id)","unreadCount":0,"unreadMentionCount":0}"#)
-        case ("POST", "/auth/logout"), ("POST", "/auth/logout-all"):
+        case ("POST", _)
+        where snapshot.sendMessageStatus != nil && path.hasPrefix("/api/channels/") && path.hasSuffix("/messages"):
+            return json(snapshot.sendMessageStatus ?? 503, #"{"error":{"code":"DATABASE_UNAVAILABLE","message":"x"}}"#)
+        case ("POST", "/api/me/erase"):
+            guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            await snapshot.beforeEraseResponse?()
+            if let lost = snapshot.eraseThrows { throw lost }
+            if snapshot.eraseStatus == 204 {
+                state.withLock { $0.sessionValid = false }
+                return HTTPResponse(status: 204)
+            }
+            return json(snapshot.eraseStatus, snapshot.eraseError ?? #"{"error":{"code":"INTERNAL","message":"x"}}"#)
+        case ("POST", "/auth/logout"):
+            await snapshot.beforeLogoutResponse?()
+            // Ends the session it was sent with, and no other.
+            if snapshot.logoutStatus == 204, let cookie { state.withLock { _ = $0.revoked.insert(cookie) } }
+            return HTTPResponse(status: snapshot.logoutStatus)
+        case ("POST", "/auth/logout-all"):
+            await snapshot.beforeLogoutResponse?()
             if snapshot.logoutStatus == 204 { state.withLock { $0.sessionValid = false } }
             return HTTPResponse(status: snapshot.logoutStatus)
         default:

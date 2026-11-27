@@ -47,7 +47,7 @@ let package = Package(
 
         tests("PurlayContractTests", ["PurlayContract"]),
         tests("PurlayTokensTests", ["PurlayTokens"]),
-        tests("PurlayKitTests", ["PurlayKit"]),
+        tests("PurlayKitTests", ["PurlayKit", "PurlayTestSupport"]),
         tests("PurlayTestSupportTests", ["PurlayTestSupport", "PurlayKit", "PurlayContract"]),
         tests("PurlayDesignTests", ["PurlayDesign"]),
         tests("PurlayModuleAPITests", ["PurlayModuleAPI"]),

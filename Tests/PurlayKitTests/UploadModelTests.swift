@@ -1,5 +1,6 @@
 import Foundation
 import PurlayContract
+import PurlayTestSupport
 import Synchronization
 import Testing
 
@@ -306,6 +307,70 @@ struct UploadModelTests {
         try? await Task.sleep(for: .milliseconds(50))
         #expect(!h.model.isWaiting(channel: one, parent: nil))
         #expect(messageFrames(h).isEmpty)
+    }
+
+    @Test("a waiting send whose file lands while the sign-out is telling the server is not sent")
+    func signOutWipeHoldsTheSend() async throws {
+        let h = await opened()
+        h.server.edit { $0.uploadDelays["slow.txt"] = 60 }
+        let slow = await inFlight(h, "slow.txt")
+        #expect(h.model.send("late"))
+        // The file lands while the server is being told: the logout answers only once the upload is done.
+        h.server.edit { $0.beforeLogoutResponse = { await slow.value } }
+        _ = await h.model.signOut(.thisDevice)
+        #expect(messageFrames(h).isEmpty, "\(messageFrames(h))")
+        #expect(!h.server.requests.contains { $0.method == "POST" && $0.url.path.hasSuffix("/messages") })
+    }
+
+    @Test("a message already in the outbox is not sent while the sign-out is telling the server")
+    func outboxNotSentDuringLogout() async throws {
+        let h = ModelHarness()
+        await h.model.connect()
+        await h.model.signIn()
+        await h.settle()
+        let posts = { h.server.requests.count { $0.method == "POST" && $0.url.path.hasSuffix("/messages") } }
+        // A send over HTTP is not taken (the server is busy): the message stays in the outbox, to be tried again.
+        h.server.edit { $0.sendMessageStatus = 503 }
+        // The socket has not opened: the message waits in the outbox (its HTTP try, if any, was not answered as sent).
+        #expect(h.model.send("queued"))
+        await h.settle()
+        #expect(h.model.unsentMessageCount == 1)
+        let postsBefore = posts()
+        h.server.edit {
+            $0.beforeLogoutResponse = {
+                // The connection comes back while the server is told, and every timer the sender set falls due.
+                await MainActor.run { h.last.handlers.opened() }
+                await h.advance(milliseconds: 120_000)
+            }
+        }
+        _ = await h.model.signOut(.thisDevice)
+        await h.settle()
+        let frames = h.sockets.reduce(0) { $0 + $1.sent.count { $0.contains("MESSAGE_SEND") } }
+        #expect(frames == 0, "the outbox's message went out after the person accepted it would be removed")
+        #expect(posts() == postsBefore, "the outbox's message was sent again over HTTP during the sign-out")
+    }
+
+    @Test("a sign-out that does not happen lets the held send go once its file lands")
+    func failedSignOutReleasesTheSend() async throws {
+        let h = await opened()
+        h.server.edit { $0.uploadDelays["slow.txt"] = 60 }
+        let slow = await inFlight(h, "slow.txt")
+        #expect(h.model.send("late"))
+        h.server.edit {
+            $0.beforeLogoutResponse = { await slow.value }
+            $0.logoutStatus = 500
+        }
+        #expect(await h.model.signOut(.everywhere) == .notDone("the server could not be reached"))
+        #expect(h.model.phase == .ready)
+        #expect(!h.model.isWaiting(channel: one, parent: nil), "the held send went to the engine")
+        h.last.handlers.opened()
+        _ = await eventually {
+            !messageFrames(h).isEmpty || h.server.requests.contains { $0.url.path.hasSuffix("/messages") }
+        }
+        #expect(
+            messageFrames(h).count
+                + h.server.requests.count { $0.method == "POST" && $0.url.path.hasSuffix("/messages") }
+                >= 1, "the person's message was dropped by a sign-out that did not happen")
     }
 
     @Test(

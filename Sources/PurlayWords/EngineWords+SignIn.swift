@@ -20,6 +20,8 @@ extension EngineWords {
         case .unreachable: return LocalizedStringResource("The server could not be reached.", bundle: .module)
         case .storage:
             return LocalizedStringResource("The session could not be saved to your Keychain.", bundle: .module)
+        case .anotherPersonSignedIn(let server):
+            return LocalizedStringResource("Sign out of \(server) first to use another account.", bundle: .module)
         }
     }
 }

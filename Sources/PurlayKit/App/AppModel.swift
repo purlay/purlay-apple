@@ -13,9 +13,17 @@ public struct Notice: Equatable, Identifiable, Sendable {
         case sessionEndsSoon(Date)
         case sessionEndedByServer
         case signedOutElsewhere
+        /// The person's account was erased, and this app signed out with it.
+        case accountErased
+        /// The session ended after an erasure whose answer never came: the account is very likely gone, and this app signed
+        /// out and removed what it kept of the person (`EraseAccountResult.possiblyErased`).
+        case accountPossiblyErased
         /// This device is signed out and the server could not be told: its session lives until it expires or is ended from elsewhere.
         case serverNotTold
         case signOutEverywhereFailed
+        /// Some of what the app kept of the person on this device could not be removed: it is tried again at the next sign-out,
+        /// or the next sign-in of another person.
+        case dataNotWiped
         /// Signing out here could neither reach the server nor remove the sign-in from this Mac: still signed in.
         case signOutFailed
         case unsentLost(Int)
@@ -100,7 +108,12 @@ public final class AppModel {
         didSet { onPhaseChange?() }
     }
     @ObservationIgnored var onPhaseChange: (() -> Void)?
-    @ObservationIgnored var onSessionEnded: (() -> Void)?
+    /// The session ended here. `removedDataOf`: the id of the person who signed out or whose account was erased, and whose data
+    /// this session removed; nil when the server ended it (that data waits for their next sign-in).
+    @ObservationIgnored var onSessionEnded: ((_ removedDataOf: String?) -> Void)?
+    /// The other sessions of this app on the same server (the Mac's workspaces), which share one credential and one person
+    /// (ADR 0011). None on iOS.
+    @ObservationIgnored var sharedServer: SharedServer?
     private let preferredWorkspaceID: Uuid?
     public private(set) var server: ServerAddress?
     public private(set) var serverInfo: ClientInfo?
@@ -132,11 +145,72 @@ public final class AppModel {
     var api: PurlayAPI?
     @ObservationIgnored weak var sessionOwner: AppModel?
     @ObservationIgnored private var conversationWindows: [WeakConversationModel] = []
-    /// A sign-out or an account read under way: one asked for meanwhile (a second click, the Mac's Check Again beside its
-    /// activation) waits for it and shares its answer instead of asking the server again. Signing out and refreshing leave the
-    /// phase `.ready` while the server answers, so the phase cannot say they are under way.
-    @ObservationIgnored private var signingOut: Task<SessionManager.SignOutResult, Never>?
+    /// What is ending the session, one at a time: a sign-out, or an erasure of the account (asked here, or said by the
+    /// socket). One asked for meanwhile waits for it instead of racing it, so the wipers and `onSessionEnded` run once. Both
+    /// leave the phase `.ready` while the server answers, so the phase cannot say they are under way. While one runs, a session
+    /// the server ends is its to say (an erasure's `SESSION_ENDED` can come before its `204`), so the observer leaves it alone.
+    private enum Ending {
+        case signingOut(Task<SessionManager.SignOutResult, Never>)
+        case erasing(Task<EraseAccountResult, Never>)
+    }
+    @ObservationIgnored private var ending: Ending?
+    /// The socket said `account-deleted` while this app's erasure was out: the account is gone, whatever its answer says.
+    @ObservationIgnored private var erasedBySocket = false
+    /// An erasure left and its answer never came (`EraseAccountResult.unconfirmed`). Until the session ends, an end the
+    /// server gives without a reason (a `401`, a refused socket) is read as that erasure's (`possiblyErased`), never as "sign
+    /// in again", which would make a new account. A reason the socket gives settles it: `account-deleted` is the erasure,
+    /// `signed-out` and `expired` prove the account was still there. A successful read does not, since the erasure may still
+    /// be waiting on the server to commit. Kept as the person's id under the server (`unconfirmedErasureKey(for:)`) in the
+    /// preferences every session of the app shares, so whichever of the Mac's workspaces hears the end applies it, and a
+    /// relaunch keeps it; it counts only for the same person, and a launch without a session or a new sign-in forgets it.
+    private var erasureUnconfirmed: Bool {
+        guard let server, let person = personHere else { return false }
+        return environment.sharedPreferences.string(for: Self.unconfirmedErasureKey(for: server)) == person
+    }
+
+    static func unconfirmedErasureKey(for server: ServerAddress) -> String {
+        "purlay.erasure.unconfirmed.\(server.description)"
+    }
+
+    private func markErasureUnconfirmed() {
+        guard let server, let person = me?.user.id.value else { return }
+        environment.sharedPreferences.set(person, for: Self.unconfirmedErasureKey(for: server))
+    }
+
+    private func forgetUnconfirmedErasure() {
+        guard let server else { return }
+        environment.sharedPreferences.set(nil, for: Self.unconfirmedErasureKey(for: server))
+    }
+
+    /// Who this session is: the person read, or while it is read, the owner of what it kept.
+    var personHere: String? {
+        me?.user.id.value ?? (heldSession == nil ? nil : environment.owner.load())
+    }
+
+    /// A sign-out or an erasure is ending this session.
+    var isEndingSession: Bool { ending != nil }
+
+    /// The session in use here: the credential the Keychain keeps once it is known whose it is.
+    @ObservationIgnored private(set) var heldSession: StoredSession?
+    /// A browser sign-in's session on the Mac, not yet kept: it is written to the Keychain once `/api/me` says whose it is,
+    /// and only if it is the person the server's other workspaces hold (ADR 0011). A first read that fails leaves it here,
+    /// and Try Again (`connect()`) reads again with it; a model that lets it go without keeping it ends it on the server.
+    @ObservationIgnored private var unkeptCredential: StoredSession?
+    /// A browser sign-in here is not yet known to be whose.
+    var hasUnkeptSession: Bool { unkeptCredential != nil }
+    /// A sign-out is under way: a send waiting for its files does not go, so nothing is delivered after the person accepted
+    /// that what is unsent is removed. Released if the sign-out does not happen.
+    @ObservationIgnored var sendsHeld = false
+    /// An account read under way: one asked for meanwhile (the Mac's Check Again beside its activation) waits for it and
+    /// shares its answer instead of asking the server again.
     @ObservationIgnored var refreshingAccount: Task<Void, Never>?
+    /// A sign-in again under way: one asked for meanwhile waits for it and shares its answer, so one browser is opened.
+    @ObservationIgnored private var reauthenticating: Task<ReauthenticationResult, Never>?
+    /// When this run signed the person in through the browser (`signIn`, `reauthenticate`); nil for a session restored at
+    /// launch, whose age the app does not know.
+    private var signedInAt: Date?
+    /// How long before the server's limit a sign-in is no longer called recent: the request takes time to arrive.
+    static let erasureSignInMargin: TimeInterval = 60
     private var observation: Task<Void, Never>?
     private var noticeCounter = 0
     private var launched = false
@@ -567,12 +641,79 @@ public final class AppModel {
         let client = environment.transport
         let version = environment.appVersion
         return SessionManager(
-            store: environment.sessions, owner: environment.owner, log: environment.log, wipers: [],
+            store: environment.sessions, owner: environment.owner, log: environment.log,
+            wipers: personalDataWipers() + environment.wipers,
             now: environment.clock,
             endSession: { [weak self] scope in
                 guard let self else { return }
                 try await self.endServerSession(scope, client: client, version: version, address: address)
-            })
+            },
+            onWipeFailure: { [weak self] _ in await self?.say(.dataNotWiped) })
+    }
+
+    /// What the engine itself keeps of the person under this environment, removed before what the app names: the drafts in
+    /// its preferences, the outbox in its data (the sender stopped writing it first) and the Quick Look copies in its caches.
+    /// Made from this model's environment, which the Mac scopes per workspace session.
+    private func personalDataWipers() -> [any UserDataWiper] {
+        [
+            DraftsWiper(preferences: environment.preferences),
+            FolderWiper(
+                FileOutboxStore.directory(in: environment.dataDirectory),
+                stopWriting: { [weak self] in await self?.stopSendingForWipe() }),
+            FolderWiper(previewsDirectory),
+        ]
+    }
+
+    /// A browser sign-in's session, kept apart until it is known whose (`AppEnvironment.pendingSessions`). A Keychain that
+    /// refuses it is logged: the session still lives in memory, and only a quit before it is kept would lose it.
+    private func rememberPendingSession(_ session: StoredSession, for server: ServerAddress) {
+        do {
+            try environment.pendingSessions?.save(session, for: server)
+        } catch {
+            environment.log.session.error(
+                "a pending sign-in could not be kept: \(String(describing: type(of: error)), privacy: .public)")
+        }
+    }
+
+    private func loadPendingSession(for server: ServerAddress) -> StoredSession? {
+        do {
+            return try environment.pendingSessions?.load(for: server)
+        } catch {
+            environment.log.session.error(
+                "a pending sign-in could not be read: \(String(describing: type(of: error)), privacy: .public)")
+            return nil
+        }
+    }
+
+    private func forgetPendingSession(for server: ServerAddress) {
+        do {
+            try environment.pendingSessions?.delete(for: server)
+        } catch {
+            environment.log.session.error(
+                "a pending sign-in could not be removed: \(String(describing: type(of: error)), privacy: .public)")
+        }
+    }
+
+    /// Nothing more is sent from this session, from the moment a sign-out of its server starts (here, or in another of the
+    /// Mac's workspaces of the server).
+    func holdSends() {
+        sendsHeld = true
+        engine?.stop()
+    }
+
+    /// The sign-out did not happen: what was held goes on as before.
+    func releaseSends() {
+        sendsHeld = false
+        engine?.start()
+        for place in waitingSends.keys { settleWaitingSend(place) }
+    }
+
+    /// The person's data is being removed, so the session is ending: nothing more is sent (a send waiting for its files is
+    /// let go, the engine stops) and nothing more is written to the outbox, before the outbox goes.
+    private func stopSendingForWipe() {
+        waitingSends = [:]
+        engine?.forgetOutbox()
+        engine?.stop()
     }
 
     private func endServerSession(
@@ -588,11 +729,37 @@ public final class AppModel {
     private func resumeOrAskToSignIn(_ address: ServerAddress) async {
         let manager = makeManager(for: address)
         self.manager = manager
+        // A browser sign-in whose first read was lost: read again with it, rather than look in a Keychain that does not have it.
+        if let pending = unkeptCredential {
+            guard pending.origin == origin?.description else {
+                unkeptCredential = nil
+                await endSession(holding: pending.cookie, on: address)
+                return await resumeOrAskToSignIn(address)
+            }
+            await manager.adopt(pending, for: address)
+            heldSession = pending
+            observe(manager)
+            await bootstrap()
+            return
+        }
+        // One the app was quit with: read again with it, unless a session is kept for the server already (one session per
+        // server), in which case it is ended.
+        if sharedServer != nil, let stored = loadPendingSession(for: address) {
+            if (try? environment.sessions.load(for: address)) ?? nil != nil {
+                forgetPendingSession(for: address)
+                await endSession(holding: stored.cookie, on: address)
+            } else {
+                unkeptCredential = stored
+                return await resumeOrAskToSignIn(address)
+            }
+        }
         do {
             let state = try await manager.restore(for: address)
             if case .signedOut(.expired) = state { say(.sessionExpired) }
             if case .signedIn(let session, _) = state {
-                cookieCache = session.cookie
+                heldSession = session
+                // An erasure whose answer never came before the app was quit stays unconfirmed for its person only.
+                if !erasureUnconfirmed { forgetUnconfirmedErasure() }
                 observe(manager)
                 await bootstrap()
                 return
@@ -600,26 +767,46 @@ public final class AppModel {
         } catch {
             say(.storageProblem)
         }
+        // No session to apply an unconfirmed erasure to: whoever signs in next starts clean.
+        forgetUnconfirmedErasure()
         phase = .signedOut
     }
 
-    /// Signs in through the system browser.
+    /// Signs in through the system browser. Signed in (or signing in) already, it does nothing: a second session would be
+    /// adopted without the first being ended. Signing in again while signed in is `reauthenticate()`. Another session of
+    /// the app on this server already signed in (the Mac's workspaces) is joined instead, with no browser: one person per
+    /// server (ADR 0011). The session a browser sign-in gets is kept in the Keychain only once `/api/me` says whose it is;
+    /// somebody other than the person the server's other sessions hold is refused (`anotherPersonSignedIn`).
     public func signIn() async {
         if let sessionOwner {
             await sessionOwner.signIn()
             return
         }
-        guard let server, let origin, let manager else { return }
+        guard let server, let origin, let manager, phase != .ready, phase != .loading, phase != .signingIn else {
+            return
+        }
+        // A new sign-in proves the account is there, or is a new account: no earlier unconfirmed erasure applies to it.
+        forgetUnconfirmedErasure()
+        if let joined = sharedServer?.sessionInUse() {
+            await manager.adopt(joined.session, for: server)
+            heldSession = joined.session
+            warnedOfExpiry = false
+            observe(manager)
+            await bootstrap()
+            return
+        }
         phase = .signingIn
-        let flow = NativeSignIn(
-            transport: environment.transport, appVersion: environment.appVersion,
-            platform: environment.identity.platform,
-            authenticator: environment.authenticator,
-            store: environment.sessions, deviceName: environment.deviceName)
+        // With no other session of the server to answer to (iOS), the session is kept at once, as it always was.
+        let flow = signInFlow(keepingIn: sharedServer == nil ? environment.sessions : UnkeptSessions())
         do {
             let session = try await flow.signIn(to: server, origin: origin)
             await manager.adopt(session, for: server)
-            cookieCache = session.cookie
+            heldSession = session
+            if sharedServer != nil {
+                unkeptCredential = session
+                rememberPendingSession(session, for: server)
+            }
+            signedInAt = environment.clock()
             warnedOfExpiry = false
             observe(manager)
             await bootstrap()
@@ -629,40 +816,308 @@ public final class AppModel {
         }
     }
 
+    /// The browser sign-in (PKCE, the system's authentication session), keeping the session it gets in `store`.
+    private func signInFlow(keepingIn store: any SessionStore) -> NativeSignIn {
+        NativeSignIn(
+            transport: environment.transport, appVersion: environment.appVersion,
+            platform: environment.identity.platform, authenticator: environment.authenticator,
+            store: store, deviceName: environment.deviceName)
+    }
+
+    /// Whether erasing the account needs a sign-in again first: the server asks for one within `ERASURE_SIGN_IN_MINUTES`,
+    /// less a minute here for the request to arrive, and a session restored at launch is of an unknown age. A screen goes
+    /// straight to `reauthenticate()` rather than ask and be refused; the server still decides
+    /// (`EraseAccountResult.reauthenticationRequired`).
+    public var erasureNeedsReauthentication: Bool {
+        if let sessionOwner { return sessionOwner.erasureNeedsReauthentication }
+        guard let signedInAt else { return true }
+        let allowed = TimeInterval(ContractConstants.erasureSignInMinutes * 60) - Self.erasureSignInMargin
+        return environment.clock().timeIntervalSince(signedInAt) >= allowed
+    }
+
+    /// Signs the person in again through the browser, as `signIn` does, while they stay signed in: for erasing the account,
+    /// which needs a recent sign-in. The same person carries on with everything here on the new session (nothing is removed,
+    /// the socket opens again on it) and the old session is ended. Somebody else signed in by the browser changes nothing:
+    /// their session is ended at once (`differentPerson`). One asked for meanwhile shares the answer of the one under way.
+    public func reauthenticate() async -> ReauthenticationResult {
+        if let sessionOwner { return await sessionOwner.reauthenticate() }
+        if let reauthenticating { return await reauthenticating.value }
+        let run = Task { await reauthenticateOnce() }
+        reauthenticating = run
+        defer { reauthenticating = nil }
+        return await run.value
+    }
+
+    private func reauthenticateOnce() async -> ReauthenticationResult {
+        guard phase == .ready, ending == nil, sharedServer?.isEnding() != true, let server, let origin, let manager,
+            let me,
+            let old = cookieCache
+        else {
+            return .notSignedIn
+        }
+        // Not kept until it is known to be this person's: the Keychain holds the session in use until then.
+        let fresh: StoredSession
+        do {
+            fresh = try await signInFlow(keepingIn: UnkeptSessions()).signIn(to: server, origin: origin)
+        } catch {
+            return .failed(error)
+        }
+        let whose: MeResponse
+        do {
+            whose = try await api(holding: fresh.cookie, on: server).getMe()
+        } catch {
+            await endSession(holding: fresh.cookie, on: server)
+            return .failed(Self.signInError(error))
+        }
+        // The browser was open for a while: the session here may have ended or been replaced meanwhile, or another session
+        // of the server may be signing out, which would leave the new one in the Keychain after it.
+        guard phase == .ready, ending == nil, sharedServer?.isEnding() != true, cookieCache == old else {
+            await endSession(holding: fresh.cookie, on: server)
+            return .notSignedIn
+        }
+        guard whose.user.id == me.user.id else {
+            await endSession(holding: fresh.cookie, on: server)
+            return .differentPerson
+        }
+        do {
+            try environment.sessions.save(fresh, for: server)
+        } catch {
+            await endSession(holding: fresh.cookie, on: server)
+            return .failed(.storage(error as? KeychainError ?? KeychainError(status: -1, operation: "write")))
+        }
+        await manager.adopt(fresh, for: server)
+        heldSession = fresh
+        signedInAt = environment.clock()
+        warnedOfExpiry = false
+        // The socket moves to the new session before the old one ends, so the old one's ending is not heard here; so does
+        // every other session that holds the old one.
+        engine?.reconnect()
+        await sharedServer?.renew(old, fresh)
+        await endSession(holding: old, on: server)
+        return .done
+    }
+
+    /// Another session of this server signed in again: this one, if it holds the session that is replaced (the same session
+    /// is the same person, whether or not it has read who), moves to the new one before the old one is ended. A ready one
+    /// opens its socket again on it; one still reading, or stopped by a problem, reads again with it.
+    func adoptRenewedSession(_ session: StoredSession, replacing old: String) async {
+        guard heldSession?.cookie == old, let server, let manager else { return }
+        await manager.adopt(session, for: server)
+        heldSession = session
+        signedInAt = environment.clock()
+        switch phase {
+        case .ready: engine?.reconnect()
+        case .loading, .problem:
+            // What the old session was reading is not waited for: it is refused, and that refusal is not this one's.
+            contextGeneration += 1
+            Task { await bootstrap() }
+        case .launching, .checking, .signedOut, .signingIn: break
+        }
+    }
+
+    /// Keeps a browser sign-in's session in the Keychain now that `/api/me` says whose it is. Somebody other than the person
+    /// the server's other sessions hold is refused, and a session that cannot be kept is not used: either way that session
+    /// is ended at once, nothing is written or removed here, and the person is told why. True when it is kept.
+    private func keep(
+        _ session: StoredSession, for me: MeResponse, on server: ServerAddress, manager: SessionManager
+    ) async -> Bool {
+        forgetPendingSession(for: server)
+        let refusal: SignInError
+        let inUse = sharedServer?.sessionInUse()
+        if let other = inUse?.person, other != me.user.id.value {
+            refusal = .anotherPersonSignedIn(server: server.origin.host() ?? server.description)
+        } else if let inUse, inUse.session.cookie != session.cookie {
+            // The same person is already signed in to the server here: one session per server, so this workspace joins it
+            // and the browser's is ended.
+            await manager.adopt(inUse.session, for: server)
+            heldSession = inUse.session
+            await endSession(holding: session.cookie, on: server)
+            return true
+        } else {
+            do {
+                try environment.sessions.save(session, for: server)
+                return true
+            } catch {
+                refusal = .storage(error as? KeychainError ?? KeychainError(status: -1, operation: "write"))
+            }
+        }
+        // Not this app's session after all: its ending is not the server's to say, and nothing of anybody's is removed.
+        observation?.cancel()
+        observation = nil
+        await manager.forgetUnkeptSession()
+        tearDown()
+        phase = .signedOut
+        say(.signInFailed(refusal))
+        await endSession(holding: session.cookie, on: server)
+        return false
+    }
+
+    /// A client of `server` that sends `session`, whatever the session in use is: for a session this app is not using.
+    private func api(holding session: String, on server: ServerAddress) -> PurlayAPI {
+        PurlayAPI(
+            client: APIClient(
+                configuration: APIConfiguration(
+                    baseURL: server.origin,
+                    clientHeader: ClientHeader.value(
+                        appVersion: environment.appVersion, platform: environment.identity.platform),
+                    sessionCookie: { session }),
+                transport: environment.transport, sleep: environment.sleep))
+    }
+
+    /// Ends a session this app is not using (`/auth/logout` with it). One the server could not be told of lives until it
+    /// expires or is ended from the person's sessions list: logged, since nothing here depends on it.
+    private func endSession(holding session: String, on server: ServerAddress) async {
+        do {
+            try await api(holding: session, on: server).logout()
+        } catch {
+            environment.log.session.error(
+                "a session left by signing in again could not be ended: \(String(describing: type(of: error)), privacy: .public)"
+            )
+        }
+    }
+
+    /// What a failure to read whose a new session is says, in the words of a sign-in that failed.
+    private static func signInError(_ error: any Error) -> SignInError {
+        if let error = error as? TransportError { return .unreachable(error) }
+        if let error = error as? APIError {
+            if error.status == 429 { return .rateLimited(retryAfter: error.retryAfter) }
+            return .refused(status: error.status, code: error.code)
+        }
+        return .noSessionInAnswer
+    }
+
+    /// Where a sign-in again leaves its session until it is known to be this person's: nowhere.
+    private struct UnkeptSessions: SessionStore {
+        func load(for server: ServerAddress) throws -> StoredSession? { nil }
+        func save(_ session: StoredSession, for server: ServerAddress) throws {}
+        func delete(for server: ServerAddress) throws {}
+    }
+
     private func observe(_ manager: SessionManager) {
         observation?.cancel()
         observation = Task { @MainActor [weak self] in
             for await state in await manager.states() {
                 guard let self, !Task.isCancelled else { return }
-                if case .signedOut(let reason) = state, phase == .ready || phase == .loading { sessionEnded(reason) }
+                guard case .signedOut(let reason) = state, phase == .ready || phase == .loading, ending == nil else {
+                    continue
+                }
+                if erasureUnconfirmed && reason == .endedByServer {
+                    await endAsErased(.accountPossiblyErased, answering: .possiblyErased)
+                } else {
+                    sessionEnded(reason)
+                }
             }
         }
     }
 
-    private func sessionEnded(_ reason: SessionManager.Reason?) {
+    /// `announce`: false when the caller's own result says it, so the person is not told twice.
+    private func sessionEnded(_ reason: SessionManager.Reason?, announce: Bool = true) {
         tearDown()
         phase = .signedOut
         switch reason {
-        case .expired: say(.sessionExpired)
-        case .endedByServer: say(.sessionEndedByServer)
-        case .signedOutByPerson, .signedOutEverywhere, nil: break
+        case .expired where announce: say(.sessionExpired)
+        case .endedByServer where announce: say(.sessionEndedByServer)
+        case .expired, .endedByServer, .signedOutByPerson, .signedOutEverywhere, .accountErased, nil: break
         }
-        onSessionEnded?()
+        onSessionEnded?(nil)
     }
 
-    /// Ends the session here, or everywhere. The result says whether the server was told.
+    /// The socket's `SESSION_ENDED`. Only an erasure (`account-deleted`) removes what the person kept here: their account is
+    /// gone, and the sign-in the data would wait for cannot come (a returning person is given a new account). Every other
+    /// reason ends the session as the server's, and keeps it.
+    private func socketEndedSession(_ reason: SessionEndedFrame.Payload.Reason, manager: SessionManager) {
+        guard reason == .accountDeleted else {
+            // A reason only a live session is given (`signed-out`, `expired`): the account was still there, so an
+            // unconfirmed erasure did not happen by then, and this is a session the server ended, said as one.
+            if reason == .signedOut || reason == .expired { forgetUnconfirmedErasure() }
+            Task { await manager.sessionEndedByServer() }
+            return
+        }
+        switch ending {
+        case .erasing:
+            // This app's own erasure, or one already being said: the request says it, as `.erased`, when it ends.
+            erasedBySocket = true
+            Task { await manager.sessionEndedByServer() }
+        case .signingOut(let run):
+            // The sign-out removes everything; one that left the person signed in is ended here after it.
+            Task {
+                _ = await run.value
+                await self.endAsErased(.accountErased, answering: .erased)
+            }
+        case nil:
+            Task { await self.endAsErased(.accountErased, answering: .erased) }
+        }
+    }
+
+    /// Ends a signed-in session as an erasure the server said (the socket, or a session ended after an unconfirmed one),
+    /// holding the ending slot: an erasure asked meanwhile is answered `answer`, and a sign-out waits.
+    private func endAsErased(_ notice: Notice.Kind, answering answer: EraseAccountResult) async {
+        guard ending == nil, phase == .ready || phase == .loading else { return }
+        let run = Task {
+            await endErased(notice)
+            return answer
+        }
+        ending = .erasing(run)
+        _ = await run.value
+        ending = nil
+    }
+
+    /// The account is gone, or very likely gone: this app signs out as a sign-out does, every wiper run once, and says so.
+    private func endErased(_ notice: Notice.Kind) async {
+        let person = me?.user.id.value ?? environment.owner.load()
+        await manager?.accountErased()
+        forgetUnconfirmedErasure()
+        tearDown()
+        phase = .signedOut
+        say(notice)
+        onSessionEnded?(person)
+    }
+
+    /// How many messages the person sent that the server has not yet been heard to have: the outbox, which signing out
+    /// removes. The sign-out screen says it first, so nothing unsent goes without the person knowing.
+    ///
+    /// On the Mac this is the total of every workspace of the server held by the same person, since signing out of one ends
+    /// them all and removes each one's outbox.
+    public var unsentMessageCount: Int {
+        if let sessionOwner { return sessionOwner.unsentMessageCount }
+        return unsentHere + (sharedServer?.unsentElsewhere() ?? 0)
+    }
+
+    /// This session's own unsent messages.
+    var unsentHere: Int { pending.count { $0.delivery != .sent } }
+
+    /// Where this session's Quick Look copies of attachments are kept, under its environment's caches: removed with the rest
+    /// of what the person kept here.
+    public var previewsDirectory: URL {
+        environment.cacheDirectory.appendingPathComponent("Previews", isDirectory: true)
+    }
+
+    /// Ends the session here, or everywhere. The result says whether the server was told. Asked while an erasure is under way,
+    /// it waits for it, and asks the server only if the person is still signed in after it.
     @discardableResult
     public func signOut(_ scope: SignOutScope) async -> SessionManager.SignOutResult {
         if let sessionOwner { return await sessionOwner.signOut(scope) }
-        if let signingOut { return await signingOut.value }
+        switch ending {
+        case .signingOut(let run): return await run.value
+        case .erasing(let run):
+            _ = await run.value
+            guard phase == .ready || phase == .loading else { return .done }
+            return await signOut(scope)
+        case nil: break
+        }
         let run = Task { await signOutOnce(scope) }
-        signingOut = run
-        defer { signingOut = nil }
+        ending = .signingOut(run)
+        defer { ending = nil }
         return await run.value
     }
 
     private func signOutOnce(_ scope: SignOutScope) async -> SessionManager.SignOutResult {
         guard let manager else { return .done }
+        let person = me?.user.id.value ?? environment.owner.load()
+        // From the moment the person asks: nothing more is sent, here or in any workspace of the server, while the server is
+        // told and the data removed.
+        holdSends()
+        sharedServer?.holdSends()
         let result = await manager.signOut(scope)
         switch result {
         case .done: break
@@ -671,17 +1126,89 @@ public final class AppModel {
         case .credentialKept: say(.signOutFailed)
         }
         switch result {
-        case .notDone, .credentialKept: return result
+        case .notDone, .credentialKept:
+            releaseSends()
+            sharedServer?.releaseSends()
+            return result
         case .done, .serverNotTold: break
         }
+        forgetUnconfirmedErasure()
         tearDown()
         phase = .signedOut
-        onSessionEnded?()
+        onSessionEnded?(person)
         return result
     }
 
-    /// Stops this workspace without revoking the shared server credential a second time.
-    func invalidateLocalSession() {
+    /// Erases the person's account (`POST /api/me/erase`): `confirmation` is their username, typed, and one that is not is
+    /// refused here without asking the server. On `erased` (or `possiblyErased`) this app signs out as a sign-out does, every
+    /// wiper run once, and says so; every other answer is the screen's to act on (sign in again and retry, hand a workspace
+    /// over) and changes nothing here, unless the session ended meanwhile. One asked for while one is under way waits for it
+    /// and shares its answer, so the server is asked once: its own confirmation is not looked at, since the one screen that
+    /// asks sends the same. One asked for while a sign-out is under way does not ask the server: the session is ending.
+    public func eraseAccount(confirmation: String) async -> EraseAccountResult {
+        if let sessionOwner { return await sessionOwner.eraseAccount(confirmation: confirmation) }
+        switch ending {
+        case .erasing(let run): return await run.value
+        case .signingOut(let run):
+            switch await run.value {
+            case .done, .serverNotTold: return .sessionEnded
+            case .notDone, .credentialKept: return .failed
+            }
+        case nil: break
+        }
+        let run = Task { await eraseAccountOnce(confirmation: confirmation) }
+        ending = .erasing(run)
+        defer { ending = nil }
+        return await run.value
+    }
+
+    private func eraseAccountOnce(confirmation: String) async -> EraseAccountResult {
+        // Signed out, there is nothing to erase; not yet signed in (launching, loading), asking again later is safe.
+        guard phase == .ready, let api, let manager, let me else {
+            return phase == .signedOut ? .sessionEnded : .failed
+        }
+        // The server compares with JavaScript's `!==`, code unit by code unit, where Swift's `==` would call two spellings of
+        // the same letter equal: what the server would refuse is refused here without a request.
+        guard confirmation.utf8.elementsEqual(me.user.username.utf8) else { return .confirmationMismatch }
+        erasedBySocket = false
+        var result: EraseAccountResult
+        do {
+            try await api.eraseMyAccount(body: EraseAccountRequest(confirm: confirmation))
+            result = .erased
+        } catch {
+            result = EraseAccountResult(error)
+        }
+        if erasedBySocket { result = .erased }
+        switch result {
+        case .erased:
+            await endErased(.accountErased)
+            return .erased
+        case .unconfirmed: markErasureUnconfirmed()
+        // The server read the account and refused: it is still there.
+        case .reauthenticationRequired, .lastOwner, .confirmationMismatch, .refused: forgetUnconfirmedErasure()
+        case .failed, .sessionEnded, .possiblyErased: break
+        }
+        // A session that ended while the request was out (a `401`, or the socket) was left to this: ended now, as the
+        // observer would have, and said once, by the result.
+        guard case .signedOut(let reason) = await manager.state, phase == .ready || phase == .loading else {
+            return result
+        }
+        if erasureUnconfirmed {
+            await endErased(.accountPossiblyErased)
+            return .possiblyErased
+        }
+        sessionEnded(reason, announce: false)
+        return .sessionEnded
+    }
+
+    /// Stops this workspace without revoking the shared server credential a second time. `removingData`: the person signed
+    /// out, or was erased, through another workspace of the same server, so what this one kept of them goes too.
+    func invalidateLocalSession(removingDataOf person: String? = nil) {
+        // Only the same person's: a workspace of the server held by somebody else keeps what it kept.
+        if let person, person == (me?.user.id.value ?? environment.owner.load()), let manager {
+            engine?.forgetOutbox()
+            Task { await manager.personLeft() }
+        }
         observation?.cancel()
         observation = nil
         tearDown()
@@ -700,7 +1227,8 @@ public final class AppModel {
                 baseURL: server.origin,
                 clientHeader: ClientHeader.value(
                     appVersion: environment.appVersion, platform: environment.identity.platform),
-                sessionCookie: { await manager.cookie }, onSessionRejected: { await manager.sessionEndedByServer() },
+                sessionCookie: { await manager.cookie },
+                onSessionRejected: { await manager.sessionEndedByServer(rejecting: $0) },
                 onProblem: { [weak self] problem in await self?.recordProblem(problem) }),
             transport: environment.transport, sleep: environment.sleep)
         let api = PurlayAPI(client: client)
@@ -708,6 +1236,10 @@ public final class AppModel {
         do {
             let me = try await api.getMe()
             guard context == contextGeneration else { return }
+            if let unkept = unkeptCredential {
+                unkeptCredential = nil
+                guard await keep(unkept, for: me, on: server, manager: manager) else { return }
+            }
             self.me = me
             await manager.identify(userID: me.user.id.value)
             guard context == contextGeneration else { return }
@@ -820,7 +1352,7 @@ public final class AppModel {
                     try await api.listMessages(channelId: channel.value, query: PageQuery(after: after))
                 },
                 refresh: { [weak self] refresh in self?.handle(refresh) },
-                onSessionEnded: { _ in Task { await session.sessionEndedByServer() } },
+                onSessionEnded: { [weak self] reason in self?.socketEndedSession(reason, manager: session) },
                 onRefused: { [weak self] status in self?.upgradeRefused(status) },
                 onLost: { [weak self] count in self?.say(.unsentLost(count)) },
                 onStorageProblem: { [weak self] _ in self?.say(.storageProblem) },
@@ -832,7 +1364,7 @@ public final class AppModel {
         func save(_ messages: [StoredMessage]) throws {}
     }
 
-    private var cookieCache: String?
+    private var cookieCache: String? { heldSession?.cookie }
 
     private func currentCookie() -> String? { cookieCache }
 
@@ -851,6 +1383,15 @@ public final class AppModel {
     }
 
     private func tearDown() {
+        if let dropped = unkeptCredential, let server {
+            // Never kept and now let go: ended, so it is not left alive on the server with nothing holding it.
+            forgetPendingSession(for: server)
+            Task { await endSession(holding: dropped.cookie, on: server) }
+        }
+        heldSession = nil
+        unkeptCredential = nil
+        sendsHeld = false
+        signedInAt = nil
         awayChange += 1
         for window in liveConversationWindows {
             // Only the session owner stops the connection and clears shared state.
@@ -862,7 +1403,6 @@ public final class AppModel {
         conversationWindows = []
         clearReminders()
         contextGeneration += 1
-        cookieCache = nil
         markedRead = [:]
         marking = []
         closeThread()
@@ -1194,3 +1734,21 @@ extension AppModel {
     }
 }
 #endif
+
+/// What the other sessions of this app on one server share with a session (the Mac's workspaces of that server): one
+/// credential in the Keychain and one person (ADR 0011). `DesktopSessions` makes one for each of its models.
+@MainActor
+struct SharedServer {
+    /// The session another signed-in session of the server holds, and whose it is when known: a sign-in joins it instead of
+    /// opening the browser, and a browser sign-in of anybody else is refused.
+    var sessionInUse: () -> (session: StoredSession, person: String?)?
+    /// Another session of the server is ending (a sign-out, an erasure): a sign-in again does not put a session back.
+    var isEnding: () -> Bool
+    /// Every other session of the server that holds `old` moves to `fresh`.
+    var renew: (_ old: String, _ fresh: StoredSession) async -> Void
+    /// The unsent messages of the other sessions of the server held by the same person: a sign-out here removes them too.
+    var unsentElsewhere: () -> Int = { 0 }
+    /// A sign-out of the server started here: the other sessions send nothing more; released if it does not happen.
+    var holdSends: () -> Void = {}
+    var releaseSends: () -> Void = {}
+}

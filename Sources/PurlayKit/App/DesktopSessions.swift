@@ -207,6 +207,8 @@ public final class DesktopSessions {
             scoped.owner = PreferenceOwner(preferences: scoped.preferences)
             scoped.dataDirectory = environment.dataDirectory.appendingPathComponent(
                 "sessions/\(descriptor.id.uuidString)", isDirectory: true)
+            scoped.cacheDirectory = environment.cacheDirectory.appendingPathComponent(
+                "sessions/\(descriptor.id.uuidString)", isDirectory: true)
         }
         scoped.attention = DesktopAttentionSource(owner: attention, id: descriptor.id.uuidString)
         let model = AppModel(scoped, workspaceID: descriptor.workspace)
@@ -217,18 +219,51 @@ public final class DesktopSessions {
             guard let self, let session else { return }
             self.changed(session)
         }
-        model.onSessionEnded = { [weak self, weak model, weak session] in
+        model.sharedServer = SharedServer(
+            sessionInUse: { [weak self, weak model] in
+                // Only a confirmed session: read (`me`) and kept, never one a browser has just brought back.
+                self?.others(of: model).lazy.compactMap { other in
+                    guard let person = other.me?.user.id.value, !other.hasUnkeptSession, let session = other.heldSession
+                    else { return nil }
+                    return (session: session, person: Optional(person))
+                }.first
+            },
+            isEnding: { [weak self, weak model] in self?.others(of: model).contains { $0.isEndingSession } ?? false },
+            renew: { [weak self, weak model] old, fresh in
+                for other in self?.others(of: model) ?? [] {
+                    await other.adoptRenewedSession(fresh, replacing: old)
+                }
+            },
+            unsentElsewhere: { [weak self, weak model] in
+                guard let person = model?.personHere else { return 0 }
+                return self?.others(of: model).filter { $0.personHere == person }.reduce(0) { $0 + $1.unsentHere } ?? 0
+            },
+            holdSends: { [weak self, weak model] in
+                for other in self?.others(of: model) ?? [] { other.holdSends() }
+            },
+            releaseSends: { [weak self, weak model] in
+                for other in self?.others(of: model) ?? [] { other.releaseSends() }
+            })
+        // Every workspace of a server shares its credential, so one that ends ends them all; what each kept is removed only
+        // when it is the same person's whose data the ending one removed.
+        model.onSessionEnded = { [weak self, weak model, weak session] removedDataOf in
             guard let self, let model, let session else { return }
             if self.pendingLink?.server == model.origin || self.pendingLink?.server == model.server {
                 self.pendingLink = nil
                 self.linkGeneration += 1
             }
             for other in self.sessions where other.model !== model && other.model.origin == model.origin {
-                other.model.invalidateLocalSession()
+                other.model.invalidateLocalSession(removingDataOf: removedDataOf)
                 self.attention.clear(other.id.uuidString)
             }
             self.attention.clear(session.id.uuidString)
         }
+    }
+
+    /// The other workspaces' models of `model`'s server.
+    private func others(of model: AppModel?) -> [AppModel] {
+        guard let model, let origin = model.origin else { return [] }
+        return sessions.map(\.model).filter { $0 !== model && $0.origin == origin }
     }
 
     private func changed(_ session: DesktopSession) {
@@ -271,6 +306,7 @@ private struct ScopedPreferences: PreferenceStore {
     let prefix: String
     func string(for key: String) -> String? { base.string(for: prefix + key) }
     func set(_ value: String?, for key: String) { base.set(value, for: prefix + key) }
+    func removeValues(withPrefix prefix: String) { base.removeValues(withPrefix: self.prefix + prefix) }
 }
 
 private struct PreferenceOwner: OwnerMemory {

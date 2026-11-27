@@ -116,6 +116,8 @@ public final class SendCoordinator {
     private var timers: [Uuid: () -> Void] = [:]
     /// Ids made by a re-mint: a second refusal of one of these is a failure for the person, never another try.
     private var reminted = Set<Uuid>()
+    /// The person's outbox is being removed (a sign-out, an erasure): nothing is written to it again.
+    private var outboxForgotten = false
 
     public static var ackDeadlineMs: Int { ContractConstants.ackDeadlineMs }
 
@@ -340,7 +342,13 @@ public final class SendCoordinator {
         persist()
     }
 
+    /// The outbox is being removed with the rest of what the person kept: a send answered meanwhile does not write it back.
+    public func forgetOutbox() {
+        outboxForgotten = true
+    }
+
     private func persist() {
+        guard !outboxForgotten else { return }
         let kept = pending.filter { $0.delivery != .sent }.map {
             StoredMessage(
                 id: $0.id, channelID: $0.channelID, parentID: $0.parentID, content: $0.content, createdAt: $0.createdAt,
