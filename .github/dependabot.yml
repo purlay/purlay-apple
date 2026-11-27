@@ -8,7 +8,7 @@ updates:
     # A release waits a week before it is proposed: most compromised releases are found and pulled within days.
     cooldown: { default-days: 7 }
     commit-message: { prefix: "chore(ci)" }
-    labels: [dependencies, github_actions]
+    labels: [dependencies, ci]
     groups:
       actions:
         patterns: ["*"]
@@ -19,7 +19,7 @@ updates:
     schedule: { interval: weekly, day: monday, time: "06:00", timezone: Europe/Istanbul }
     cooldown: { default-days: 7 }
     commit-message: { prefix: "chore(deps)" }
-    labels: [dependencies, swift]
+    labels: [dependencies]
     groups:
       swift:
         patterns: ["*"]

@@ -1,6 +1,6 @@
 name: Design
 description: A screen or a flow to design, or a change to one that is designed (docs/design/).
-labels: ["type: design"]
+labels: ["design"]
 body:
   - type: dropdown
     id: platform

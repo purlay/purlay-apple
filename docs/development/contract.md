@@ -27,6 +27,6 @@ difference, so the pin never moves by accident.
 3. With a server checkout at that version: `PURLAY_SERVER_CHECKOUT=~/Projects/purlay scripts/contract-test` (TD-017).
 4. Update the server version the documents name (`docs/product/mac-behaviour.md` "Server features", the NFR-VER row), and the
    changelogs if a person would notice.
-5. One pull request, `feat(contract): speak server X.Y.Z` (or `fix`), closing the contract-drift issue if one is open.
+5. One pull request, `feat(contract): speak server X.Y.Z` (or `fix`), closing the `drift` issue if one is open.
 
 The oldest server a build reads is `CompatibleContracts.minimumServer` in `Sources/PurlayKit/Handshake/Handshake.swift` (0.5.0).

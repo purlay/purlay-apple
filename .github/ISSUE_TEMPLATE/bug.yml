@@ -1,6 +1,6 @@
 name: Bug
 description: Something does not work the way the app or a document says it should.
-labels: ["type: bug"]
+labels: ["bug"]
 body:
   - type: dropdown
     id: platform
