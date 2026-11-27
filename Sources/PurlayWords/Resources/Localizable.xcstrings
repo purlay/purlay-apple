@@ -626,7 +626,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Başka bir hesap kullanmak için önce %@ sunucusundan çıkış yap."
+            "value" : "Başka bir hesap kullanmak için önce %@ sunucusunda oturumu kapat."
           }
         }
       }
@@ -636,7 +636,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu cihazdaki verilerinin bir kısmı silinemedi. Purlay bir sonraki çıkışında ya da burada başka biri giriş yaptığında yeniden dener."
+            "value" : "Bu cihazdaki verilerinin bir kısmı silinemedi. Purlay bir sonraki oturum kapatışında ya da burada başka biri oturum açtığında yeniden dener."
           }
         }
       }
@@ -946,7 +946,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hesabını silmek için önce yeniden giriş yap."
+            "value" : "Hesabını silmek için önce yeniden oturum aç."
           }
         }
       }
@@ -1178,7 +1178,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Farklı bir hesapla giriş yaptın. Bu hesapla yeniden giriş yap."
+            "value" : "Farklı bir hesapla oturum açtın. Bu hesapla yeniden oturum aç."
           }
         }
       }
@@ -1188,7 +1188,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hesabın silinmeden önce oturumun kapandı. Giriş yapıp yeniden dene."
+            "value" : "Hesabın silinmeden önce oturumun kapandı. Oturum açıp yeniden dene."
           }
         }
       }

@@ -195,7 +195,7 @@ The hosted runner's first `xcodebuild` of a job costs some 25–45 s whatever th
 with `scripts/ci/select-xcode` and fails at once if the runner image lacks it or another answers; the simulator lane picks the
 named device by its identifier (`scripts/ci/simulator-destination`). The project's one package, Sparkle, is pinned by revision
 in the committed `Apps/Purlay.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`, so every build and every
-release resolves the same code; Dependabot proposes its updates. The runner label is `xcode-27` (GitHub's image with Xcode
+release resolves the same code; Dependabot does not read the project's packages, so Sparkle's releases are checked by hand (TD-013). The runner label is `xcode-27` (GitHub's image with Xcode
 27.0, 27.1 and 27.2; 27.1 is its default, which cannot read the project). When the image changes:
 [runbook](../runbooks/xcode-update.md).
 

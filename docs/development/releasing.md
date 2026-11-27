@@ -12,6 +12,7 @@ CI already passed.
 | Workflow | `release-macos.yml`: signed, notarized, stapled, a signed Sparkle appcast, a GitHub release, the stable feed | `release-ios.yml`: an unsigned Release archive (until Q-001) |
 | Runbook | [release-macos.md](../runbooks/release-macos.md) | below |
 | Expected time | 4–6 minutes from the tag, after the environment is approved | 3–5 minutes |
+| Blocker | TD-019: no release until installed Macs have a feed that moves (owner: DNS for `updates.purlay.app`, then the 0.3.2 bridge from the `v0.3.1` tag; [runbook](../runbooks/mac-update-feed.md)) | TD-005, Q-001 |
 
 ## Versions, changelogs and build numbers
 

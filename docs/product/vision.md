@@ -64,7 +64,7 @@ Adoption and retention targets are not set: Q-002.
 
 ## Where it is
 
-- **Mac:** released; 0.3.1 (2026-11-27, from purlay-macos) is the latest, with fixes waiting under 0.3.2 in
+- **Mac:** released; the versions, shipped and waiting, are in
   [`Apps/macOS/CHANGELOG.md`](../../Apps/macOS/CHANGELOG.md). Functional scope FR-101 to FR-124.
 - **iPhone and iPad:** launch, handshake, sign-in and resuming a session work, with the launch screen, connecting and Welcome of
   the [entry design](../design/entry-shell-account.md); a first shell (tabs or sidebar, the workspace switcher, Sign Out) and

@@ -1,8 +1,12 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "": {},
-    " ": {},
+    "": {
+      "shouldTranslate": false
+    },
+    " ": {
+      "shouldTranslate": false
+    },
     "#%@": {
       "localizations": {
         "tr": {
@@ -789,7 +793,9 @@
         }
       }
     },
-    "/%@": {},
+    "/%@": {
+      "shouldTranslate": false
+    },
     "1 hour": {
       "localizations": {
         "tr": {
@@ -825,7 +831,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "3. Kişi giriş yapar ve daveti kabul ederek üye olarak katılır."
+            "value": "3. Kişi oturum açar ve daveti kabul ederek üye olarak katılır."
           }
         }
       }
@@ -2241,7 +2247,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Güvenle giriş yapmak için tarayıcıda devam et."
+            "value": "Güvenle oturum açmak için tarayıcıda devam et."
           }
         }
       }
@@ -7629,7 +7635,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu Mac'te oturumunuz açık kalsın"
+            "value": "Bu Mac'te oturumun açık kalsın"
           }
         }
       }
@@ -8637,7 +8643,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Çıkış yapana kadar bu Mac'te oturumunuz açık kalır."
+            "value": "Oturumu kapatana kadar bu Mac'te oturumun açık kalır."
           }
         }
       }
