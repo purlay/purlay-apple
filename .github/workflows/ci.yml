@@ -4,10 +4,10 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    # `edited`: the title becomes the squash commit, so a title changed after a green run is judged again. `closed`: a run of a
-    # pull request that was merged or closed, still running (its simulator, most often), is cancelled through the concurrency
-    # group below; that run itself does nothing, because every job's `if` refuses a `closed` event.
-    types: [opened, synchronize, reopened, edited, closed]
+    # `edited`: the title becomes the squash commit, so a title changed after a green run is judged again. Not `closed`: a run on
+    # it would post every job's check skipped onto the head, `verify`'s too, and a skipped check counts as passed. A merged or
+    # closed pull request's run in flight is cancelled by ci-cancel.yml, which shares this concurrency group.
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
   # Every night: main builds every lane, the simulator's included, so each day's compilation caches start warm.
@@ -34,7 +34,6 @@ jobs:
   # Which lanes this change needs (scripts/ci/changes); whether the branch is named as CONTRIBUTING.md asks; whether the title is
   # a conventional commit; and whether each app's version has its changelog section. Every run: each of these is a few seconds.
   changes:
-    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
@@ -81,7 +80,6 @@ jobs:
 
   # The history scanned for secrets. Every run, a documents-only pull request included: a document can carry a secret.
   security:
-    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -100,7 +98,7 @@ jobs:
   # reads the manifest through SwiftPM and runs in the packages lane on macOS.
   rules:
     needs: changes
-    if: github.event.action != 'closed' && needs.changes.outputs.rules == 'true'
+    if: needs.changes.outputs.rules == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -120,7 +118,7 @@ jobs:
   # Format, and every package test on macOS with the Mac screens drawn from state.
   packages:
     needs: changes
-    if: github.event.action != 'closed' && needs.changes.outputs.packages == 'true'
+    if: needs.changes.outputs.packages == 'true'
     runs-on: xcode-27
     timeout-minutes: 15
     permissions:
@@ -158,7 +156,7 @@ jobs:
   # The package and the iOS app, built for the simulator.
   ios:
     needs: changes
-    if: github.event.action != 'closed' && needs.changes.outputs.ios == 'true'
+    if: needs.changes.outputs.ios == 'true'
     runs-on: xcode-27
     timeout-minutes: 15
     permissions:
@@ -195,7 +193,7 @@ jobs:
   # The Mac app: Debug for a pull request; Debug and Release on main, which is what keeps a release's build warm.
   macos:
     needs: changes
-    if: github.event.action != 'closed' && needs.changes.outputs.macos == 'true'
+    if: needs.changes.outputs.macos == 'true'
     runs-on: xcode-27
     timeout-minutes: 15
     permissions:
@@ -233,7 +231,7 @@ jobs:
   # The pinned contract, the generated code and the generator: only when they, or what reads them, change.
   generated:
     needs: changes
-    if: github.event.action != 'closed' && needs.changes.outputs.generated == 'true'
+    if: needs.changes.outputs.generated == 'true'
     runs-on: xcode-27
     timeout-minutes: 15
     permissions:
@@ -255,7 +253,7 @@ jobs:
   # (scripts/verify says why). Its steps are `simulator-pr`'s too.
   simulator:
     needs: changes
-    if: github.event.action != 'closed' && github.event_name != 'pull_request' && needs.changes.outputs.simulator == 'true'
+    if: github.event_name != 'pull_request' && needs.changes.outputs.simulator == 'true'
     runs-on: xcode-27
     timeout-minutes: 30
     permissions:
@@ -294,14 +292,14 @@ jobs:
   # The same tests for a pull request that changes the iOS app or the design system (scripts/ci/changes): a check that is not
   # required, started once `verify` has passed, so that it never runs beside its own run's required lanes. Once started it holds
   # one of the organisation's five macOS runners for 6–10 minutes, which another pull request's lanes, or main's run after a
-  # merge, may wait for; a merge or close cancels it (the `closed` trigger above).
+  # merge, may wait for; a merge or close cancels it (ci-cancel.yml).
   # Its own status function: without one, the implicit success() is judged over every ancestor, and a lane `changes` skipped
   # would skip this job although `verify` passed (actions/runner#2205; scripts/ci/job-conditions-test).
   # Its runs-on, timeout and permissions are `simulator`'s (scripts/ci/job-conditions-test holds them equal).
   simulator-pr:
     name: simulator (pull request)
     needs: [changes, verify]
-    if: "!cancelled() && github.event.action != 'closed' && github.event_name == 'pull_request' && needs.verify.result == 'success' && needs.changes.outputs.simulator == 'true'"
+    if: "!cancelled() && github.event_name == 'pull_request' && needs.verify.result == 'success' && needs.changes.outputs.simulator == 'true'"
     runs-on: xcode-27
     timeout-minutes: 30
     permissions:
@@ -312,7 +310,7 @@ jobs:
   simulator-red-on-main:
     needs: simulator
     # The simulator's own result: failure() is also true when `changes` failed and the simulator never ran.
-    if: always() && github.event.action != 'closed' && needs.simulator.result == 'failure' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: always() && needs.simulator.result == 'failure' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
@@ -330,10 +328,10 @@ jobs:
 
   # The one required check: every lane passed, or was skipped because `changes` said it was not needed. The simulator is not
   # among them: on a pull request it starts after this check and does not block the merge, and a release requires main's full
-  # run, the simulator's included (scripts/ci/release-gate). A `closed` event skips it too: a closed pull request is judged by
-  # nothing, and its last real run's result stands.
+  # run, the simulator's included (scripts/ci/release-gate). No workflow that runs on a pull request's `closed` event may have a
+  # job of this name (scripts/ci/job-conditions-test): its skipped check would read as passed on a reopened pull request.
   verify:
-    if: always() && github.event.action != 'closed'
+    if: always()
     needs: [changes, security, rules, packages, ios, macos, generated]
     runs-on: ubuntu-latest
     timeout-minutes: 3

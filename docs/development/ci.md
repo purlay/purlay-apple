@@ -28,6 +28,7 @@ Every run shows the target and where the time went, on the run's summary page an
 | Workflow | When | What |
 |---|---|---|
 | `ci.yml` | every pull request to main, every push to main, nightly at 03:17 UTC, by hand | the lanes, and `verify` |
+| `ci-cancel.yml` | a pull request closed or merged | cancels that pull request's `ci.yml` run in flight (below) |
 | `release-macos.yml` | a `macos/v*` tag; by hand, `publish` off, for a rehearsal | [the Mac release](../runbooks/release-macos.md) |
 | `release-ios.yml` | an `ios/v*` tag; by hand | an unsigned Release archive, kept 14 days |
 | `contract-drift.yml` | Mondays 04:41 UTC, by hand | one issue when the server has released past the pin ([runbook](../runbooks/contract-drift.md)) |
@@ -48,9 +49,9 @@ Every run shows the target and where the time went, on the run's summary page an
 | `macos` | `xcode-27` | the package, `Config/`, the project or `Apps/macOS` change | the Mac app built (Debug; Debug and Release on main), its ATS and entitlements checked | 68–122 s (main: more, unmeasured) |
 | `generated` | `xcode-27` | `Contract/`, `Tools/`, `Sources/*/Generated` or their scripts change | the pinned bundle, `scripts/generate --check`, the generator's tests | 57–100 s |
 | `simulator` | `xcode-27` | every push to main, nightly, by hand: beside the other lanes | the tests that need iOS (`TestPlans/iOS.xctestplan`: `PurlayTests`, `PurlayUITests`, `PurlayDesignTests`), built for testing, then the simulator booted, then tested without building. A release requires it on main | 369–594 s: over the target (below) |
-| `simulator (pull request)` (`simulator-pr`) | `xcode-27` | a pull request that changes `Apps/iOS`, `Sources/PurlayDesign`, `Tests/PurlayDesignTests`, `TestPlans/iOS.xctestplan` or the simulator's scripts, **once `verify` has passed** | the same steps as `simulator` (one YAML anchor, `simulator-steps`; `scripts/ci/job-conditions-test` holds the two jobs' runner, timeout and permissions equal). **Not required**; cancelled when the pull request is merged or closed | as `simulator`, after `verify` (run 45935368669: `verify` green 03:47:58, this job 03:48:54–03:56:31, 55 tests, 0 failed) |
+| `simulator (pull request)` (`simulator-pr`) | `xcode-27` | a pull request that changes `Apps/iOS`, `Sources/PurlayDesign`, `Tests/PurlayDesignTests`, `TestPlans/iOS.xctestplan` or the simulator's scripts, **once `verify` has passed** | the same steps as `simulator` (one YAML anchor, `simulator-steps`; `scripts/ci/job-conditions-test` holds the two jobs' runner, timeout and permissions equal). **Not required**; cancelled when the pull request is merged or closed | as `simulator`, after `verify` (run 45935368669: `verify` green 03:47:58, this job 03:48:54–03:56:31, 55 tests, 0 failed; every lane ran in that run, so the case its status function exists for, an iOS-only change with lanes skipped before `verify`, is held by `job-conditions-test` and not yet seen on a run: the first such pull request shows it) |
 | `simulator-red-on-main` | Linux | the simulator failed on main | opens the one issue labelled `ci-red-main`, or brings the open one up to date (`scripts/ci/red-main-issue`) | 5–10 s |
-| `verify` | Linux | every event but a closed pull request, after every lane but the simulator | the timing summary; every lane passed or was not needed (`scripts/ci/verify-needs`) | 5–10 s |
+| `verify` | Linux | always, after every lane but the simulator | the timing summary; every lane passed or was not needed (`scripts/ci/verify-needs`) | 5–10 s |
 
 The exact mapping from paths to lanes is `scripts/ci/changes`, which a person can run: `git diff --name-only main | scripts/ci/changes
 pull_request`. A path it does not know runs every lane; a workflow, the `Makefile`, `scripts/verify` or `scripts/ci` runs every lane;
@@ -67,9 +68,12 @@ arrives some 6 to 10 minutes after the merge button turns green.
 
 **The trade-off.** The simulator gives a pull request a signal without holding its merge to 6–10 minutes, and never beside its
 own run's required lanes, which already take four of the five macOS runners. Once it starts it holds a runner that another pull
-request, or main's run after a merge, may wait for; a merge or a close cancels it (the `closed` trigger: that event's run
-cancels the pull request's run in flight through the concurrency group, and every job refuses to do anything else, so it runs
-nothing and no job with a write permission). A person who wants its result before merging waits for it; nothing makes them. A change can
+request, or main's run after a merge, may wait for; a merge or a close cancels it. `ci-cancel.yml` runs on a pull request's
+`closed` event, joins `ci.yml`'s concurrency group of that pull request (`ci-<number>`) with cancel-in-progress, and does
+nothing else: `permissions: {}`, nothing checked out, one job whose name is no required check. It is not a `closed` trigger in
+`ci.yml`, because that run would post every job's check onto the pull request's head, skipped, `verify`'s included; a skipped
+check counts as passed, so a reopened pull request (or Dependabot's auto-merge after a reopen) would read as green until its new
+run's `verify` existed. Cancelling on a merge is not yet seen on a run. A person who wants its result before merging waits for it; nothing makes them. A change can
 therefore merge with the iOS tests red; main's run catches it on the push, `simulator-red-on-main` opens (or updates) one
 `ci-red-main` issue, and no release ships from a commit whose main run, simulator included, did not pass
 ([releasing.md](releasing.md#what-every-release-workflow-does-first-the-gate)). Whoever reads that issue fixes main first.
@@ -208,8 +212,10 @@ release resolves the same code; Dependabot proposes its updates. The runner labe
 - `scripts/ci/retry-infra` runs a step once more only when the log shows the machine failed (a simulator that would not boot, a
   download that did not arrive), never when a test failed, and says so as a warning on the run.
 - A job that needs `verify` (or any job whose `if` is `always()`) states its own status function: otherwise GitHub judges its
-  implicit `success()` over every ancestor, and a lane `changes` skipped would skip it (actions/runner#2205). A pull request's
-  `closed` event runs nothing: every job's `if` refuses it. `scripts/ci/job-conditions-test`, in `rules`, holds both.
+  implicit `success()` over every ancestor, and a lane `changes` skipped would skip it (actions/runner#2205). No workflow that
+  runs on a pull request's `closed` event has a job named like a required check; `ci-cancel.yml` listens to `closed` alone, in
+  `ci.yml`'s group, and can do nothing. `scripts/ci/job-conditions-test`, in `rules`, reads every workflow as YAML (the system
+  Ruby's Psych) and holds all of it, each rule shown first to refuse its violation.
 - Dependabot's branches are recognised by the pull request's author (`dependabot[bot]`), which a branch name cannot fake.
 - No bot comments on pull requests: results are the checks and the run's summary page.
 

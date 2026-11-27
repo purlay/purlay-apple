@@ -1,0 +1,27 @@
+# A merged or closed pull request's CI run, still running (its simulator, most often, which holds a macOS runner for 6–10
+# minutes), is cancelled: this run joins ci.yml's concurrency group for that pull request, and cancel-in-progress cancels what is
+# there. It is a workflow of its own, not a `closed` trigger in ci.yml, because a run there would post `verify` skipped onto the
+# pull request's head, and a skipped check counts as passed: reopened, the pull request would read as green until its new run's
+# `verify` existed. Nothing here is named like a required check, nothing is checked out and the token can do nothing
+# (scripts/ci/job-conditions-test holds all three). Design: docs/development/ci.md.
+name: CI cancel
+on:
+  pull_request:
+    types: [closed]
+
+permissions: {}
+
+# ci.yml's group for a pull request (`ci-${{ github.event.pull_request.number || github.ref }}` there).
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  cancelled:
+    name: cancel the closed pull request's CI run
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    permissions: {}
+    steps:
+      - name: Nothing to do; joining the group is the cancel
+        run: echo "pull request closed; its CI run in flight, if any, is cancelled"

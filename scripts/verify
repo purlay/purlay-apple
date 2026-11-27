@@ -133,7 +133,7 @@ rules() {
   scripts/ci/check-pr-title-test >/dev/null
   step check "the release gate refuses what it must (scripts/ci/release-gate)"
   scripts/ci/release-gate-test >/dev/null
-  step check "every CI job's condition: a status function after a fan-in, a closed pull request refused (scripts/ci/job-conditions-test)"
+  step check "every workflow's job conditions: a status function after a fan-in, no required check on a closed event, the cancel on close (scripts/ci/job-conditions-test)"
   scripts/ci/job-conditions-test >/dev/null
 }
 
