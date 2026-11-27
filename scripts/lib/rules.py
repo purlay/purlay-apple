@@ -13,14 +13,15 @@ import plistlib
 import re
 import sys
 
+from cache import private
+from cache import root as cache_root
 from sentence_calls import CALLS
 from swift_source import closing, code, literal, owner, parameters, skeleton, type_scopes
 
 HERE = pathlib.Path(__file__).resolve().parent
 VERSION = hashlib.sha1(b"".join((HERE / name).read_bytes() for name in ("rules.py", "swift_source.py"))).hexdigest()
-# The user's own folder (0700): a parse planted by someone else would be trusted, so a folder another user could write is
-# not used.
-CACHE = pathlib.Path(os.environ.get("XDG_CACHE_HOME") or pathlib.Path.home() / ".cache") / "purlay-enforcement" / "parse"
+# The user's own folder (cache.py): a parse planted by someone else would be believed.
+CACHE = cache_root() / "parse"
 
 # A format specifier, positional or not, with any length modifier; a count is an integer one. Xcode writes a sentence with more
 # than one count as substitutions, `%#@name@`, each read as its own specifier.
@@ -28,6 +29,10 @@ SPEC = re.compile(r"%(?:\d+\$)?(?:hh|h|ll|l|z|t|j|q)?[diouxX@feEgG]")
 COUNT = re.compile(r"%(?:\d+\$)?(?:hh|h|ll|l|z|t|j|q)?[diu]")
 SUBSTITUTION = re.compile(r"%(?:(\d+)\$)?#@(\w+)@")
 SENTENCE = r"\[?(?:LocalizedStringKey|LocalizedStringResource|String\.LocalizationValue|IntentDialog)\]?\??"
+# The type of a name bound again without one stated: no type declares a property of it, so nothing assigned through it counts.
+UNKNOWN = "<unknown>"
+# A binding's type read from another declaration: the one it unwraps (`if let x = y`), or the element of one it iterates.
+UNWRAPPED, ELEMENT = "<unwrapped>", "<element>"
 # What scripts/generate writes, from the server's contract and tokens.
 GENERATED = ("Sources/PurlayContract/Generated", "Sources/PurlayKit/Generated", "Sources/PurlayTokens/Generated")
 
@@ -230,7 +235,7 @@ def parse(text):
             typed = re.match(rf"\s*(\w+)(?:\s+\w+)?\s*:\s*(?:@\w+(?:\([^)]*\))?\s+)*{SENTENCE}", parameter)
             if typed and call:
                 result["calls"].append([call, "" if typed.group(1) == "_" else typed.group(1)])
-            named = re.match(r"\s*(?:\w+\s+)?(\w+)\s*:\s*(?:@\w+(?:\([^)]*\))?\s+|inout\s+)*(\w+)", parameter)
+            named = re.match(r"\s*(?:\w+\s+)?(\w+)\s*:\s*(?:@\w+(?:\([^)]*\))?\s+|inout\s+)*(\[?\w+\]?\??)", parameter)
             if named and body != -1:
                 declarations.append([named.group(1), named.group(2), body, body_end])
     for match in re.finditer(r"\b(?:let|var)\s+(\w+)\s*(?::\s*(\[?[\w.]+\]?)|=\s*([A-Z]\w*)\s*\()", shape):
@@ -241,6 +246,36 @@ def parse(text):
         holding = [block for block in blocks if block[0] < match.start() < block[1]]
         start, end = max(holding) if holding else (0, len(shape))
         declarations.append([match.group(1), type_name, match.start(), end])
+    # A name bound again without a stated type hides the outer declaration where it holds, with the type it takes when the
+    # code shows it (what `if let x = y` or `if var x` unwraps, the element `for x in ys` or `ys.forEach { x in` iterates,
+    # read from y's and ys's own declarations) and a type not known (UNKNOWN) otherwise, so a receiver of that name is not
+    # taken for the outer one: a pattern's `let x`, `catch let x`, another closure's parameters, `let x = <an expression>`.
+    for match in re.finditer(r"\b(?:let|var)\s+(\w+)\s*(?:=\s*(?!\s*[A-Z]\w*\s*\()(\w+)?(\s*[,{]|\s*$)?|[,){])", shape):
+        start, end = bound(shape, blocks, match.start())
+        condition = re.search(r"\b(?:if|guard|while)\b[^{};]*$", shape[max(0, match.start() - 200):match.start()])
+        if match.group(2) and match.group(3) is not None:
+            stated = f"{UNWRAPPED}{match.group(2)}"  # `let x = y`: y's type, unwrapped
+        elif condition and "=" not in match.group(0):
+            stated = f"{UNWRAPPED}{match.group(1)}"  # `if let x`, `if var x`: the outer x, unwrapped
+        else:
+            stated = UNKNOWN
+        declarations.append([match.group(1), stated, start, end])
+    for match in re.finditer(r"\bfor\s+(?:(case\s+let\s+|var\s+)?)\(?\s*(\w+)\s*\)?\s+in\s+(\w+)?", shape):
+        body = shape.find("{", match.end())
+        if body != -1:
+            iterated = match.group(3) and not (match.group(1) or "").startswith("case")
+            declarations.append([match.group(2), f"{ELEMENT}{match.group(3)}" if iterated else UNKNOWN,
+                                 body, closing(shape, body)])
+    for match in re.finditer(r"\bcatch\s+let\s+(\w+)", shape):
+        body = shape.find("{", match.end())
+        if body != -1:
+            declarations.append([match.group(1), UNKNOWN, body, closing(shape, body)])
+    for match in re.finditer(r"(?:(\w+)\s*\.\s*forEach\s*)?\{\s*\(?\s*(\w+(?:\s*,\s*\w+)*)\s*\)?\s+in\b", shape):
+        names = re.split(r"\s*,\s*", match.group(2))
+        brace = shape.index("{", match.start())
+        for name in names:
+            stated = f"{ELEMENT}{match.group(1)}" if match.group(1) and len(names) == 1 else UNKNOWN
+            declarations.append([name, stated, brace, closing(shape, brace)])
     result["sites"] = sites(source, scopes, declarations)
     for match in COLOUR.finditer(source):
         # A colour's hex is six or eight digits, its separators (if any) between pairs: 0x25_63_EB. A mask grouped by fours
@@ -253,10 +288,42 @@ def parse(text):
     return result
 
 
-def receiver(declarations, name, position):
-    """The type stated for `name` where it is used: the innermost declaration that holds there and comes before it."""
+def bound(shape, blocks, position):
+    """Where a binding at `position` holds: the block an `if` or `while` condition opens, else the block that holds it."""
+    if re.search(r"\b(?:if|while)\b[^{};]*$", shape[max(0, position - 200):position]):
+        body = shape.find("{", position)
+        if body != -1:
+            return position, closing(shape, body)
+    holding = [block for block in blocks if block[0] < position < block[1]]
+    return (position, max(holding)[1]) if holding else (position, len(shape))
+
+
+def stated_type(declarations, name, position, depth=0):
+    """The type, as written (`T`, `T?`, `[T]`), that the innermost declaration of `name` holding at `position` states, following
+    a binding to the declaration it unwraps or iterates; UNKNOWN when it cannot be read, None when nothing declares it."""
     holding = [d for d in declarations if d[0] == name and d[2] <= position <= d[3]]
-    return max(holding, key=lambda d: (d[2], -d[3]))[1].strip("[]?") if holding else None
+    if not holding:
+        return None
+    declaration = max(holding, key=lambda d: (d[2], -d[3]))
+    written = declaration[1]
+    for marker in (UNWRAPPED, ELEMENT):
+        if written.startswith(marker):
+            if depth > 8:
+                return UNKNOWN
+            source = stated_type(declarations, written[len(marker):], declaration[2] - 1, depth + 1)
+            if source in (None, UNKNOWN):
+                return UNKNOWN
+            if marker == ELEMENT:
+                element = re.fullmatch(r"\[(\w+)\]\??", source)
+                return element.group(1) if element else UNKNOWN
+            return source.rstrip("?")
+    return written
+
+
+def receiver(declarations, name, position):
+    """The type of `name` where it is used, without its optional or array marks; UNKNOWN or None as stated_type says."""
+    written = stated_type(declarations, name, position)
+    return written if written in (None, UNKNOWN) else written.strip("[]?")
 
 
 def sites(text, scopes, declarations):
@@ -318,16 +385,6 @@ def sites(text, scopes, declarations):
             word = ""
         i += 1
     return found
-
-
-def private(folder):
-    """Whether the folder is the user's alone, made so if it is new."""
-    try:
-        folder.mkdir(mode=0o700, parents=True, exist_ok=True)
-        status = folder.stat()
-    except OSError:
-        return False
-    return status.st_uid == os.getuid() and not status.st_mode & 0o077
 
 
 def parsed(path, cache):

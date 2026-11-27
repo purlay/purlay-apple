@@ -35,11 +35,14 @@ png_field() { # file offset length: that many bytes of the PNG header as a numbe
 # which copies the same manifest many times, reads it once.
 dump_package() { # root
   local cache digest partial
-  # The user's own folder: a manifest's reading planted by someone else would be trusted.
-  cache="${XDG_CACHE_HOME:-$HOME/.cache}/purlay-enforcement"
+  # The user's own folder, as scripts/lib/cache.py judges it for the parse cache too: a reading planted by someone else would be
+  # believed, so in a folder others could write (or reach through a link) the manifest is read afresh every time.
+  if ! cache="$(PYTHONPATH=scripts/lib python3 scripts/lib/cache.py)"; then
+    (cd "$1" && swift package dump-package)
+    return
+  fi
   digest="$(shasum -a 256 "$1/Package.swift" | cut -d' ' -f1)"
   if [ ! -s "$cache/$digest.json" ]; then
-    (umask 077 && mkdir -p "$cache")
     # The demonstration reads it from parallel jobs: each writes its own partial file, and the rename is atomic.
     partial="$(mktemp "$cache/$digest.XXXXXX")"
     (cd "$1" && swift package dump-package) > "$partial" || { rm -f "$partial"; return 1; }
@@ -377,13 +380,13 @@ start() { # verdict function, name, setting-up function and its arguments: one j
   local result
   result="$RESULTS/$(printf '%04d' "$job")"
   printf '%s\n' "$name" >"$result.name"
+  # The status is written however the job ends, so a job that fails after its verdict is reported with its own status.
   {
-    (
+    if (
       copy="$(copy_tree)"
       if "$@" "$copy"; then "$verdict" "$name" "$copy"; else echo "  BROKEN       $name (its setting-up failed)"; fi
       rm -rf "$copy"
-    ) >"$result" 2>&1
-    echo "$?" >"$result.status"
+    ) >"$result" 2>&1; then echo 0; else echo "$?"; fi >"$result.status"
   } &
 }
 # shellcheck disable=SC2329 # called by start()
@@ -686,6 +689,12 @@ accept_in "QA: a sentence assigned through an optional chain whose type the code
     && printf '%s\\n' 'struct QAH { var title: LocalizedStringKey = \"Starred\" }' 'final class QAM { var holder: QAH?; func set() { holder?.title = \"Said D\" } }' >> Sources/PurlayMacUI/Strings.swift"
 # A receiver's type is the one its own declaration states, not that of another declaration of the same name in the file.
 plant_in "QA: a Mac sentence assigned to an AppKit receiver named like a parameter typed elsewhere" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'import AppKit' 'struct QAHolder { var title: LocalizedStringKey }' 'func qaUse(menu: QAHolder) {}' 'func qaProbe() { let menu = NSMenuItem(); menu.title = \"Never said\" }' >> Sources/PurlayMacUI/Strings.swift"
+# QA (pr6-fourth): a name bound again without a stated type (if let, a closure's parameter, for-in) is not the outer declaration.
+plant_in "QA: a Mac sentence assigned to AppKit values rebound under the name of a parameter typed elsewhere" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'import AppKit' 'struct QAHolder { var title: LocalizedStringKey }' 'func qaIf(menu: QAHolder, item: NSMenuItem?) { if let menu = item { menu.title = \"Never said\" } }' 'func qaClosure(menu: QAHolder, items: [NSMenuItem]) { items.forEach { menu in menu.title = \"Never said\" } }' 'func qaFor(menu: QAHolder, items: [NSMenuItem]) { for menu in items { menu.title = \"Never said\" } }' >> Sources/PurlayMacUI/Strings.swift"
+# QA (pr9): a holder unwrapped under its own name keeps its type: `if var holder` is the outer `holder: QAH?`, unwrapped.
+accept_in "QA: a sentence assigned through a holder unwrapped by if-var shorthand" . \
+  "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Said E"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Söylendi E"}}}}')' \
+    && printf '%s\\n' 'struct QAE { var title: LocalizedStringKey = \"Starred\" }' 'func qaSet(holder: QAE?) { if var holder { holder.title = \"Said E\"; _ = holder } }' >> Sources/PurlayMacUI/Strings.swift"
 wait
 judged=0
 for name in "$RESULTS"/*.name; do
