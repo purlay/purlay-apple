@@ -111,6 +111,13 @@ struct WorkspaceShell: View {
                         if let destination = model.twoFactorSetupURL {
                             Link(destination: destination) { Text(Words.setUpTwoFactor) }
                         }
+                        // After setting it up in the browser, the account is read again.
+                        Button {
+                            Task { await RootActions.refreshAccount(model) }
+                        } label: {
+                            Text(SharedWords.refresh)
+                        }
+                        .accessibilityIdentifier("workspace.refreshAccount")
                     }
                 case .noWorkspace:
                     ContentUnavailableView {
@@ -119,6 +126,14 @@ struct WorkspaceShell: View {
                         } icon: {
                             Image(systemName: "person.2")
                         }
+                    } actions: {
+                        // After an invitation is accepted, only a new connection finds the workspace.
+                        Button {
+                            Task { await RootActions.reload(model) }
+                        } label: {
+                            Text(SharedWords.refresh)
+                        }
+                        .accessibilityIdentifier("workspace.reload")
                     }
                     .accessibilityIdentifier("workspace.emptyMemberships")
                     .navigationTitle(Text(SharedWords.workspace))
@@ -227,8 +242,9 @@ private struct WorkspaceSwitcher: View {
         }
     }
 
+    /// A workspace's name, with its address beside it when another of the person's workspaces has the same name.
     private func choiceLabel(_ candidate: Workspace, in choices: [Workspace]) -> String {
         choices.contains { $0.id != candidate.id && $0.name == candidate.name }
-            ? "\(candidate.name) (\(candidate.slug))" : candidate.name
+            ? String(localized: Words.workspaceWithAddress(candidate.name, candidate.slug)) : candidate.name
     }
 }

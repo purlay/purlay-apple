@@ -6228,16 +6228,6 @@
         }
       }
     },
-    "Refresh": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yenile"
-          }
-        }
-      }
-    },
     "Refresh channel details": {
       "localizations": {
         "tr": {

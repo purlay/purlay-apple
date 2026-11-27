@@ -51,10 +51,10 @@ final class WorkspaceSessions {
         guard !isChangingSession, source.phase == .ready else { return }
         isSigningOut = true
         defer { isSigningOut = false }
-        switch await source.signOut(scope) {
-        case .done, .serverNotTold:
+        switch await RootActions.signOut(source, everywhere: scope == .everywhere) {
+        case .done?, .serverNotTold?:
             previous = nil
-        case .notDone, .credentialKept:
+        case .notDone?, .credentialKept?, nil:
             break
         }
     }

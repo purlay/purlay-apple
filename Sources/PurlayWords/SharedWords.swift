@@ -5,6 +5,7 @@ import Foundation
 /// the two apps cannot drift apart ("İptal" on the Mac, "Vazgeç" on iOS). What only one app says stays in that app.
 public enum SharedWords {
     public static let cancel = LocalizedStringResource("Cancel", bundle: .module)
+    public static let refresh = LocalizedStringResource("Refresh", bundle: .module)
     public static let workspace = LocalizedStringResource("Workspace", bundle: .module)
     public static let starred = LocalizedStringResource("Starred", bundle: .module)
     public static let channels = LocalizedStringResource("Channels", bundle: .module)
@@ -23,7 +24,7 @@ public enum SharedWords {
 
     /// The fixed sentences, so a test can look at each in every language.
     public static let fixed: [LocalizedStringResource] = [
-        cancel, workspace, starred, channels, jumpToLatest, loadEarlier, sending, sent, signOutEverywhere,
+        cancel, refresh, workspace, starred, channels, jumpToLatest, loadEarlier, sending, sent, signOutEverywhere,
         signOutEverywhereMenu,
     ]
 }

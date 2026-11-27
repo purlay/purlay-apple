@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 struct SheetHeading: View {
@@ -66,9 +67,15 @@ struct SheetHeader: View {
         HStack(spacing: Spacing.space4) {
             SheetHeading(title: title, subtitle: subtitle, image: image)
             if let refresh {
-                Button("Refresh", systemImage: "arrow.clockwise", action: refresh)
-                    .labelStyle(.iconOnly).buttonStyle(.borderless).foregroundStyle(NativePalette.secondary.style)
-                    .help("Refresh").fixedSize().disabled(refreshing)
+                Button(action: refresh) {
+                    Label {
+                        Text(SharedWords.refresh)
+                    } icon: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
+                .labelStyle(.iconOnly).buttonStyle(.borderless).foregroundStyle(NativePalette.secondary.style)
+                .help(Text(SharedWords.refresh)).fixedSize().disabled(refreshing)
             }
             if !isPage {
                 Button(action: close) { Text(closeTitle) }

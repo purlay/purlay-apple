@@ -436,7 +436,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Her yerden çıkış yapılamadı. Oturumun hâlâ açık."
+            "value" : "Her yerde oturum kapatılamadı. Oturumun hâlâ açık."
           }
         }
       }
@@ -446,7 +446,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Çıkış yapılamadı: sunucuya ulaşılamadı ve bu cihaz oturum bilgisini silemedi. Oturumun hâlâ açık."
+            "value" : "Oturum kapatılamadı: sunucuya ulaşılamadı ve bu cihaz oturum bilgisini silemedi. Oturumun hâlâ açık."
           }
         }
       }
@@ -547,6 +547,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hesabının silinip silinmediği anlaşılamadı: yanıt gelmedi. Bağlantını kontrol edip yeniden dene."
+          }
+        }
+      }
+    },
+    "Refresh" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yenile"
           }
         }
       }
@@ -1248,7 +1258,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Oturumun %@ tarihinde sona eriyor. Bağlı kalmak için o zamandan önce çıkış yapıp yeniden giriş yap."
+            "value" : "Oturumun %@ tarihinde sona eriyor. Bağlı kalmak için o zamandan önce oturumu kapatıp yeniden aç."
           }
         }
       }

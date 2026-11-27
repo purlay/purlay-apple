@@ -67,9 +67,11 @@ enum RootActions {
         await model.connect()
     }
 
-    static func signOut(_ model: AppModel, everywhere: Bool) async {
-        guard model.phase == .ready else { return }
-        await model.signOut(everywhere ? .everywhere : .thisDevice)
+    /// The model's answer, or `nil` when the account was not ready and nothing was asked.
+    @discardableResult
+    static func signOut(_ model: AppModel, everywhere: Bool) async -> SessionManager.SignOutResult? {
+        guard model.phase == .ready else { return nil }
+        return await model.signOut(everywhere ? .everywhere : .thisDevice)
     }
 
     static func refreshAccount(_ model: AppModel) async {

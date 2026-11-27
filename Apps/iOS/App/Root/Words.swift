@@ -57,6 +57,11 @@ enum Words {
         LocalizedStringResource("Switch Workspace, \(current)")
     }
 
+    /// A workspace named by its name and, in brackets, its address: for two of the person's workspaces with one name.
+    static func workspaceWithAddress(_ name: String, _ slug: String) -> LocalizedStringResource {
+        LocalizedStringResource("\(name) (\(slug))")
+    }
+
     static func backToWorkspace(_ name: String) -> LocalizedStringResource {
         LocalizedStringResource("Back to \(name)")
     }
