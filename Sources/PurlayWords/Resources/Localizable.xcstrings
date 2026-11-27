@@ -906,7 +906,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu resim Purlay'ın kabul edebileceğinden büyük."
+            "value" : "Bu resim Purlay'in kabul edebileceğinden büyük."
           }
         }
       }
@@ -1168,7 +1168,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Purlay'ın tutabileceği en fazla mesajı kaydettiniz. Daha fazlasını kaydetmek için bazılarını bırakın."
+            "value" : "Purlay'in tutabileceği en fazla mesajı kaydettiniz. Daha fazlasını kaydetmek için bazılarını bırakın."
           }
         }
       }

@@ -228,6 +228,27 @@ struct ReauthenticationTests {
         return h
     }
 
+    @Test(
+        "on the Mac, a workspace that takes the session another workspace signed in again with did not see that browser: it is not fresh enough to erase"
+    )
+    func renewedElsewhereIsNotFresh() async throws {
+        let h = judging(browserAge: 3_600)
+        try h.rememberedSession()
+        var environment = h.model.environment
+        environment.transport = DesktopTransport(first: h.server, second: FakeServer())
+        let desktop = DesktopSessions(environment)
+        await desktop.launch()
+        let first = desktop.active
+        await desktop.selectWorkspace(Uuid(DesktopTransport.otherWorkspace)!, from: first)
+        let studio = desktop.active
+        #expect(first.phase == .ready && studio.phase == .ready)
+        h.server.edit { $0.nextSession = Self.fresh }
+        #expect(await first.reauthenticate() == .done)
+        await h.settle()
+        #expect(!first.erasureNeedsReauthentication)
+        #expect(studio.erasureNeedsReauthentication, "the session it took was taken as fresh")
+    }
+
     @Test("a sign-in again asks the browser for a fresh sign-in; the first sign-in does not")
     func asksForAFreshSignIn() async {
         let h = judging(browserAge: 3_600)

@@ -52,7 +52,7 @@ struct PurlayTokensTests {
     func values() {
         #expect(Colors.surface100.light == RGBA(1, 1, 1, 1))
         #expect(Colors.accent.light == RGBA(0x25 / 255, 0x63 / 255, 0xeb / 255, 1))
-        // The server's 0.8.0 ring is a lighter blue in the dark themes.
+        // The focus ring is a lighter blue in the dark themes.
         #expect(Colors.focusRing.dark == RGBA(hex: 0x6f8fe8))
         #expect(Colors.scrim.light.alpha == 0.4)
         #expect(Spacing.space4 == 16)

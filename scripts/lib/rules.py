@@ -91,16 +91,34 @@ ONE_FORM = {
 # Nothing to translate: only symbols, digits and format specifiers, or a code-like address.
 INERT = re.compile(r"^[^A-Za-z]*$|^[a-z0-9.\-/]+$")
 PLURAL_FORMS = {"zero", "one", "two", "few", "many", "other"}
-# Turkish addresses the person as siz (the server's D-350): the forms of sen a pattern can see, as the web's i18n test refuses
-# them: the pronoun, -misin, -ebilirsin, -emezsin, -iyorsun. Sen's past tense (-dın), its "your" (-ın) and its bare verb in a
-# sentence are spelled like siz's imperative (edin), a genitive or a control's verb, so no pattern tells them apart: a review
-# point.
+# Turkish addresses the person as siz (the server's D-350). Refused: every form of sen a pattern can tell from siz Turkish: the
+# pronoun in each case (sen, seni, sana, senin, seninle, sende, senden, seninki, sence); the question particle, written apart
+# (misin, mısın, musun, müsün); and the verb endings that end on the person with nothing after them: -abilirsin/-ebilirsin,
+# -amazsın/-emezsin, -ıyorsun…, -acaksın/-eceksin, -malısın/-melisin, -mışsın…, değilsin, the conditional -rsan/-rsen,
+# -mazsan/-mezsen, -ysan/-ysen. Each siz form goes on with "-iz" or "-niz" (misiniz, yapabilirsiniz, değiştirirseniz), so none
+# is refused. Not refused, because siz Turkish spells them too: sen's past tense (-dın, as siz's imperative edin), its "your"
+# (-ın, as a genitive) and its bare verb in a sentence (as a control's verb): a review point. A value is folded the Turkish way
+# first (İ to i, I to ı), so capitals are read as the letters they are.
 LETTER = r"[^\W\d_]"
+V4 = "[ıiuü]"
 SEN = re.compile(
-    rf"(?<!{LETTER})(?:sen|seni|sana|senin|sende|senden|seninki|seninkini)(?!{LETTER})"
-    rf"|{LETTER}(?:misin|mısın|musun|müsün|[ae]bilirsin|[ae]mezsin|[ıiuü]yorsun)(?!{LETTER})",
-    re.IGNORECASE,
+    rf"(?<!{LETTER})(?:sen|seni|sana|senin|seninle|senle|sende|senden|seninki|seninkini|sence)(?!{LETTER})"
+    rf"|(?<!{LETTER})m{V4}s{V4}n(?!{LETTER})"
+    rf"|{LETTER}(?:[ae]bilirsin|amazsın|emezsin|{V4}yorsun|acaksın|eceksin|malısın|melisin|m{V4}şs{V4}n|"
+    rf"{V4}rsan|{V4}rsen|arsan|ersen|mazsan|mezsen|ysan|ysen)(?!{LETTER})"
+    rf"|(?<!{LETTER})değilsin(?!{LETTER})",
 )
+
+
+# "Purlay" is said "pörley", so its Turkish suffixes take front vowels: Purlay'i, Purlay'in, Purlay'de, Purlay'den, Purlay'e.
+PURLAY_BACK_VOWEL = re.compile(r"Purlay['’](?:da|dan|ı|ın|a|ya|la)(?![^\W\d_])")
+
+
+def addresses_as_sen(value):
+    """Whether a Turkish value says something to the person in a form of sen (`SEN`)."""
+    return SEN.search(value.replace("İ", "i").replace("I", "ı").lower()) is not None
+
+
 CATALOGUES = {
     "Apps/iOS/App/Resources/Localizable.xcstrings": ("iOS",),
     "Apps/macOS/App/Resources/Localizable.xcstrings": ("macOS",),
@@ -168,8 +186,10 @@ def catalogues(root):
                         problems.append(f"{path}: {key!r} has no final {language} value ({unit.get('state')})")
                     elif arguments(unit["value"], substitutions) != arguments(key):
                         problems.append(f"{path}: {key!r} -> {unit['value']!r}: the format specifiers differ")
-                    elif language == "tr" and SEN.search(unit["value"]):
+                    elif language == "tr" and addresses_as_sen(unit["value"]):
                         problems.append(f"{path}: {key!r} -> {unit['value']!r}: Turkish addresses the person as siz, not sen")
+                    elif language == "tr" and PURLAY_BACK_VOWEL.search(unit["value"]):
+                        problems.append(f"{path}: {key!r} -> {unit['value']!r}: Purlay takes front-vowel suffixes (Purlay'i)")
             english = localizations.get("en", {})
             # A sentence with a count says it in English by plural forms, `one` not the same as `other`, so that 1 is never
             # "1 new replies": the forms of the whole sentence, or, for a sentence with more than one count, those of each

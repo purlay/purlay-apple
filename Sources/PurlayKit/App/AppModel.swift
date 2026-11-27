@@ -1375,6 +1375,10 @@ public final class AppModel {
             if let first { await open(first.id) }
         } catch let error as APIError where error.status == 401 {
             // Told by the session manager already.
+        } catch let error as APIError where error.status == 426 {
+            // The server raised this platform's minimum after the handshake let the app in: what it asks now.
+            guard context == contextGeneration else { return }
+            phase = .problem(.appTooOld(tooOld(error)))
         } catch {
             guard context == contextGeneration else { return }
             if (error as? TransportError)?.isTransient == true {
@@ -1436,16 +1440,25 @@ public final class AppModel {
 
     private func currentCookie() -> String? { cookieCache }
 
+    /// What a `426` asks of this app: the minimum the refusal names, else this platform's from the handshake, else none known.
+    private func tooOld(_ error: APIError?) -> ClientMinimum {
+        if let details = error?.clientTooOld {
+            return ClientMinimum(
+                appVersion: details.minAppVersion, contractVersion: details.minContractVersion,
+                downloadUrl: details.downloadUrl)
+        }
+        return serverInfo?.minimum(for: environment.identity.platform)
+            ?? ClientMinimum(appVersion: nil, contractVersion: nil, downloadUrl: nil)
+    }
+
     private func upgradeRefused(_ status: Int) {
         switch status {
         case 401:
             if let manager { Task { await manager.sessionEndedByServer() } }
         case 426:
-            if let serverInfo {
+            if serverInfo != nil {
                 // The server refused this app for good; it may have raised a minimum it did not give at the handshake.
-                let minimum =
-                    serverInfo.minimum(for: environment.identity.platform)
-                    ?? ClientMinimum(appVersion: nil, contractVersion: nil, downloadUrl: nil)
+                let minimum = tooOld(nil)
                 tearDown()
                 phase = .problem(.appTooOld(minimum))
             }

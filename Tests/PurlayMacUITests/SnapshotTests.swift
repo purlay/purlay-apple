@@ -184,7 +184,7 @@ extension SnapshotTests {
             ScriptedTransport.json(
                 200,
                 """
-                {"server":{"version":"0.8.0"},"contractVersion":1,"appUrl":"\(server.description)",
+                {"server":{"version":"0.9.1"},"contractVersion":1,"appUrl":"\(server.description)",
                 "minClient":{"macos":{"appVersion":"0.3.0","contractVersion":1,"downloadUrl":null}},
                 "auth":{"email":true,"github":true,"google":false,"oidc":null,"password":true,"signUp":"invite-only"}}
                 """

@@ -5389,7 +5389,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bildirimler mesaj içeriğini göstermeden nerede gerekli olduğunu belirtir. Dock rozetiniz her durumda güncel kalır."
+            "value": "Bildirimler mesaj içeriğini göstermeden nerede gerekli olduğunuzu belirtir. Dock rozetiniz her durumda güncel kalır."
           }
         }
       }
@@ -6929,7 +6929,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Purlay'da Ara"
+            "value": "Purlay'de Ara"
           }
         }
       }
@@ -7367,7 +7367,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Purlay'da Oturum Aç"
+            "value": "Purlay'de Oturum Aç"
           }
         }
       }
@@ -7915,7 +7915,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu sunucu iki adımlı doğrulama gerektiriyor. Purlay'ı kullanmaya devam etmek için tarayıcınızda açın."
+            "value": "Bu sunucu iki adımlı doğrulama gerektiriyor. Purlay'i kullanmaya devam etmek için tarayıcınızda açın."
           }
         }
       }
@@ -8293,7 +8293,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Güncellemeler Purlay'ın GitHub sürümlerinden indirilir ve kurulumdan önce doğrulanır."
+            "value": "Güncellemeler Purlay'in GitHub sürümlerinden indirilir ve kurulumdan önce doğrulanır."
           }
         }
       }
@@ -8593,7 +8593,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu mesajı siz sildiniz."
+            "value": "Bu mesajı sildiniz."
           }
         }
       }
