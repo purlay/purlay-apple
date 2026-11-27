@@ -62,6 +62,11 @@ enum Words {
         LocalizedStringResource("\(name) (\(slug))")
     }
 
+    /// Asked before a sign-out that deletes what is unsent.
+    static func unsentWillBeDeleted(_ count: Int) -> LocalizedStringResource {
+        LocalizedStringResource("\(count) unsent messages will be deleted.")
+    }
+
     static func backToWorkspace(_ name: String) -> LocalizedStringResource {
         LocalizedStringResource("Back to \(name)")
     }

@@ -148,7 +148,9 @@ differs from the shell above in these ways, each kept until the shell is built t
   screen with Back to the previous workspace beside Try Again. Not yet the title menu, nor the role beside each name.
 - **Account.** An account menu (the person symbol) in the toolbar: Sign Out on This Device, and Sign Out Everywhere…, which
   asks first. Both go through `RootActions.signOut`, the guard that reads the phase. The menu waits while a sign-out or a switch
-  is under way, and shows progress during a sign-out. The engine runs a
+  is under way, and shows progress during a sign-out. **Interim, pending the owner's design session:** signing out deletes
+  what is unsent (the engine's wipe), so with unsent messages either item first shows a system confirmation dialog ("N unsent
+  messages will be deleted") with the sign-out and Cancel; the Account sheet's design decides the final form. The engine runs a
   sign-out once however often it is asked, and holds what was waiting to send until the server answers. The Account sheet
   replaces the menu in slice 2.
 - **Notices.** The engine's notice that messages did not load is not shown on iOS, and is dismissed as it arrives: the chat

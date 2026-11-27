@@ -22,6 +22,8 @@ struct WorkspaceShell: View {
     @Environment(\.horizontalSizeClass) private var width
     @State private var selected: ModuleID?
     @State private var confirmSignOut = false
+    /// A sign-out asked for while messages are unsent: it waits for the person to accept that they are deleted.
+    @State private var signOutLosingUnsent: SignOutScope?
     @State private var columns = NavigationSplitViewVisibility.all
     let sessions: WorkspaceSessions
 
@@ -54,7 +56,41 @@ struct WorkspaceShell: View {
         } message: {
             Text(Words.signOutEverywhereDetail)
         }
+        // Interim, until the Account sheet's design session: signing out deletes what is unsent (the engine's wipe), so the
+        // person is told how many first.
+        .confirmationDialog(
+            Text(Words.unsentWillBeDeleted(sessions.active.unsentMessageCount)),
+            isPresented: Binding(get: { signOutLosingUnsent != nil }, set: { if !$0 { signOutLosingUnsent = nil } }),
+            titleVisibility: .visible, presenting: signOutLosingUnsent
+        ) { scope in
+            Button(role: .destructive) {
+                Task { await sessions.signOut(scope) }
+            } label: {
+                Text(scope == .everywhere ? SharedWords.signOutEverywhere : Words.signOutThisDevice)
+            }
+            .accessibilityIdentifier("account.confirmSignOutLosingUnsent")
+            Button(role: .cancel) {
+            } label: {
+                Text(SharedWords.cancel)
+            }
+        } message: { scope in
+            if scope == .everywhere { Text(Words.signOutEverywhereDetail) }
+        }
     }
+
+    /// A sign-out with nothing unsent goes at once (everywhere asks first); one with unsent messages asks before deleting them.
+    private func requestSignOut(_ scope: SignOutScope) {
+        if WorkspaceShell.asksBeforeSigningOut(unsent: sessions.active.unsentMessageCount) {
+            signOutLosingUnsent = scope
+        } else if scope == .everywhere {
+            confirmSignOut = true
+        } else {
+            Task { await sessions.signOut(.thisDevice) }
+        }
+    }
+
+    /// Whether a sign-out must first say that unsent messages will be deleted.
+    nonisolated static func asksBeforeSigningOut(unsent: Int) -> Bool { unsent > 0 }
 
     private func tabs(_ features: [any FeatureModule]) -> some View {
         TabView(selection: $selected) {
@@ -174,13 +210,13 @@ struct WorkspaceShell: View {
             } else {
                 Menu {
                     Button(role: .destructive) {
-                        Task { await sessions.signOut(.thisDevice) }
+                        requestSignOut(.thisDevice)
                     } label: {
                         Text(Words.signOutThisDevice)
                     }
                     .accessibilityIdentifier("account.signOutThisDevice")
                     Button(role: .destructive) {
-                        confirmSignOut = true
+                        requestSignOut(.everywhere)
                     } label: {
                         Text(SharedWords.signOutEverywhereMenu)
                     }

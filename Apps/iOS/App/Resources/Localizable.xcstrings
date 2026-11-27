@@ -11,6 +11,40 @@
         }
       }
     },
+    "%lld unsent messages will be deleted." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld unsent message will be deleted."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld unsent messages will be deleted."
+                }
+              }
+            }
+          }
+        },
+        "tr" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld gönderilmemiş mesaj silinecek."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Account" : {
       "localizations" : {
         "tr" : {
