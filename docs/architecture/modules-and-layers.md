@@ -42,7 +42,7 @@ to refuse it, so a rule that stopped looking is seen at once. The rules that rea
 | One floor per platform, stated alike in every `Package.swift` and in `Config/` | a floor cannot drift between the package and the apps |
 | The project holds no build setting (`"build-settings"` in `project.xcproj`) | every setting is in `Config/*.xcconfig`, where a review sees it |
 | Every test target is in a test plan a lane runs | a test no lane runs is not a test |
-| No `.package(` in `Package.swift`; the project's only remote packages are Sparkle (and swift-markdown, which is allowed and unused, TD-015) | [ADR 0010](../decisions/0010-no-third-party-code-beyond-sparkle.md) |
+| No `.package(` in `Package.swift`; the project's only remote package is Sparkle | [ADR 0010](../decisions/0010-no-third-party-code-beyond-sparkle.md) |
 | Only `Apps/macOS/App/Updates/` imports Sparkle; `PurlayMacUI` opens no connection | the updater and the network each have one door |
 | No `@unchecked Sendable` or `nonisolated(unsafe)` (unless the line says `enforcement-allow` and why) | the compiler's concurrency checking is the guarantee |
 | No `try!`, `as!`, `fatalError(`, `unsafelyUnwrapped`, force unwrap or implicitly unwrapped optional in production code | a trap cannot be caught; generated code, `PurlayTestSupport` and tests are not looked at |

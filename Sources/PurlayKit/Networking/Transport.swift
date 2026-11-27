@@ -1,6 +1,6 @@
 import Foundation
 
-/// What leaves the app: one request, with everything already decided (§8.1). The seam tests inject faults at (§8.2).
+/// What leaves the app: one request, with everything already decided. The seam tests inject faults at.
 public struct HTTPRequest: Sendable, Equatable {
     public var method: String
     public var url: URL
@@ -70,7 +70,7 @@ public enum TransportError: Error, Sendable, Equatable {
     }
 }
 
-/// The real transport: one `URLSession`, without cookies, a cache or a wait for connectivity (§8.1). The app sets the
+/// The real transport: one `URLSession`, without cookies, a cache or a wait for connectivity. The app sets the
 /// `Cookie` header itself, so there is one store of the credential and it cannot leak to another server.
 public struct URLSessionTransport: HTTPTransport {
     private let session: URLSession

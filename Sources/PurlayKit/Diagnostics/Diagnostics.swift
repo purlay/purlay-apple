@@ -1,7 +1,7 @@
 import Foundation
 
 /// One thing that went wrong, as an operator can use it: where, how, and the id the request carried so the server's own log line can be
-/// found. Nothing the person wrote and no address is held (§10): the fields cannot carry them.
+/// found. Nothing the person wrote and no address is held: the fields cannot carry them.
 public struct ProblemRecord: Sendable, Equatable {
     public let at: Date
     /// The route's id in the contract, never its address.

@@ -2,11 +2,11 @@ import Foundation
 
 /// What the server gave the application at the end of the sign-in: the session's value, and until when it lasts.
 public struct StoredSession: Codable, Sendable, Equatable {
-    /// The raw session value, which the app sends back as the `Cookie` it sets itself (M-14).
+    /// The raw session value, which the app sends back as the `Cookie` it sets itself.
     public let cookie: String
     /// From the cookie's `Max-Age`, when the server said. The server's own clock still decides.
     public let expiresAt: Date?
-    /// The canonical address the socket's `Origin` must equal (M-15), as the server said it.
+    /// The canonical address the socket's `Origin` must equal, as the server said it.
     public let origin: String
 
     public init(cookie: String, expiresAt: Date?, origin: String) {

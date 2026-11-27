@@ -11,7 +11,7 @@ public enum HandshakeError: Error, Sendable, Equatable {
     case rateLimited(retryAfter: Int?)
 }
 
-/// Asks a server what it is, before anybody has signed in, and decides whether this app can talk to it (§6.4).
+/// Asks a server what it is, before anybody has signed in, and decides whether this app can talk to it.
 public struct HandshakeClient: Sendable {
     private let transport: any HTTPTransport
     private let appVersion: SemanticVersion

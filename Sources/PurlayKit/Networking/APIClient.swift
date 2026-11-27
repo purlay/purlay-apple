@@ -37,7 +37,7 @@ public struct APIConfiguration: Sendable {
 /// why it could not. It decides nothing about the wire: the route, its method, its shapes and its statuses come from
 /// the generated table.
 public final class APIClient: Sendable {
-    /// Waits before a retry: two tries after the first, as `[1, 2, 4]` seconds says (§8.1).
+    /// Waits before a retry: two tries after the first, as `[1, 2, 4]` seconds says.
     public static let retryDelays: [Duration] = [.seconds(1), .seconds(2)]
     /// A retry is a try of its own; this is how many a read may have in all.
     public static let maximumAttempts = 3

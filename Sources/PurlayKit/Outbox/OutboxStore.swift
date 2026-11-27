@@ -60,7 +60,7 @@ public protocol OutboxStore: Sendable {
     func save(_ messages: [StoredMessage]) throws
 }
 
-/// The outbox as a file in the app's container, one per person (§10): `outbox/<userId>.json`, written atomically on every change,
+/// The outbox as a file in the app's container, one per person: `outbox/<userId>.json`, written atomically on every change,
 /// readable by the owner alone.
 public struct FileOutboxStore: OutboxStore {
     public static var maximumMessages: Int { ContractConstants.outboxMaxMessages }

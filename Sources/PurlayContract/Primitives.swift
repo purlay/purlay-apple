@@ -1,7 +1,7 @@
 import Foundation
 
 // What the generated types stand on. Written by hand because the contract names these shapes by format
-// (`uuid`, `date-time`) and a client has to decide how each one is held and spelled (§6.2).
+// (`uuid`, `date-time`) and a client has to decide how each one is held and spelled.
 
 /// A UUID as the server spells it: lower case, hyphenated, compared as text.
 ///

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The real client against a real server of the pinned version (§16.3): starts the server's own demo from a checkout of the
+# The real client against a real server of the pinned version: starts the server's own demo from a checkout of the
 # server repository, on a port and in a database of its own, runs the contract tests against it, and stops it.
 #
 #   PURLAY_SERVER_CHECKOUT=~/Projects/purlay scripts/contract-test

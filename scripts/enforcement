@@ -157,13 +157,13 @@ check_tree() { # root: every rule but the layers
   done
 
   # --- Dependencies and code that can trap.
-  # The package has no third-party dependency; the project's are the ones M-8 allows (Sparkle; swift-markdown if needed).
+  # The package has no third-party dependency; the project's only one is Sparkle (ADR 0010).
   if grep -nE '\.package\(' "$root/Package.swift"; then
     echo "FAIL: a package dependency in Package.swift; the modules have none" >&2; failed=1
   fi
   if grep -oE '"repository": *"[^"]+"' "$root/Apps/Purlay.xcodeproj/project.xcproj" \
-      | grep -vE 'github\.com/(sparkle-project/Sparkle|swiftlang/swift-markdown)"'; then
-    echo "FAIL: a project dependency M-8 does not allow" >&2; failed=1
+      | grep -vE 'github\.com/sparkle-project/Sparkle"'; then
+    echo "FAIL: a project dependency beyond Sparkle" >&2; failed=1
   fi
   # Only the Mac app's own folder for updates may import Sparkle.
   if grep -rnE --include='*.swift' '^\s*import Sparkle\b' "$root/Sources" "$root/Apps" | grep -v '/Apps/macOS/App/Updates/'; then
@@ -172,6 +172,17 @@ check_tree() { # root: every rule but the layers
   # The Mac screens open no connection: they reach the network only through PurlayKit's protocols.
   if grep -rnE '\b(URLSession|URLRequest|NWConnection|URLSessionWebSocketTask)\b' "$root/Sources/PurlayMacUI"; then
     echo "FAIL: PurlayMacUI touches the network" >&2; failed=1
+  fi
+  # A comment states its reason, not a section or milestone (`§12.3`, `M-3`, `M6-1`, `plan §9`) of a plan that is not in this
+  # repository. A section of a named document (`UX.md` §5) or of a server decision (`D-99 §3`) is a citation a reader can follow.
+  local scope=("$root/Sources" "$root/Apps")
+  [ ! -d "$root/scripts" ] || scope+=("$root/scripts")
+  # shellcheck disable=SC2016 # the sed expression is not a shell expansion
+  if grep -rnIE '(//|#).*(§|\bM-[0-9]|\bM[0-9]+-[0-9]|\bplan\b)' "${scope[@]}" \
+      | grep -vE '/Generated/|/scripts/enforcement:|^scripts/enforcement:' \
+      | sed -E 's/(D-[0-9]+|UX|UX\.md`?|API\.md`?|ARCHITECTURE\.md`?) §//g' \
+      | grep -E '§|\bM-[0-9]|\bM[0-9]+-[0-9]|\bplan §'; then
+    echo "FAIL: a comment cites a section or milestone of a plan that is not in the repository; say the reason" >&2; failed=1
   fi
   # No escape from the compiler's concurrency checking.
   if grep -rnE --include='*.swift' '(@unchecked Sendable|nonisolated\(unsafe\))' "$root/Sources" "$root/Apps" \
@@ -458,8 +469,10 @@ plant_in "a second test package" . \
 plant "a test target in no test plan" Package.swift '// tests("PurlayOrphanTests", [])'
 # Dependencies and code that can trap.
 plant "a package dependency" Package.swift '// .package(url: "https://example.test/Alamofire", from: "1.0.0")'
-plant_in "a project dependency M-8 does not allow" Apps/Purlay.xcodeproj \
+plant_in "a project dependency beyond Sparkle" Apps/Purlay.xcodeproj \
   'sed -i.bak "s#https://github.com/sparkle-project/Sparkle#https://example.test/KeychainAccess#" project.xcproj && rm project.xcproj.bak'
+plant "a comment citing a plan section" Sources/PurlayMacUI/Strings.swift "// The sidebar (§12.3)."
+plant "a comment citing a plan milestone" Apps/macOS/App/PurlayApp.swift "// Lives in the packages (M-3)."
 plant "Sparkle in the Mac screens" Sources/PurlayMacUI/Strings.swift "import Sparkle"
 plant "the Mac screens open a session" Sources/PurlayMacUI/Strings.swift "let session = URLSession.shared"
 plant "an unchecked Sendable" Apps/iOS/App/PurlayApp.swift "final class Leaky: @unchecked Sendable {}"
@@ -625,6 +638,8 @@ plant_in "a colour set in the iOS asset catalogue beside the accent" Apps/iOS/Ap
   'mkdir Leaked.colorset && printf "%s" "{\"colors\":[{\"color\":{\"color-space\":\"srgb\",\"components\":{\"red\":\"0.1\",\"green\":\"0.2\",\"blue\":\"0.3\",\"alpha\":\"1\"}},\"idiom\":\"universal\"}],\"info\":{\"author\":\"xcode\",\"version\":1}}" > Leaked.colorset/Contents.json'
 plant "a hex colour with separators between its pairs" Apps/iOS/App/Entry/WelcomeView.swift 'let leakedPairs: UInt32 = 0x25_63_EB'
 plant "a colour in a hand-written folder named Generated" Sources/PurlayMacUI/Generated/Leaked.swift 'let leakedGrey = Color(white: 0.5)'
+accept_in "a section of a named document or a server decision in a comment" Apps/iOS/App/Entry \
+  "printf '%s\\n' '// the feed (UX.md §6) and its ids (D-99 §3), as ARCHITECTURE.md §5.3 says' >> WelcomeView.swift"
 accept_in "a colour named in comments, and a mask grouped by fours" Apps/iOS/App/Entry \
   "printf '%s\\n' 'let qaNote = 1 // the accent, 0x2563EB, is a token' '/* Color(red: 0.1, green: 0.2, blue: 0.3) was the old ink */' \
     'let qaMask = 0x7fff_ffff' >> WelcomeView.swift"

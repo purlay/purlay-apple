@@ -128,7 +128,7 @@ apps use. Where a test is named: *engine* tests are in `Tests/PurlayKitTests` (o
 | Q-003 | Does the server get a minimum-client gate for `ios` (`MIN_CLIENT_*` names macOS only)? Until it does, `Handshake.evaluate` reads the macOS minimum for an iOS app too, so a server that raises the macOS minimum above the iOS app's version refuses it (P-10) | Owner | Before the first iOS release | Open |
 | Q-004 | Is a white background right for the iOS icon (A-005), and should there be a dark and a tinted icon (TD-010)? | Owner | Before the first TestFlight | Open |
 | Q-005 | Why Apple silicon only on the Mac, and why the macOS 26 floor rather than lower? ADR 0002 records the decision; the weighing of the alternatives was not recorded | Owner | — | Open |
-| Q-006 | Comments in the Mac code cite sections and milestones of a plan that is not in the repository (TD-011). Should its rules become ADRs, or the citations simply go? | Owner | — | Open |
+| Q-006 | Comments in the Mac code cite sections and milestones of a plan that is not in the repository. Should its rules become ADRs, or the citations simply go? | Owner | — | The citations went, and `scripts/enforcement` refuses new ones; its rules become ADRs only where a decision needs one |
 | Q-007 | Is sign-in at purlay.app only permanent on the Mac, or will self-hosted servers return? It decides whether the Mac keeps the server-address code, and whether FR-025 is shared | Owner | — | Open |
 | Q-008 | Should the live contract tests run in CI (TD-017), and who pays the macOS minutes? Proposed: in the release workflows only | Owner | Before the next contract pin | Open |
 

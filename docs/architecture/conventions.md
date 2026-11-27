@@ -150,6 +150,7 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
 | A feature importing a feature | `PurlayModuleAPI` | enforced, ADR 0003 |
 | A package dependency, or a project dependency beyond Sparkle | the standard library, or a decision first | enforced, ADR 0010 |
 | `URLSession` and friends in `PurlayMacUI`; `import Sparkle` outside `Apps/macOS/App/Updates` | `PurlayKit`'s protocols; `UpdateController` | enforced |
+| A comment citing a section or milestone of a plan (`§12.3`, `M-3`) | the reason itself, or a document, a decision or the server's `D-xxx` | enforced |
 | Editing a file under `Generated/` | the bundle pin or `Tools/PurlayGen` | `scripts/generate --check` |
 | A build setting in the project file | `Config/*.xcconfig` | enforced |
 | A string with no final Turkish value | the Turkish value in the catalogue | enforced |
@@ -162,7 +163,5 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
 
 ## Old patterns, not for new code
 
-- **Citations of plan sections** in the Mac code's comments (`§12.3`, `M-8`, `M6-1`) point at a plan that is not in the
-  repository (TD-011, Q-006). Cite a document, a decision or the server's `D-xxx` decision instead.
 - **`NativePalette.swift`** holds the Mac's neutral greys and status colours as literals, because no token states them yet. Its
   blue is the accent token. Do not add a colour there that a token states.

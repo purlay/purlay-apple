@@ -2,7 +2,7 @@ import Foundation
 import PurlayContract
 
 /// The contract versions this build can talk to: the one it was generated from, and by explicit allowlist the earlier
-/// ones it was tested against. A version is added here by a person, with a test, never by a default (§6.4).
+/// ones it was tested against. A version is added here by a person, with a test, never by a default.
 public enum CompatibleContracts {
     public static let supported: Set<Int> = [ContractConstants.contractVersion]
     /// The oldest server this build reads. Within one contract version a server may make a field required that an older
@@ -29,7 +29,7 @@ public enum ClientPlatform: String, Sendable, Equatable {
 
 /// What the server's answer to `GET /api/client` means for this app.
 public enum HandshakeOutcome: Sendable, Equatable {
-    /// Talk to it. `origin` is the `Origin` the socket upgrade must carry (M-15), the server's own spelling.
+    /// Talk to it. `origin` is the `Origin` the socket upgrade must carry, the server's own spelling.
     case ready(ClientInfo, origin: ServerAddress)
     /// The server needs a newer app than this one. The sheet offers an update and shows the address; it never loops.
     case appTooOld(minimum: ClientMinimum, server: ClientInfo)
@@ -40,7 +40,7 @@ public enum HandshakeOutcome: Sendable, Equatable {
 }
 
 public enum Handshake {
-    /// Both directions (§6.4), decided from what the server said and what this build is.
+    /// Both directions, decided from what the server said and what this build is.
     public static func evaluate(
         _ info: ClientInfo, appVersion: SemanticVersion, appContract: Int = ContractConstants.contractVersion,
         supported: Set<Int> = CompatibleContracts.supported,
