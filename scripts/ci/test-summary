@@ -12,15 +12,21 @@ import sys
 COUNTS = ("totalTestCount", "passedTests", "failedTests", "skippedTests")
 
 
+def one_line(value, limit=400):
+    """A value on one line: control characters and runs of whitespace become one space, so a name holding a newline cannot
+    start a line of its own (on GitHub Actions, a line starting "::" is a workflow command)."""
+    text = "".join(character if character.isprintable() else " " for character in str(value))
+    return " ".join(text.split())[:limit]
+
+
 def lines(summary):
     missing = [key for key in COUNTS if key not in summary]
     if missing:
         raise ValueError(f"no {', '.join(missing)}")
-    yield "tests: %s in all, %s passed, %s failed, %s skipped" % tuple(summary[key] for key in COUNTS)
+    yield "tests: %s in all, %s passed, %s failed, %s skipped" % tuple(one_line(summary[key], 20) for key in COUNTS)
     for failure in summary.get("testFailures", []):
-        test = failure.get("testIdentifierString") or failure.get("testName")
-        said = " ".join(str(failure.get("failureText", "")).split())[:400]
-        yield f"FAILED  {failure.get('targetName')} / {test}: {said}"
+        test = one_line(failure.get("testIdentifierString") or failure.get("testName"), 200)
+        yield f"FAILED  {one_line(failure.get('targetName'), 100)} / {test}: {one_line(failure.get('failureText', ''))}"
 
 
 def main():

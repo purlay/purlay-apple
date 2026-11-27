@@ -127,8 +127,11 @@ rules() {
   scripts/ci/enforcement-demo-verdicts-test >/dev/null
   step check "on CI the SDK's sentence calls are checked whatever Xcode is selected (scripts/ci/sentence-calls-ci-test)"
   scripts/ci/sentence-calls-ci-test >/dev/null
-  step check "a test run's summary names what failed, or says it could not be read (scripts/ci/test-summary-test)"
+  step check "a test run's summary names what failed, on lines of its own, or says it could not be read (scripts/ci/test-summary-test, test-summary-injection-test)"
   scripts/ci/test-summary-test >/dev/null
+  scripts/ci/test-summary-injection-test >/dev/null
+  step check "the rules' cache folder is trusted only when no one else can write or swap it (scripts/ci/cache-trust-folders-test)"
+  scripts/ci/cache-trust-folders-test >/dev/null
   step check "the lanes each change runs (scripts/ci/changes)"
   scripts/ci/changes-test >/dev/null
   step check "workflows (actionlint) and shell scripts (shellcheck), at the versions scripts/install-lint-tools pins"
@@ -164,16 +167,14 @@ packages() {
   # format check and the packages' fetch, which wait on the disk and the network, and is judged after them.
   local layers layers_log
   layers_log="$(mktemp)"
-  (scripts/enforcement layers && scripts/enforcement --demo layers) >"$layers_log" 2>&1 &
+  # The manifest cache's trust is tested here too: it needs Swift as well, and costs the critical path nothing.
+  (scripts/enforcement layers && scripts/enforcement --demo layers && scripts/ci/enforcement-cache-trust-test) >"$layers_log" 2>&1 &
   layers=$!
   format
   resolve Purlay-macOS
-  step check "the layers, read from the manifest by SwiftPM, and the demonstration that the rule refuses each violation"
+  step check "the layers, read from the manifest by SwiftPM, the demonstration that the rule refuses each violation, and its cache trusted only in the user's own folder"
   if ! wait "$layers"; then cat "$layers_log" >&2; rm -f "$layers_log"; exit 1; fi
   cat "$layers_log"; rm -f "$layers_log"
-  # It reads the manifest through SwiftPM too, so it is here and not in the rules lane, which has no Swift.
-  step check "the layer rule's manifest cache is trusted only in the user's own folder (scripts/ci/enforcement-cache-trust-test)"
-  scripts/ci/enforcement-cache-trust-test >/dev/null
   local snapshots test=(-project "$PROJECT" -scheme Purlay-macOS -testPlan macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO)
   step build "every package test target, for macOS"
   cached "${test[@]}" build-for-testing
