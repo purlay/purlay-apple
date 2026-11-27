@@ -1,6 +1,6 @@
 # Requirements: Purlay for Apple platforms
 
-> Last updated: 2026-11-26 · Vision: [vision.md](vision.md) · The Mac's behaviour in detail: [mac-behaviour.md](mac-behaviour.md) ·
+> Last updated: 2026-11-27 · Vision: [vision.md](vision.md) · The Mac's behaviour in detail: [mac-behaviour.md](mac-behaviour.md) ·
 > Screen designs: [../design/](../design/)
 
 Statuses: Draft, Approved, In progress, Done, Blocked, Cancelled. Priorities: MVP, Next, Later, Maybe.
@@ -83,6 +83,8 @@ apps use. Where a test is named: *engine* tests are in `Tests/PurlayKitTests` (o
 | FR-214 | An upload is checked before it is sent, and its failure says what it means | Given a file, when it is empty or past the limit, then it is refused before sending; each server answer is said as what it means; Retry is offered only when trying again can differ | MVP | Done | `UploadRulesTests` |
 | FR-215 | The real client works against a real server of the pinned version | Given a server of the version in `Contract/contract.lock`, when the live tests run, then sign-in, reads, engine, features and socket pass | Next | Partly: by hand, not in CI (TD-017) | `Tests/ContractTests` through `scripts/contract-test` |
 | FR-216 | The apps' code can be tested without a server | Given `PurlayTestSupport`, when a package test scripts a transport or fakes a store, then the engine behaves as against a server | MVP | Done | `PurlayTestSupportTests` |
+| FR-217 | A person can erase their account from the app | Given a signed-in person, when they type their username and ask, then the server is asked once (a name that is not theirs is refused unasked); on `204` the app signs out, removes what it kept of them and says the account was deleted; a sign-in too old, a workspace they are the last owner of, a refusal, a session that ended and a network failure are each a result the screen acts on, with its words in English and Turkish, and change nothing else | MVP | Done in the engine; the iOS screen is slice 2 (P-1) | engine `AccountErasureTests`, `SessionManagerTests`; `EngineWordsTests` |
+| FR-218 | Signing out removes what the app keeps of the person on this device | Given the wipers the app's environment names, when the person signs out (here or everywhere) or erases their account, then each runs once even if one fails; a failure is said, and tried again at the next sign-in of another person or the next sign-out; a session the server ended keeps the person's data for their next sign-in | MVP | In progress: the seam is done, no app names a wiper yet (P-6) | engine `UserDataWipeTests`, `SessionManagerTests` |
 
 ## Non-functional requirements
 
