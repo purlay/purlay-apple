@@ -13,6 +13,7 @@ extension EngineWords {
         case .sessionEndedByServer:
             LocalizedStringResource("You were signed out by the server. Sign in again.", bundle: .module)
         case .signedOutElsewhere: LocalizedStringResource("You were signed out.", bundle: .module)
+        case .accountErased: LocalizedStringResource("Your account was deleted.", bundle: .module)
         case .sessionEndsSoon(let end):
             sessionEnds(end.formatted(date: .abbreviated, time: .shortened))
         case .serverNotTold:

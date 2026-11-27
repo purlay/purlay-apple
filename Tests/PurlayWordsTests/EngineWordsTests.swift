@@ -23,6 +23,7 @@ struct EngineWordsTests {
         .map { .invalidAddress($0) } + signIns.map { .signInFailed($0) } + [
             .sessionExpired, .sessionEndsSoon(Date(timeIntervalSince1970: 0)), .sessionEndedByServer,
             .signedOutElsewhere, .serverNotTold, .signOutEverywhereFailed, .signOutFailed, .dataNotWiped,
+            .accountErased,
             .unsentLost(2),
             .unrestorable(1), .outboxCorrupt, .storageProblem, .originMismatch, .sendTooLong, .tooManyFiles,
             .readFailed, .loginItemFailed, .sendHeld(""), .sendHeld("# general"), .saveFailed, .fileNotWritten,
@@ -36,12 +37,18 @@ struct EngineWordsTests {
         .tooManyWaiting, .noConnection, .busy, .storageUnavailable, .sessionEnded, .noAccess, .unknown,
     ]
 
+    private static let erasures: [EraseAccountResult] = [
+        .reauthenticationRequired, .lastOwner(workspaceIDs: []),
+        .lastOwner(workspaceIDs: [Uuid("0199155c-6200-7b7f-8c11-0000000000aa")!]), .confirmationMismatch, .refused,
+        .sessionEnded, .failed,
+    ]
+
     /// Every sentence the engine's words can say, with what it takes to say the ones that carry a value.
     private static var everySentence: [LocalizedStringResource] {
         EngineWords.fixed
             + problems.flatMap { [EngineWords.problem($0).title, EngineWords.problem($0).detail] }
             + signIns.compactMap(EngineWords.signIn) + notices.compactMap(EngineWords.notice)
-            + uploads.map(EngineWords.upload)
+            + uploads.map(EngineWords.upload) + erasures.compactMap(EngineWords.erasure)
     }
 
     private func text(_ resource: LocalizedStringResource, in language: String) -> String {
@@ -108,5 +115,25 @@ struct EngineWordsTests {
         #expect(text(one, in: "en").hasPrefix("1 unsent message was removed"))
         #expect(text(two, in: "en").hasPrefix("2 unsent messages were removed"))
         #expect(text(two, in: "tr").contains("2 gönderilmemiş mesaj"))
+    }
+
+    @Test("an erasure that did not happen says why, and one that did says nothing here: the notice says it")
+    func erasures() {
+        #expect(EngineWords.erasure(.erased) == nil)
+        for result in Self.erasures {
+            let words = EngineWords.erasure(result).map { text($0, in: "en") }
+            #expect(words?.isEmpty == false, "\(result)")
+        }
+        #expect(EngineWords.notice(.accountErased).map { text($0, in: "tr") } == "Hesabın silindi.")
+    }
+
+    @Test("the workspaces a last owner must hand over are counted in the form their number takes")
+    func lastOwnerPlurals() throws {
+        let ids = ["0199155c-6200-7b7f-8c11-0000000000aa", "0199155c-6200-7b7f-8c11-0000000000bb"].compactMap(Uuid.init)
+        let one = try #require(EngineWords.erasure(.lastOwner(workspaceIDs: Array(ids.prefix(1)))))
+        let two = try #require(EngineWords.erasure(.lastOwner(workspaceIDs: ids)))
+        #expect(text(one, in: "en").hasPrefix("You are the last owner of 1 workspace with other people in it."))
+        #expect(text(two, in: "en").hasPrefix("You are the last owner of 2 workspaces with other people in them."))
+        #expect(text(two, in: "tr").contains("2 çalışma alanının son sahibisin"))
     }
 }

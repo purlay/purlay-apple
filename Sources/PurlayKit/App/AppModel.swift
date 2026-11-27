@@ -13,6 +13,8 @@ public struct Notice: Equatable, Identifiable, Sendable {
         case sessionEndsSoon(Date)
         case sessionEndedByServer
         case signedOutElsewhere
+        /// The person's account was erased, and this app signed out with it.
+        case accountErased
         /// This device is signed out and the server could not be told: its session lives until it expires or is ended from elsewhere.
         case serverNotTold
         case signOutEverywhereFailed
@@ -139,6 +141,9 @@ public final class AppModel {
     /// activation) waits for it and shares its answer instead of asking the server again. Signing out and refreshing leave the
     /// phase `.ready` while the server answers, so the phase cannot say they are under way.
     @ObservationIgnored private var signingOut: Task<SessionManager.SignOutResult, Never>?
+    /// An erasure under way: one asked for meanwhile shares its answer. While it runs, a session the server ends is the
+    /// erasure's to say (its `SESSION_ENDED` can come before its `204`), so the observer leaves it alone.
+    @ObservationIgnored private var erasing: Task<EraseAccountResult, Never>?
     @ObservationIgnored var refreshingAccount: Task<Void, Never>?
     private var observation: Task<Void, Never>?
     private var noticeCounter = 0
@@ -638,7 +643,9 @@ public final class AppModel {
         observation = Task { @MainActor [weak self] in
             for await state in await manager.states() {
                 guard let self, !Task.isCancelled else { return }
-                if case .signedOut(let reason) = state, phase == .ready || phase == .loading { sessionEnded(reason) }
+                if case .signedOut(let reason) = state, phase == .ready || phase == .loading, erasing == nil {
+                    sessionEnded(reason)
+                }
             }
         }
     }
@@ -682,6 +689,48 @@ public final class AppModel {
         phase = .signedOut
         onSessionEnded?()
         return result
+    }
+
+    /// Erases the person's account (`POST /api/me/erase`): `confirmation` is their username, typed, and one that is not is
+    /// refused here without asking the server. On `erased` this app signs out as a sign-out does, every wiper run once, and
+    /// says so; every other answer is the screen's to act on (sign in again and retry, hand a workspace over) and changes
+    /// nothing here, unless the session ended meanwhile. One asked for while one is under way waits for it and shares its
+    /// answer, so the server is asked once.
+    public func eraseAccount(confirmation: String) async -> EraseAccountResult {
+        if let sessionOwner { return await sessionOwner.eraseAccount(confirmation: confirmation) }
+        if let erasing { return await erasing.value }
+        let run = Task { await eraseAccountOnce(confirmation: confirmation) }
+        erasing = run
+        defer { erasing = nil }
+        return await run.value
+    }
+
+    private func eraseAccountOnce(confirmation: String) async -> EraseAccountResult {
+        guard phase == .ready, let api, let manager, let me else { return .sessionEnded }
+        // The server compares exactly, so this does too: what would be refused is refused without a request.
+        guard confirmation == me.user.username else { return .confirmationMismatch }
+        let result: EraseAccountResult
+        do {
+            try await api.eraseMyAccount(body: EraseAccountRequest(confirm: confirmation))
+            result = .erased
+        } catch {
+            result = EraseAccountResult(error)
+        }
+        guard result == .erased else {
+            // A session that ended while the request was out (a `401`, or the socket) was left to this: said now, as the
+            // observer would have.
+            if case .signedOut(let reason) = await manager.state, phase == .ready || phase == .loading {
+                sessionEnded(reason)
+                return .sessionEnded
+            }
+            return result
+        }
+        await manager.accountErased()
+        tearDown()
+        phase = .signedOut
+        say(.accountErased)
+        onSessionEnded?()
+        return .erased
     }
 
     /// Stops this workspace without revoking the shared server credential a second time.

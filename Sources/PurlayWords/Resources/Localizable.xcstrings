@@ -517,6 +517,16 @@
         }
       }
     },
+    "That is not your username. Type it exactly as it is shown." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu senin kullanıcı adın değil. Tam olarak gösterildiği gibi yaz."
+          }
+        }
+      }
+    },
     "That message is too long to send." : {
       "localizations" : {
         "tr" : {
@@ -667,6 +677,16 @@
         }
       }
     },
+    "This account cannot be deleted from here. Open Purlay on the web to see why." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu hesap buradan silinemez. Nedenini görmek için Purlay'i web'de aç."
+          }
+        }
+      }
+    },
     "This channel has as many pinned messages as it can hold. Unpin one first." : {
       "localizations" : {
         "tr" : {
@@ -753,6 +773,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bu sunucu daha yeni bir Purlay gerektiriyor"
+          }
+        }
+      }
+    },
+    "To delete your account, sign in again first." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesabını silmek için önce yeniden giriş yap."
           }
         }
       }
@@ -867,6 +897,50 @@
         }
       }
     },
+    "You are the last owner of %lld workspaces with other people in them. Make someone else an owner first." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "You are the last owner of %lld workspace with other people in it. Make someone else an owner first."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "You are the last owner of %lld workspaces with other people in them. Make someone else an owner first."
+                }
+              }
+            }
+          }
+        },
+        "tr" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Başka kişilerin de olduğu %lld çalışma alanının son sahibisin. Önce başka birini sahip yap."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "You are the last owner of a workspace with other people in it. Make someone else an owner first." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Başka kişilerin de olduğu bir çalışma alanının son sahibisin. Önce başka birini sahip yap."
+          }
+        }
+      }
+    },
     "You can add at most %lld reactions to a message. Remove one to add another." : {
       "localizations" : {
         "en" : {
@@ -915,6 +989,16 @@
         }
       }
     },
+    "You were signed out before your account was deleted. Sign in and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesabın silinmeden önce oturumun kapandı. Giriş yapıp yeniden dene."
+          }
+        }
+      }
+    },
     "You were signed out by the server. Sign in again." : {
       "localizations" : {
         "tr" : {
@@ -931,6 +1015,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Oturumun kapatıldı."
+          }
+        }
+      }
+    },
+    "Your account could not be deleted. Check your connection and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesabın silinemedi. Bağlantını kontrol edip yeniden dene."
+          }
+        }
+      }
+    },
+    "Your account was deleted." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesabın silindi."
           }
         }
       }
