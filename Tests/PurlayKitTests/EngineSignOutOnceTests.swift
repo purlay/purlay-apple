@@ -4,8 +4,9 @@ import Testing
 @testable import PurlayKit
 
 /// The Mac's Sign Out (sidebar, menu, command) and Check Again call the model directly, and Check Again also runs each time the
-/// app becomes active, with nothing between a second call and the server: the iOS app's `RootActions.once` guards only the iOS
-/// screens, which do not offer either yet. The model is what both apps share, so "once while one is under way" belongs to it.
+/// app becomes active, with nothing between a second call and the server. The iOS app's `RootActions` read the phase, which
+/// stays `.ready` while the server answers, so they cannot hold back a second call either. The model is what both apps share,
+/// so "once while one is under way" belongs to it.
 @MainActor
 @Suite("the engine signs out and refreshes once while one is under way")
 struct EngineSignOutOnceTests {

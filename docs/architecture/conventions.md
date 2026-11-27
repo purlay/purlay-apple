@@ -9,7 +9,7 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
 |---|---|---|
 | Format | `xcrun swift-format lint --strict` (Xcode's toolchain): 120 columns, 4 spaces | `.swift-format`; the `packages` lane, and the pre-commit hook on staged files |
 | Compiler | Swift 6 language mode, complete strict concurrency, every warning an error | `Package.swift` (`strict`), `Config/Shared.xcconfig` |
-| Architecture rules | `scripts/enforcement`, and `--demo`, which plants each violation and requires the refusal | the `rules` lane |
+| Architecture rules | `scripts/enforcement`, and `--demo`, which plants each violation and requires the refusal, and writes valid code a rule must leave alone and requires it accepted | the `rules` lane |
 | Strings | `scripts/enforcement`: one checker for the three catalogues; `scripts/localize` adds the Mac's and the engine's new sentences | the `rules` lane |
 | Generated code | `scripts/generate --check` | the `generated` lane |
 | Tests | Swift Testing (`@Test`, `@Suite`, `#expect`); XCUITest for the iOS sign-in only | `Tests/` (`Tests/ContractTests` among them), `Apps/iOS/Tests/`, `Tools/PurlayGen/Tests/` |
@@ -48,7 +48,8 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
   for the one under way.
 - Colour, spacing, type and motion come from `PurlayTokens`: through `PurlayDesign` on iOS, through `TokenBinding.swift` and
   `NativePalette.swift` on the Mac. A view names a token, never a colour of its own; a colour literal is allowed only in the
-  tokens, the logo and `NativePalette.swift` (enforced).
+  tokens, the logo and `NativePalette.swift` (enforced, comments aside). The only colour set in an asset catalogue is each
+  app's `AccentColor`, held to the accent token (enforced).
 - Liquid Glass belongs on the navigation layer, never on content, and is the system's own (`purlaySurface`, the glass button
   styles), never drawn by hand.
 
@@ -104,7 +105,20 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
   and the engine, `scripts/localize` adds new sentences to their catalogues. A view never writes a literal sentence on iOS.
   A sentence lives in one catalogue only, and every sentence in a catalogue is a string literal in the code that reads that
   catalogue: the iOS app's, the Mac app's with `PurlayMacUI`, `PurlayWords`' (enforced). A sentence the code stopped saying
-  is removed; the catalogues keep no extraction state, so `stale` alone would never show it.
+  is removed; the catalogues keep no extraction state, so `stale` alone would never show it. The literal counts where it is
+  said as a sentence, never in a comment: an argument of a call the SDK declares as taking one (`scripts/lib/sentence_calls.py`,
+  written by `scripts/dev/sentence-calls` from the interfaces of SwiftUI, Foundation, App Intents, WidgetKit, Charts, AppKit
+  and UIKit, and checked against the SDK by the packages lane), an argument of a function or initialiser of the repository's
+  own code (any module, so a design-system component counts) whose parameter or property is typed `LocalizedStringKey`,
+  `LocalizedStringResource`, `String.LocalizationValue` or `IntentDialog` (or an array of them), the value of a declaration so
+  typed (a ternary of literals too) or a literal its computed body gives, or an assignment to a property so typed, through
+  `self` or a value whose type the code states. The same literal given to an API that takes a `String` does not count. The
+  rules that read Swift and data are in `scripts/lib/rules.py`.
+- A sentence with a count (`%lld`, `%d`, `%i`…) has English plural forms whose `one` is not its `other` (enforced), unless the
+  count changes no English word ("Filters (%lld)"): those are listed in `scripts/lib/rules.py`, and a new one is a review
+  point. A sentence with two counts has them as Xcode writes them, substitutions (`%#@messages@ in %#@channels@`), each with
+  its own forms. That the `one` form is the right singular is a review point too. Turkish says a count with one form, so its
+  value may be a single one.
 - A button is built from a `Text` label: `Button(Words.x)` showed English on a Turkish simulator (enforced).
 - Turkish addresses the person as "sen", as the web client does; its wording follows `apps/web/src/i18n/catalogue/tr.ts` of the
   server repository.

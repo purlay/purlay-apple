@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""Writes scripts/lib/sentence_calls.py: every call the SDK declares with a parameter that takes a sentence (LocalizedStringKey,
+LocalizedStringResource, String.LocalizationValue, IntentDialog), read from the .swiftinterface files of the frameworks below for
+macOS and the iOS simulator, with the label of each such parameter. scripts/enforcement counts a catalogue sentence as said where
+one of these calls says it. It needs Xcode, which the rules lane does not have; `--check` runs in the layers group of
+scripts/enforcement (the packages lane), so a new Xcode whose SDK says otherwise is seen there. The file is the SDK of the Xcode
+.github/toolchain.env names (CI's): another Xcode would write another file, so it writes nothing, and `--check` says so and
+checks nothing.
+
+  scripts/dev/sentence-calls            write the file
+  scripts/dev/sentence-calls --check    fail unless the file is what this Xcode's SDK gives
+"""
+import pathlib
+import re
+import subprocess
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+OUTPUT = ROOT / "scripts/lib/sentence_calls.py"
+sys.path.insert(0, str(ROOT / "scripts/lib"))
+from swift_source import parameters  # noqa: E402  (the path above first)
+SENTENCE = r"(?:\w+::|\w+\.)*(?:LocalizedStringKey|LocalizedStringResource|LocalizationValue|IntentDialog)\b(?![.:])"
+# The frameworks whose calls an app says sentences through: the interface, intents and widgets, charts, and each platform's own.
+FRAMEWORKS = ("SwiftUI", "SwiftUICore", "Foundation", "AppIntents", "WidgetKit", "Charts", "AppKit", "UIKit")
+DECLARATION = re.compile(r"(?:@\S+\s+)*(?:public |open |final |@frozen |nonisolated |indirect )*"
+                         r"(?:struct|class|enum|extension|actor|protocol)\s+([\w.:]+)")
+# Not called by name in an app's code: the compiler's interpolation hooks, and the underscored SPI.
+SKIPPED = re.compile(r"^_|^appendInterpolation$|^placeholderFormatSpecifier$|^setActionName$")
+# Sentences the SDK does not type as one: a key NSLocalizedString looks up, and a key or value built from a literal.
+EXTRA = {"NSLocalizedString": {""}, "LocalizedStringKey": {""}, "LocalizationValue": {""}}
+# A type the code names otherwise: App Intents' IntentParameter is written as the property wrapper @Parameter.
+ALIASES = {"IntentParameter": "Parameter"}
+# Methods named as everyday Swift names its own code calls too (a value's description, an optional's value). A call names no
+# receiver type the rule could check, so these are written with their declaring type, which no call matches: a widget's
+# `.description("…")` is not taken as saying a sentence until the rule can tell whose it is.
+GENERIC = {"description", "value", "displayName"}
+
+
+def toolchain():
+    """The Xcode CI builds with (.github/toolchain.env), and the one xcodebuild selects here."""
+    wanted = re.search(r"(?m)^XCODE_VERSION=(\S+)", (ROOT / ".github/toolchain.env").read_text()).group(1)
+    here = re.search(r"Xcode (\S+)", subprocess.check_output(["xcodebuild", "-version"], text=True)).group(1)
+    return wanted, here
+
+
+wanted, here = toolchain()
+if here != wanted:
+    print(f"scripts/dev/sentence-calls: this Xcode is {here}, CI's is {wanted} (.github/toolchain.env); "
+          f"the SDK's calls are written and checked with Xcode {wanted} only, so nothing was {'checked' if sys.argv[1:] == ['--check'] else 'written'}",
+          file=sys.stderr)
+    sys.exit(0)
+
+
+def interfaces():
+    for sdk in ("macosx", "iphonesimulator"):
+        root = pathlib.Path(subprocess.check_output(["xcrun", "--sdk", sdk, "--show-sdk-path"], text=True).strip())
+        for framework in FRAMEWORKS:
+            for path in (root / "System/Library/Frameworks" / f"{framework}.framework").rglob("*.swiftinterface"):
+                if re.search(r"(arm64e?-apple-macos|arm64-apple-ios-simulator)\.swiftinterface$", path.name):
+                    yield path
+
+
+calls = {name: set(labels) for name, labels in EXTRA.items()}
+for path in interfaces():
+    owners, depth = [], 0
+    for line in path.read_text().split("\n"):
+        stripped = line.strip()
+        declaration = DECLARATION.match(stripped)
+        if declaration and stripped.endswith("{"):
+            owners.append((depth, re.split(r"[.:]+", declaration.group(1))[-1]))
+        function = re.search(r"\b(?:func\s+(\w+)|init\??)\s*(?:<[^(]*?>)?\((.*)\)", stripped)
+        if function and re.search(SENTENCE, stripped):
+            callee = function.group(1) or (owners[-1][1] if owners else None)
+            for parameter in parameters(function.group(2)):
+                typed = re.match(rf"\s*(\w+)(?:\s+\w+)?\s*:\s*(?:__owned\s+|sending\s+|@\w+\s+)*\[?{SENTENCE}", parameter)
+                if typed and callee and not SKIPPED.search(callee) and typed.group(1) != "stringInterpolation":
+                    if function.group(1) in GENERIC:
+                        callee = f"{owners[-1][1] if owners else '?'}.{callee}"
+                    for name in (callee, ALIASES.get(callee)):
+                        if name:
+                            calls.setdefault(name, set()).add("" if typed.group(1) == "_" else typed.group(1))
+        depth += line.count("{") - line.count("}")
+        while owners and depth <= owners[-1][0]:
+            owners.pop()
+
+lines = [
+    f"# Written by scripts/dev/sentence-calls from the interfaces of Xcode {wanted}'s SDK ({', '.join(FRAMEWORKS)});",
+    "# never edit it by hand: run the script.",
+    '"""Each call that takes a sentence, by its name (a type\'s for an initialiser), and the labels of the arguments that take',
+    'one ("" for an unlabelled one)."""',
+    "CALLS = {",
+]
+lines += [f"    {name!r}: {sorted(labels)!r}," for name, labels in sorted(calls.items())]
+lines += ["}", ""]
+written = "\n".join(lines)
+if sys.argv[1:] == ["--check"]:
+    if not OUTPUT.exists() or OUTPUT.read_text() != written:
+        sys.exit("FAIL: scripts/lib/sentence_calls.py is not what this Xcode's SDK gives; run scripts/dev/sentence-calls")
+else:
+    OUTPUT.write_text(written)
+    print(f"wrote scripts/lib/sentence_calls.py: {len(calls)} calls")

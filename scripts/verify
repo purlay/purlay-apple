@@ -127,6 +127,8 @@ rules() {
   # The layer rule compiles the manifest, which needs Swift; it runs in packages, on macOS, so that this lane needs neither.
   scripts/enforcement tree
   scripts/enforcement --demo tree
+  step check "the demonstration fails when a job ends without a verdict (scripts/ci/enforcement-demo-verdicts-test)"
+  scripts/ci/enforcement-demo-verdicts-test >/dev/null
   step check "the lanes each change runs (scripts/ci/changes)"
   scripts/ci/changes-test >/dev/null
   step check "workflows (actionlint) and shell scripts (shellcheck), at the versions scripts/install-lint-tools pins"
