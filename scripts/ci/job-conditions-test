@@ -1,0 +1,300 @@
+#!/usr/bin/env python3
+"""The rules every workflow's job conditions keep, each shown to refuse its violation first. The rules lane runs it.
+
+Usage: scripts/ci/job-conditions-test [WORKFLOW_DIR]      (default .github/workflows)
+
+1. A job that needs a fan-in job (one whose `if` runs it after skipped lanes: `always()` or `!cancelled()`) states its own status
+   function. Without one its `if` gets the implicit `success()`, which GitHub judges over every ancestor, not only the jobs it
+   names: a lane that `changes` skipped makes it false, and the job is skipped although the fan-in passed (actions/runner#2205).
+2. No workflow that runs on a pull request's `closed` event has a job shown as a required check (.github/rulesets/main.json).
+   That run posts every job's check onto the pull request's head; a skipped check counts as passed, and it is the newest of its
+   name there: reopened, the pull request would read as green until its new run's check existed.
+3. A workflow that runs on `closed` beside other events refuses `closed` in every job's `if`, as a term of its top-level `&&`.
+4. ci-cancel.yml exists, runs on `closed` alone, joins ci.yml's concurrency group of that pull request with cancel-in-progress,
+   and can do nothing: `permissions: {}`, no checkout, no action.
+5. A job that takes its steps from another's anchor (`steps: *name`) has that job's runs-on, timeout and permissions: GitHub has no
+   merge keys, so they are written twice and held equal here.
+
+The workflows are read as YAML by the system Ruby's Psych (on every Mac and on GitHub's Ubuntu runners; no Python YAML module
+is), which needs Psych 3.1 or later for its `aliases:` keyword, and is asked for both the parsed data and where each anchor is
+defined and used.
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import subprocess
+import sys
+
+FAN_IN = re.compile(r"always\(\)|!\s*cancelled\(\)")
+STATUS = re.compile(r"always\(\)|cancelled\(\)|failure\(\)|success\(\)")
+CLOSED_GUARD = "github.event.action != 'closed'"
+TWIN_KEYS = ("runs-on", "timeout-minutes", "permissions")
+CANCEL = "ci-cancel.yml"
+CI = "ci.yml"
+PR_GROUP = "ci-${{ github.event.pull_request.number }}"
+
+# Parsed data, and for each job the anchor its `steps` defines (&) or uses (*): an alias is resolved by the parser, so where it
+# came from is read from Psych's node tree.
+RUBY = r'''
+require "yaml"
+require "json"
+abort "Psych #{Psych::VERSION} is older than 3.1" if Gem::Version.new(Psych::VERSION) < Gem::Version.new("3.1")
+text = STDIN.read
+data = YAML.safe_load(text, aliases: true)
+anchors = {}
+root = YAML.parse(text).root
+jobs = root.children.each_slice(2).find { |key, _| key.respond_to?(:value) && key.value == "jobs" }
+if jobs
+  jobs[1].children.each_slice(2) do |name, job|
+    next unless job.respond_to?(:children) && job.children
+    job.children.each_slice(2) do |key, value|
+      next unless key.value == "steps"
+      if value.is_a?(Psych::Nodes::Alias)
+        anchors[name.value] = { "alias" => value.anchor }
+      elsif value.respond_to?(:anchor) && value.anchor
+        anchors[name.value] = { "anchor" => value.anchor }
+      end
+    end
+  end
+end
+print JSON.generate({ "data" => data, "anchors" => anchors })
+'''
+
+
+def parse(text: str) -> dict:
+    result = subprocess.run(["ruby", "-e", RUBY], input=text, capture_output=True, text=True)
+    if result.returncode != 0:
+        sys.exit(f"FAIL  the workflow could not be read as YAML: {result.stderr.strip()}")
+    parsed = json.loads(result.stdout)
+    workflow = parsed["data"] or {}
+    # YAML 1.1 reads the key `on` as true.
+    triggers = workflow.get("on", workflow.get("true", {}))
+    jobs = {}
+    for name, job in (workflow.get("jobs") or {}).items():
+        needs = job.get("needs", [])
+        jobs[name] = {
+            "needs": [needs] if isinstance(needs, str) else list(needs),
+            "if": str(job.get("if", "")),
+            "name": str(job.get("name", name)),
+            "job": job,
+            **parsed["anchors"].get(name, {}),
+        }
+    return {"workflow": workflow, "triggers": triggers, "jobs": jobs}
+
+
+def pull_request_types(triggers) -> list[str]:
+    if not isinstance(triggers, dict):
+        return []
+    found = []
+    for event in ("pull_request", "pull_request_target"):
+        if event in triggers:
+            types = (triggers[event] or {}).get("types")
+            # GitHub's default types do not include closed.
+            found += list(types) if types else ["opened", "synchronize", "reopened"]
+    return found
+
+
+def fan_in_problems(parsed: dict) -> list[str]:
+    jobs, found = parsed["jobs"], []
+    for name, job in sorted(jobs.items()):
+        fan_ins = [need for need in job["needs"] if FAN_IN.search(jobs.get(need, {}).get("if", ""))]
+        if fan_ins and not STATUS.search(job["if"]):
+            found.append(f"{name} needs {', '.join(fan_ins)} but its if ({job['if'] or 'none'!r}) has no status function: "
+                         "it is skipped whenever any lane before them was")
+    return found
+
+
+def required_on_closed_problems(parsed: dict, required: list[str]) -> list[str]:
+    if "closed" not in pull_request_types(parsed["triggers"]):
+        return []
+    return [f"{name} is the required check {job['name']!r} in a workflow that runs on closed: the closed run posts it skipped "
+            "(counted as passed) on the head a reopened pull request merges from"
+            for name, job in sorted(parsed["jobs"].items()) if job["name"] in required or name in required]
+
+
+def closed_guard_problems(parsed: dict) -> list[str]:
+    types = pull_request_types(parsed["triggers"])
+    if "closed" not in types or set(types) == {"closed"}:
+        return []
+    found = []
+    for name, job in sorted(parsed["jobs"].items()):
+        terms = [term.strip().strip('"') for term in job["if"].split("&&")]
+        if "||" in job["if"] or CLOSED_GUARD not in terms:
+            found.append(f"{name} runs on a pull request's closed event: its if ({job['if'] or 'none'!r}) does not refuse it "
+                         "as a term of its top-level &&")
+    return found
+
+
+def cancel_problems(workflows: dict) -> list[str]:
+    cancel, ci = workflows.get(CANCEL), workflows.get(CI)
+    if cancel is None:
+        return [f"{CANCEL} is missing: a merged or closed pull request's CI run would run on"]
+    found = []
+    if pull_request_types(cancel["triggers"]) != ["closed"] or set(cancel["triggers"]) != {"pull_request"}:
+        found.append(f"{CANCEL} must run on a pull request's closed event alone, not on {cancel['triggers']!r}")
+    group = (cancel["workflow"].get("concurrency") or {})
+    if group.get("group") != PR_GROUP or group.get("cancel-in-progress") is not True:
+        found.append(f"{CANCEL} must join {PR_GROUP!r} with cancel-in-progress: true, not {group!r}")
+    ci_group = str(((ci or {}).get("workflow", {}).get("concurrency") or {}).get("group", ""))
+    if not ci_group.startswith("ci-${{ github.event.pull_request.number ||"):
+        found.append(f"{CI}'s concurrency group {ci_group!r} is not {PR_GROUP!r} for a pull request, so {CANCEL} cancels nothing")
+    if cancel["workflow"].get("permissions") != {}:
+        found.append(f"{CANCEL} must have permissions: {{}}")
+    for name, job in cancel["jobs"].items():
+        if job["job"].get("permissions", {}) != {}:
+            found.append(f"{CANCEL}: {name} must have permissions: {{}}")
+        if any("uses" in step for step in job["job"].get("steps", [])):
+            found.append(f"{CANCEL}: {name} must not use an action (nothing is checked out or run)")
+    return found
+
+
+def twin_problems(parsed: dict) -> list[str]:
+    jobs = parsed["jobs"]
+    owners = {job["anchor"]: name for name, job in jobs.items() if job.get("anchor")}
+    found = []
+    for name, job in sorted(jobs.items()):
+        if not job.get("alias"):
+            continue
+        owner = owners.get(job["alias"])
+        if owner is None:
+            found.append(f"{name} takes its steps from *{job['alias']}, which no job's steps anchor")
+            continue
+        for key in TWIN_KEYS:
+            if job["job"].get(key) != jobs[owner]["job"].get(key):
+                found.append(f"{name} shares {owner}'s steps but not its {key}: {job['job'].get(key)!r} against "
+                             f"{jobs[owner]['job'].get(key)!r}")
+    return found
+
+
+def judge(workflows: dict, required: list[str]) -> list[str]:
+    found = cancel_problems(workflows)
+    for file, parsed in sorted(workflows.items()):
+        for problem in (fan_in_problems(parsed) + required_on_closed_problems(parsed, required) + closed_guard_problems(parsed)
+                        + twin_problems(parsed)):
+            found.append(f"{file}: {problem}")
+    return found
+
+
+GOOD_CI = """on:
+  pull_request:
+    types: [opened, synchronize]
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+jobs:
+  lane:
+    if: false
+    runs-on: x
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps: &s
+      - run: true
+  verify:
+    if: always()
+    needs: [lane]
+    runs-on: x
+    steps:
+      - run: true
+  after:
+    needs: [verify]
+    if: "!cancelled() && needs.verify.result == 'success'"
+    runs-on: x
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps: *s
+"""
+GOOD_CANCEL = """on:
+  pull_request:
+    types: [closed]
+permissions: {}
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  cancelled:
+    runs-on: x
+    permissions: {}
+    steps:
+      - run: echo
+"""
+
+GOOD_OTHER = """on:
+  pull_request:
+    types: [opened, closed]
+jobs:
+  label:
+    if: github.event.action != 'closed' && github.event_name == 'pull_request'
+    runs-on: x
+    steps:
+      - run: true
+"""
+OTHER = "other.yml"
+
+# Each violation, made from the good samples, and the words its refusal must say: each rule refuses its own violation.
+VIOLATIONS = {
+    "a job after a fan-in with the implicit success()":
+        (CI, "    if: \"!cancelled() && needs.verify.result == 'success'\"", "    if: needs.verify.result == 'success'",
+         "has no status function"),
+    "the same, its needs written as a block list":
+        (CI, "    needs: [verify]\n    if: \"!cancelled() && needs.verify.result == 'success'\"",
+         "    needs:\n      - verify\n    if: needs.verify.result == 'success'", "has no status function"),
+    "the required check in a workflow that runs on closed":
+        (CI, "types: [opened, synchronize]", "types: [closed]", "is the required check"),
+    "a closed guard missing":
+        (OTHER, "github.event.action != 'closed' && ", "", "does not refuse it"),
+    "a closed guard behind an ||":
+        (OTHER, "github.event.action != 'closed' && github.event_name", "x || github.event.action != 'closed' && github.event_name",
+         "does not refuse it"),
+    "a job that shares steps but not permissions":
+        (CI, "    timeout-minutes: 30\n    permissions:\n      contents: read\n    steps: *s",
+         "    timeout-minutes: 30\n    permissions:\n      contents: write\n    steps: *s", "shares lane's steps but not its permissions"),
+    "the cancel workflow missing": (CANCEL, None, None, "is missing"),
+    "the cancel workflow not listening to closed": (CANCEL, "types: [closed]", "types: [opened]", "closed event alone"),
+    "the cancel workflow in another group": (CANCEL, "number }}", "number }}-x", "with cancel-in-progress"),
+    "the cancel workflow not cancelling": (CANCEL, "cancel-in-progress: true", "cancel-in-progress: false", "with cancel-in-progress"),
+    "the cancel workflow with a write permission":
+        (CANCEL, "permissions: {}\nconcurrency", "permissions:\n  contents: write\nconcurrency", "must have permissions"),
+    "the cancel workflow running an action":
+        (CANCEL, "      - run: echo", "      - uses: actions/checkout@v4", "must not use an action"),
+}
+
+
+def demonstrate() -> None:
+    good = {CI: GOOD_CI, CANCEL: GOOD_CANCEL, OTHER: GOOD_OTHER}
+    if problems := judge({file: parse(text) for file, text in good.items()}, ["verify"]):
+        sys.exit("FAIL  the good samples are refused: " + "; ".join(problems))
+    for label, (file, old, new, says) in VIOLATIONS.items():
+        texts = dict(good)
+        if old is None:
+            del texts[file]
+        else:
+            if old not in texts[file]:
+                sys.exit(f"FAIL  the sample for {label!r} does not contain what it changes")
+            texts[file] = texts[file].replace(old, new, 1)
+        problems = judge({name: parse(text) for name, text in texts.items()}, ["verify"])
+        if not any(says in problem for problem in problems):
+            sys.exit(f"FAIL  the check does not refuse {label} (it said: {problems or 'nothing'})")
+        print(f"ok    refuses {label}")
+
+
+def main() -> None:
+    demonstrate()
+    folder = sys.argv[1] if len(sys.argv) > 1 else ".github/workflows"
+    workflows = {}
+    for file in sorted(os.listdir(folder)):
+        if file.endswith((".yml", ".yaml")):
+            with open(os.path.join(folder, file), encoding="utf-8") as handle:
+                workflows[file] = parse(handle.read())
+    with open(".github/rulesets/main.json", encoding="utf-8") as handle:
+        required = [check["context"] for rule in json.load(handle)["rules"] if rule["type"] == "required_status_checks"
+                    for check in rule["parameters"]["required_status_checks"]]
+    if problems := judge(workflows, required):
+        sys.exit("FAIL  " + "\nFAIL  ".join(problems))
+    print(f"ok    {folder}: {len(workflows)} workflows keep every rule")
+
+
+if __name__ == "__main__":
+    main()

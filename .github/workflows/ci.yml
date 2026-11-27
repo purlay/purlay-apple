@@ -4,7 +4,9 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    # `edited`: the title becomes the squash commit, so a title changed after a green run is judged again.
+    # `edited`: the title becomes the squash commit, so a title changed after a green run is judged again. Not `closed`: a run on
+    # it would post every job's check skipped onto the head, `verify`'s too, and a skipped check counts as passed. A merged or
+    # closed pull request's run in flight is cancelled by ci-cancel.yml, which shares this concurrency group.
     types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
@@ -246,17 +248,17 @@ jobs:
       - name: The contract, the generated code and the generator
         run: scripts/verify generated
 
-  # The iOS tests on a simulator: on every push to main, every night and by hand; for a pull request that changes the iOS app or
-  # the design system (scripts/ci/changes), as a check that is not required. The simulator boots after the build, not beside it
-  # (scripts/verify says why).
+  # The iOS tests on a simulator: on every push to main, every night and by hand, beside the other lanes, so that main's run (which
+  # a release requires, simulator included) ends as early as it can. The simulator boots after the build, not beside it
+  # (scripts/verify says why). Its steps are `simulator-pr`'s too.
   simulator:
     needs: changes
-    if: needs.changes.outputs.simulator == 'true'
+    if: github.event_name != 'pull_request' && needs.changes.outputs.simulator == 'true'
     runs-on: xcode-27
     timeout-minutes: 30
     permissions:
       contents: read
-    steps:
+    steps: &simulator-steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -287,6 +289,23 @@ jobs:
           path: ${{ env.PURLAY_CACHE_DIR }}
           key: ${{ steps.keys.outputs.key }}
 
+  # The same tests for a pull request that changes the iOS app or the design system (scripts/ci/changes): a check that is not
+  # required, started once `verify` has passed, so that it never runs beside its own run's required lanes. Once started it holds
+  # one of the organisation's five macOS runners for 6–10 minutes, which another pull request's lanes, or main's run after a
+  # merge, may wait for; a merge or close cancels it (ci-cancel.yml).
+  # Its own status function: without one, the implicit success() is judged over every ancestor, and a lane `changes` skipped
+  # would skip this job although `verify` passed (actions/runner#2205; scripts/ci/job-conditions-test).
+  # Its runs-on, timeout and permissions are `simulator`'s (scripts/ci/job-conditions-test holds them equal).
+  simulator-pr:
+    name: simulator (pull request)
+    needs: [changes, verify]
+    if: "!cancelled() && github.event_name == 'pull_request' && needs.verify.result == 'success' && needs.changes.outputs.simulator == 'true'"
+    runs-on: xcode-27
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps: *simulator-steps
+
   # A red simulator on main opens one issue labelled ci-red-main, or brings the open one up to date: never a second one.
   simulator-red-on-main:
     needs: simulator
@@ -308,8 +327,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   # The one required check: every lane passed, or was skipped because `changes` said it was not needed. The simulator is not
-  # among them: on a pull request it is an early signal that does not block the merge, and a release requires main's full run,
-  # the simulator's included (scripts/ci/release-gate).
+  # among them: on a pull request it starts after this check and does not block the merge, and a release requires main's full
+  # run, the simulator's included (scripts/ci/release-gate). No workflow that runs on a pull request's `closed` event may have a
+  # job of this name (scripts/ci/job-conditions-test): its skipped check would read as passed on a reopened pull request.
   verify:
     if: always()
     needs: [changes, security, rules, packages, ios, macos, generated]
