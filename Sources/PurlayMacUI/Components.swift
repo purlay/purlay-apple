@@ -55,7 +55,7 @@ struct SheetHeader: View {
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
     let image: String
-    var closeTitle: LocalizedStringKey = "Done"
+    var closeTitle: LocalizedStringResource = "Done"
     /// A list that can be read again offers it beside Done.
     var refresh: (() -> Void)?
     var refreshing = false
@@ -71,7 +71,7 @@ struct SheetHeader: View {
                     .help("Refresh").fixedSize().disabled(refreshing)
             }
             if !isPage {
-                Button(closeTitle, action: close)
+                Button(action: close) { Text(closeTitle) }
                     .keyboardShortcut(.cancelAction)
                     .glassButton()
                     .fixedSize()

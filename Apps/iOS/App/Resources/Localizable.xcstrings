@@ -1,16 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "%lld unread" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld okunmamış"
-          }
-        }
-      }
-    },
     "Account" : {
       "localizations" : {
         "tr" : {
@@ -31,32 +21,12 @@
         }
       }
     },
-    "Cancel" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vazgeç"
-          }
-        }
-      }
-    },
     "Channel Unavailable" : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kanal Kullanılamıyor"
-          }
-        }
-      }
-    },
-    "Channels" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kanallar"
           }
         }
       }
@@ -107,26 +77,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Doğrudan Mesajlar"
-          }
-        }
-      }
-    },
-    "Jump to Latest" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Son Mesaja Git"
-          }
-        }
-      }
-    },
-    "Load Earlier Messages" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Önceki Mesajları Yükle"
           }
         }
       }
@@ -261,26 +211,6 @@
         }
       }
     },
-    "Sending…" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gönderiliyor…"
-          }
-        }
-      }
-    },
-    "Sent" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gönderildi"
-          }
-        }
-      }
-    },
     "Set Up Two-Factor Authentication" : {
       "localizations" : {
         "tr" : {
@@ -301,26 +231,6 @@
         }
       }
     },
-    "Sign Out Everywhere" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tüm Cihazlarda Oturumu Kapat"
-          }
-        }
-      }
-    },
-    "Sign Out Everywhere…" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tüm Cihazlarda Oturumu Kapat…"
-          }
-        }
-      }
-    },
     "Sign Out on This Device" : {
       "localizations" : {
         "tr" : {
@@ -337,16 +247,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Oturum kapatılıyor…"
-          }
-        }
-      }
-    },
-    "Starred" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Yıldızlı"
           }
         }
       }
@@ -387,16 +287,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bilinmeyen Gönderen"
-          }
-        }
-      }
-    },
-    "Workspace" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Çalışma Alanı"
           }
         }
       }

@@ -65,7 +65,7 @@ struct InboxPage: View {
 
     private var subtitle: String {
         let unread = showsUpdates ? model.updatesUnread : model.inboxRows.filter(\.isUnread).count
-        return unread > 0 ? String(localized: "\(unread) unread") : ""
+        return unread > 0 ? String(localized: SharedWords.unread(unread)) : ""
     }
 
     @ViewBuilder private var content: some View {

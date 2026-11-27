@@ -739,16 +739,6 @@
         }
       }
     },
-    "%lld unread": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld okunmamış"
-          }
-        }
-      }
-    },
     "%lld waiting": {
       "localizations": {
         "tr": {
@@ -1696,16 +1686,6 @@
         }
       }
     },
-    "Cancel": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "İptal"
-          }
-        }
-      }
-    },
     "Cancel Reminder": {
       "localizations": {
         "tr": {
@@ -1902,16 +1882,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kanalın sesi açıldı."
-          }
-        }
-      }
-    },
-    "Channels": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kanallar"
           }
         }
       }
@@ -3852,16 +3822,6 @@
         }
       }
     },
-    "Jump to Latest": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "En Yeniye Git"
-          }
-        }
-      }
-    },
     "Jump to a channel or a person, or search": {
       "localizations": {
         "tr": {
@@ -4044,16 +4004,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Liquid Glass"
-          }
-        }
-      }
-    },
-    "Load Earlier Messages": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Önceki Mesajları Yükle"
           }
         }
       }
@@ -7128,16 +7078,6 @@
         }
       }
     },
-    "Sending…": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gönderiliyor…"
-          }
-        }
-      }
-    },
     "Sending… %@": {
       "localizations": {
         "tr": {
@@ -7154,16 +7094,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Purlay kapalıyken de gönderilir. Zamanlanmış bölümünden düzenleyebilir veya iptal edebilirsin."
-          }
-        }
-      }
-    },
-    "Sent": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gönderildi"
           }
         }
       }
@@ -7466,26 +7396,6 @@
         }
       }
     },
-    "Sign Out Everywhere": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Her Yerde Oturumu Kapat"
-          }
-        }
-      }
-    },
-    "Sign Out Everywhere…": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Her Yerde Oturumu Kapat…"
-          }
-        }
-      }
-    },
     "Sign out on every device?": {
       "localizations": {
         "tr": {
@@ -7602,16 +7512,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bu kanalı yıldızla"
-          }
-        }
-      }
-    },
-    "Starred": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yıldızlı"
           }
         }
       }
@@ -8588,16 +8488,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pencere"
-          }
-        }
-      }
-    },
-    "Workspace": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Çalışma Alanı"
           }
         }
       }

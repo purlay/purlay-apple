@@ -1,6 +1,40 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%lld unread" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld unread"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld unread"
+                }
+              }
+            }
+          }
+        },
+        "tr" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld okunmamış"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld unsent messages could not be restored." : {
       "localizations" : {
         "en" : {
@@ -113,6 +147,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sunucuyu yönetene adres ayarlarını kontrol etmesini söyle."
+          }
+        }
+      }
+    },
+    "Cancel" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İptal"
+          }
+        }
+      }
+    },
+    "Channels" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kanallar"
           }
         }
       }
@@ -437,12 +491,32 @@
         }
       }
     },
+    "Jump to Latest" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En Yeniye Git"
+          }
+        }
+      }
+    },
     "Leave the user name and password out of the address." : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kullanıcı adı ve parolayı adrese ekleme."
+          }
+        }
+      }
+    },
+    "Load Earlier Messages" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Önceki Mesajları Yükle"
           }
         }
       }
@@ -477,12 +551,52 @@
         }
       }
     },
+    "Sending…" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gönderiliyor…"
+          }
+        }
+      }
+    },
+    "Sent" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gönderildi"
+          }
+        }
+      }
+    },
     "Server Unavailable" : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sunucuya Ulaşılamıyor"
+          }
+        }
+      }
+    },
+    "Sign Out Everywhere" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Her Yerde Oturumu Kapat"
+          }
+        }
+      }
+    },
+    "Sign Out Everywhere…" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Her Yerde Oturumu Kapat…"
           }
         }
       }
@@ -513,6 +627,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bu soruyu veya kararı önce başka biri değiştirdi. Şimdi onun değişikliği görünüyor; incele ve yeniden dene."
+          }
+        }
+      }
+    },
+    "Starred" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yıldızlı"
           }
         }
       }
@@ -893,6 +1017,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tarayıcı bekleniyor…"
+          }
+        }
+      }
+    },
+    "Workspace" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çalışma Alanı"
           }
         }
       }

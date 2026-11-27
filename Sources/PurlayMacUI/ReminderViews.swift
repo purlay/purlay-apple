@@ -1,6 +1,7 @@
 #if os(macOS)
 import PurlayContract
 import PurlayKit
+import PurlayWords
 import SwiftUI
 
 struct ReminderSheet: View {
@@ -26,7 +27,11 @@ struct ReminderSheet: View {
                 .font(.caption).foregroundStyle(.secondary)
             if let feedback { feedback }
             HStack {
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button {
+                    dismiss()
+                } label: {
+                    Text(SharedWords.cancel)
+                }.keyboardShortcut(.cancelAction)
                 Spacer()
                 if busy { ProgressView().controlSize(.small) }
                 Button("Set Reminder") {

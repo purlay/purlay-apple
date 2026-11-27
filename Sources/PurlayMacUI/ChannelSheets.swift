@@ -161,7 +161,11 @@ struct NewChannelSheet: View {
             GlassEffectContainer(spacing: Spacing.space2) {
                 HStack {
                     Spacer()
-                    Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction).glassButton()
+                    Button(role: .cancel) {
+                        dismiss()
+                    } label: {
+                        Text(SharedWords.cancel)
+                    }.keyboardShortcut(.cancelAction).glassButton()
                         .disabled(busy)
                     Button(action: create) {
                         HStack {
@@ -288,7 +292,7 @@ struct NewConversationSheet: View {
         VStack(alignment: .leading, spacing: 0) {
             SheetHeader(
                 title: "New Conversation", subtitle: "One person, a few people, or a note to yourself.",
-                image: "bubble.left.and.bubble.right", closeTitle: "Cancel"
+                image: "bubble.left.and.bubble.right", closeTitle: SharedWords.cancel
             ) {
                 dismiss()
             }

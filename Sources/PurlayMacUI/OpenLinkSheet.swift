@@ -1,6 +1,7 @@
 #if os(macOS)
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 public struct DesktopLinkPresentation: ViewModifier {
@@ -51,7 +52,11 @@ private struct OpenLinkSheet: View {
             }
             HStack {
                 Spacer()
-                Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(role: .cancel) {
+                    dismiss()
+                } label: {
+                    Text(SharedWords.cancel)
+                }.keyboardShortcut(.cancelAction)
                 Button("Open", action: open).keyboardShortcut(.defaultAction)
                     .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }

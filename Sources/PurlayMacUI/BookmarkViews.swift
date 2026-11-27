@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// The row under a channel's header (D-218, D-243): the megaphone of an announcement channel, then the channel's links, each opened in
@@ -145,7 +146,11 @@ struct AddBookmarkSheet: View {
             GlassEffectContainer(spacing: Spacing.space2) {
                 HStack {
                     Spacer()
-                    Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction).glassButton()
+                    Button(role: .cancel) {
+                        dismiss()
+                    } label: {
+                        Text(SharedWords.cancel)
+                    }.keyboardShortcut(.cancelAction).glassButton()
                         .disabled(busy)
                     Button(action: add) {
                         HStack {

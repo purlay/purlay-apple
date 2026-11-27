@@ -33,7 +33,7 @@ struct WordsTests {
                 .storageProblem, .originMismatch, .loadFailed, .readFailed,
             ]
         return Words.fixed + EngineWords.fixed + [Words.continuesInBrowser("purlay.app")]
-            + [Words.backToWorkspace("Acme"), Words.switchWorkspace("Acme"), Words.unread(2)]
+            + [Words.backToWorkspace("Acme"), Words.switchWorkspace("Acme")]
             + problems.flatMap { [EngineWords.problem($0).title, EngineWords.problem($0).detail] }
             + signIns.compactMap(EngineWords.signIn) + notices.compactMap(EngineWords.notice)
     }

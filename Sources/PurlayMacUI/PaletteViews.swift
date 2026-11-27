@@ -239,7 +239,10 @@ struct SearchSheet: View {
             TextField("Name", text: $savingName)
             Button("Save") { save() }
                 .disabled(savingName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            Button("Cancel", role: .cancel) {}
+            Button(role: .cancel) {
+            } label: {
+                Text(SharedWords.cancel)
+            }
         } message: {
             Text("A saved search keeps its words and filters, not its results.")
         }
@@ -251,7 +254,10 @@ struct SearchSheet: View {
             TextField("Name", text: $renamingName)
             Button("Rename") { rename(saved) }
                 .disabled(renamingName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            Button("Cancel", role: .cancel) {}
+            Button(role: .cancel) {
+            } label: {
+                Text(SharedWords.cancel)
+            }
         }
         .task(id: SearchScope.Signature(channels: model.chat.channels.count, people: model.workspacePeople.count)) {
             scope = SearchScope(channels: Array(model.chat.channels.values), people: model.workspacePeople)
@@ -262,7 +268,10 @@ struct SearchSheet: View {
             presenting: deleting
         ) { saved in
             Button("Delete", role: .destructive) { delete(saved) }
-            Button("Cancel", role: .cancel) {}
+            Button(role: .cancel) {
+            } label: {
+                Text(SharedWords.cancel)
+            }
         } message: { saved in
             Text("“\(saved.name)” will be removed from every device. Its words and filters cannot be brought back.")
         }

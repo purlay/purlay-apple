@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 enum TimingActionFeedback: Equatable, View {
@@ -109,7 +110,11 @@ struct ScheduleMessageSheet: View {
                 .font(.caption).foregroundStyle(.secondary)
             if let feedback { feedback }
             HStack {
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button {
+                    dismiss()
+                } label: {
+                    Text(SharedWords.cancel)
+                }.keyboardShortcut(.cancelAction)
                 Spacer()
                 if busy { ProgressView().controlSize(.small) }
                 Button(existing == nil ? "Schedule" : "Save Changes") { Task { await save() } }

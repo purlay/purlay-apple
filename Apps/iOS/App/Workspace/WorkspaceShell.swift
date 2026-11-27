@@ -2,6 +2,7 @@ import FeatureChat
 import PurlayContract
 import PurlayKit
 import PurlayModuleAPI
+import PurlayWords
 import SwiftUI
 
 /// The signed-in shell borrows the Kit's authority and owns the presentation of destinations this build ships.
@@ -39,16 +40,16 @@ struct WorkspaceShell: View {
         .onChange(of: features.map(\.id), initial: true) { _, ids in
             if selected.map(ids.contains) != true { selected = ids.first }
         }
-        .alert(Text(Words.signOutEverywhere), isPresented: $confirmSignOut) {
+        .alert(Text(SharedWords.signOutEverywhere), isPresented: $confirmSignOut) {
             Button(role: .destructive) {
                 Task { await sessions.signOut(.everywhere) }
             } label: {
-                Text(Words.signOutEverywhere)
+                Text(SharedWords.signOutEverywhere)
             }
             .accessibilityIdentifier("account.confirmSignOutEverywhere")
             Button(role: .cancel) {
             } label: {
-                Text(Words.cancel)
+                Text(SharedWords.cancel)
             }
         } message: {
             Text(Words.signOutEverywhereDetail)
@@ -117,7 +118,7 @@ struct WorkspaceShell: View {
                         }
                     }
                     .accessibilityIdentifier("workspace.emptyModules")
-                    .navigationTitle(Text(Words.workspace))
+                    .navigationTitle(Text(SharedWords.workspace))
                 } else {
                     ContentUnavailableView {
                         Label {
@@ -127,7 +128,7 @@ struct WorkspaceShell: View {
                         }
                     }
                     .accessibilityIdentifier("workspace.emptyMemberships")
-                    .navigationTitle(Text(Words.workspace))
+                    .navigationTitle(Text(SharedWords.workspace))
                 }
             }
             .toolbar { toolbar }
@@ -163,7 +164,7 @@ struct WorkspaceShell: View {
                     Button(role: .destructive) {
                         confirmSignOut = true
                     } label: {
-                        Text(Words.signOutEverywhereMenu)
+                        Text(SharedWords.signOutEverywhereMenu)
                     }
                     .accessibilityIdentifier("account.signOutEverywhere")
                 } label: {
