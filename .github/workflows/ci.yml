@@ -125,13 +125,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Xcode, as .github/toolchain.env names it
-        run: scripts/ci/select-xcode
-      - name: The first xcodebuild, in the background while the caches restore
-        run: scripts/ci/warm-xcode start Purlay-macOS
       - uses: ./.github/actions/contract-bundle
         with:
           token: ${{ github.token }}
+      - name: Xcode, as .github/toolchain.env names it
+        run: scripts/ci/select-xcode
       - id: keys
         run: scripts/ci/cache-keys packages
       - id: cas
@@ -142,8 +140,6 @@ jobs:
           restore-keys: |
             ${{ steps.keys.outputs.this_week }}
             ${{ github.ref != 'refs/heads/main' && steps.keys.outputs.last_week || '' }}
-      - name: The first xcodebuild, finished
-        run: scripts/ci/warm-xcode wait
       - name: Format and the package tests
         run: scripts/verify packages
       # Main keeps it; so does a pull request that found nothing at all to restore (main not yet warm, or a new Xcode), so that
@@ -171,8 +167,6 @@ jobs:
           persist-credentials: false
       - name: Xcode, as .github/toolchain.env names it
         run: scripts/ci/select-xcode
-      - name: The first xcodebuild, in the background while the caches restore
-        run: scripts/ci/warm-xcode start Purlay-iOS
       - id: keys
         run: scripts/ci/cache-keys ios
       - id: cas
@@ -183,8 +177,6 @@ jobs:
           restore-keys: |
             ${{ steps.keys.outputs.this_week }}
             ${{ github.ref != 'refs/heads/main' && steps.keys.outputs.last_week || '' }}
-      - name: The first xcodebuild, finished
-        run: scripts/ci/warm-xcode wait
       - name: Build for iOS
         run: scripts/verify ios
       # Main keeps it; so does a pull request that found nothing at all to restore (main not yet warm, or a new Xcode), so that
@@ -213,8 +205,6 @@ jobs:
           persist-credentials: false
       - name: Xcode, as .github/toolchain.env names it
         run: scripts/ci/select-xcode
-      - name: The first xcodebuild, in the background while the caches restore
-        run: scripts/ci/warm-xcode start Purlay-macOS
       - id: keys
         run: scripts/ci/cache-keys macos
       - id: cas
@@ -225,8 +215,6 @@ jobs:
           restore-keys: |
             ${{ steps.keys.outputs.this_week }}
             ${{ github.ref != 'refs/heads/main' && steps.keys.outputs.last_week || '' }}
-      - name: The first xcodebuild, finished
-        run: scripts/ci/warm-xcode wait
       - name: Build the Mac app, and check its transport security and entitlements
         run: scripts/ci/retry-infra scripts/verify macos "$CONFIGURATIONS"
       # Main keeps it; so does a pull request that found nothing at all to restore (main not yet warm, or a new Xcode), so that
@@ -275,8 +263,6 @@ jobs:
           persist-credentials: false
       - name: Xcode, as .github/toolchain.env names it
         run: scripts/ci/select-xcode
-      - name: The first xcodebuild, in the background while the caches restore
-        run: scripts/ci/warm-xcode start Purlay-iOS
       - name: The simulator .github/toolchain.env names
         run: scripts/ci/simulator-destination
       - id: keys
@@ -289,8 +275,6 @@ jobs:
           restore-keys: |
             ${{ steps.keys.outputs.this_week }}
             ${{ github.ref != 'refs/heads/main' && steps.keys.outputs.last_week || '' }}
-      - name: The first xcodebuild, finished
-        run: scripts/ci/warm-xcode wait
       - name: Build for testing, boot the simulator, test without building
         # Retried once only when the simulator, not a test, failed (scripts/ci/retry-infra).
         run: scripts/ci/retry-infra scripts/verify simulator
