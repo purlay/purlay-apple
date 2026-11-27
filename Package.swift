@@ -44,9 +44,9 @@ let package = Package(
         module("PurlayDesign", ["PurlayTokens"]),
         module("PurlayModuleAPI"),
         // Today's Mac screens, moved into features one by one.
-        module("PurlayMacUI", ["PurlayKit", "PurlayContract", "PurlayTokens", "PurlayWords"]),
+        module("PurlayMacUI", ["PurlayKit", "PurlayContract", "PurlayTokens", "PurlayWords", "PurlayDesign"]),
         // The chat module's screens: the workspace's channels and their feeds.
-        module("FeatureChat", ["PurlayModuleAPI", "PurlayKit", "PurlayContract", "PurlayTokens"]),
+        module("FeatureChat", ["PurlayModuleAPI", "PurlayKit", "PurlayContract", "PurlayTokens", "PurlayDesign"]),
 
         tests("PurlayContractTests", ["PurlayContract"]),
         tests("PurlayTokensTests", ["PurlayTokens"]),

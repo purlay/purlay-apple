@@ -2,7 +2,7 @@ import Foundation
 import PurlayContract
 
 // What the connection needs to read of a frame without knowing which one it is. Each is an exhaustive `switch`: a frame the
-// contract gains and this does not handle is a compile error, not a frame that is quietly passed over (§9.5).
+// contract gains and this does not handle is a compile error, not a frame that is quietly passed over.
 
 extension ServerFrame {
     /// The id of the frame this one answers, if it answers one.

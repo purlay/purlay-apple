@@ -1,5 +1,6 @@
 #if os(macOS)
 import PurlayContract
+import PurlayDesign
 import PurlayKit
 import PurlayTokens
 import PurlayWords
@@ -191,7 +192,7 @@ private struct NewIssueSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.space4) {
             SheetHeading(title: "New Issue", subtitle: "Something that needs doing.", image: "checklist")
-            TextField("Title", text: $title).textFieldStyle(.roundedBorder).onSubmit(save)
+            TextField("Title", text: $title).purlayTextField().onSubmit(save)
             TextEditor(text: $details)
                 .frame(minHeight: 90)
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(NativePalette.divider.style))

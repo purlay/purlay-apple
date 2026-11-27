@@ -5,7 +5,7 @@
 # rebuild would be asked for the session again. A self-signed identity keeps one designated requirement for every build.
 # It is this Mac's alone: the certificate is made here, kept in the login keychain, and named in Config/Local.xcconfig,
 # which git ignores. Without it (CI, another Mac) builds are signed ad hoc, as before. Releases are signed with the
-# Developer ID (M6-1), never with this.
+# Developer ID, never with this.
 #
 #   scripts/dev-signing          make the identity if it is not there, and point Config/Local.xcconfig at it
 #   scripts/dev-signing --remove remove both

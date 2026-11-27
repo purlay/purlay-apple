@@ -5,7 +5,7 @@ import PurlayTokens
 import PurlayWords
 import SwiftUI
 
-/// The sidebar (§12.3): the workspace and what it holds for the person, then where they can go (Inbox, Saved, Search), then
+/// The sidebar: the workspace and what it holds for the person, then where they can go (Inbox, Saved, Search), then
 /// Starred, Channels and Conversations, and at the foot who they are. It is the system's sidebar, so it is Liquid Glass by
 /// itself: nothing is drawn behind the list, and the text takes semantic styles so the glass can give it vibrancy.
 /// What the sidebar has chosen: the inbox page, or a channel.

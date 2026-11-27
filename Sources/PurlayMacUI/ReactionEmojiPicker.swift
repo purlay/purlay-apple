@@ -1,4 +1,5 @@
 #if os(macOS)
+import PurlayDesign
 import PurlayTokens
 import SwiftUI
 
@@ -29,7 +30,7 @@ struct ReactionEmojiPicker: View {
                     .help("Close emoji picker")
             }
             TextField("Search emoji…", text: $query)
-                .textFieldStyle(.roundedBorder)
+                .purlayTextField()
                 .accessibilityLabel("Search emoji")
                 .focused($searching)
                 .onSubmit {

@@ -43,7 +43,7 @@ public enum Refresh: Sendable, Hashable {
     case files(channel: Uuid)
 }
 
-/// What the app knows from frames: the windows of messages, the channels, who is typing and who is online (§9.5). A value, changed by
+/// What the app knows from frames: the windows of messages, the channels, who is typing and who is online. A value, changed by
 /// `apply`, so each kind of frame is tested by what it does to it and what it asks for.
 public struct ChatState: Sendable, Equatable {
     public struct Typist: Sendable, Equatable {

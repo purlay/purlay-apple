@@ -1,4 +1,5 @@
 import PurlayContract
+import PurlayDesign
 import PurlayKit
 import PurlayTokens
 import SwiftUI
@@ -27,7 +28,7 @@ struct ChannelComposer: View {
                         TextField(text: draft, axis: .vertical) {
                             Text(words.writeMessage)
                         }
-                        .textFieldStyle(.roundedBorder)
+                        .purlayTextField()
                         .lineLimit(1...5)
                         .frame(minHeight: Size.sizeTouch)
                         .accessibilityIdentifier("chat.composer")

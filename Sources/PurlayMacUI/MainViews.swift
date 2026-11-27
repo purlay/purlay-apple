@@ -5,7 +5,7 @@ import PurlayTokens
 import PurlayWords
 import SwiftUI
 
-/// The signed-in window (§12.3): the sidebar, the channel that is open, and its thread as the inspector. The split view, the
+/// The signed-in window: the sidebar, the channel that is open, and its thread as the inspector. The split view, the
 /// toolbar and the inspector are the system's, so they are Liquid Glass by themselves; the content draws token colours.
 struct MainView: View {
     let model: AppModel
@@ -391,8 +391,7 @@ private struct BarState: Equatable {
     let deepWork: Date?
 }
 
-/// A channel's messages, newest at the bottom, with the composer floating over the feed's foot so the feed scrolls under it
-/// (§12.2 rule 3).
+/// A channel's messages, newest at the bottom, with the composer floating over the feed's foot so the feed scrolls under it.
 struct ChannelView: View {
     let model: AppModel
     let channel: Channel

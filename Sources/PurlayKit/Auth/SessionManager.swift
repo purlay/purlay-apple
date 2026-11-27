@@ -1,7 +1,7 @@
 import Foundation
 
 /// Data the app keeps for a person between runs: the outbox, drafts, a window's state, a cache. Removed when that person signs
-/// out or erases their account, and when somebody else signs in where they were (M-1 of §10: no message of one person is ever
+/// out or erases their account, and when somebody else signs in where they were (no message of one person is ever
 /// sent as another's). Throws what it could not remove: the others still run, and the failure is told.
 public protocol UserDataWiper: Sendable {
     func wipe() async throws
@@ -20,7 +20,7 @@ public enum SignOutScope: Sendable, Equatable {
     case everywhere
 }
 
-/// Whether a signed-in app is signed in, why it is not, and what ends it (§7.5). One per run.
+/// Whether a signed-in app is signed in, why it is not, and what ends it. One per run.
 public actor SessionManager {
     public enum Reason: Sendable, Equatable {
         /// The time the server gave it has passed.

@@ -1,7 +1,7 @@
 import Foundation
 import PurlayContract
 
-/// The messages of one channel the app holds, in the order they were made (§10). Message ids sort as text in the order of their time, so
+/// The messages of one channel the app holds, in the order they were made. Message ids sort as text in the order of their time, so
 /// the order is the order of the ids and needs no clock.
 ///
 /// A window knows whether it reaches the oldest message and the newest, because a channel opened "around" a message is a window short

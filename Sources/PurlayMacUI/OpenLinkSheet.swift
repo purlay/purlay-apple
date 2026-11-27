@@ -1,4 +1,5 @@
 #if os(macOS)
+import PurlayDesign
 import PurlayKit
 import PurlayTokens
 import PurlayWords
@@ -44,7 +45,7 @@ private struct OpenLinkSheet: View {
                 title: "Open Purlay Link", subtitle: "Paste a channel or message link to open its conversation.",
                 image: "link")
             TextField("Channel or message URL", text: $text)
-                .textFieldStyle(.roundedBorder).onSubmit(open)
+                .purlayTextField().onSubmit(open)
                 .onChange(of: text) { _, _ in invalid = false }
             if invalid {
                 Text("Enter a valid Purlay channel or message link.")

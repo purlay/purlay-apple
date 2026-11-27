@@ -1,7 +1,7 @@
 import Foundation
 import PurlayContract
 
-/// The pages that stay in the browser (§2 non-goals: administration, invitations, profile), and the address of a channel or a
+/// The pages that stay in the browser (administration, invitations, profile: the app does not do them), and the address of a channel or a
 /// message there. Built from the server's own `appUrl` and the workspace's slug, never from what a message says.
 public enum WebPage: Hashable, Sendable {
     case profile

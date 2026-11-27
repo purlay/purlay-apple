@@ -19,6 +19,12 @@ extension View {
         }
     }
 
+    /// A text field with the system's rounded border. From the 27 releases the bordered style with a rounded-rectangle border,
+    /// which replaces `.roundedBorder`; before, `.roundedBorder`.
+    public func purlayTextField() -> some View {
+        modifier(PurlayTextFieldModifier())
+    }
+
     /// A bar pinned to the bottom edge, over content that scrolls beneath it. From iOS 26 the system's scroll edge effect
     /// softens the content under it; before, the bar sits on a material.
     @ViewBuilder
@@ -78,6 +84,16 @@ public struct PurlayCloseButton: View {
             Button(role: .close, action: action).accessibilityLabel(label)
         } else {
             Button(action: action) { label }
+        }
+    }
+}
+
+private struct PurlayTextFieldModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 27, macOS 27, *) {
+            content.textFieldStyle(.bordered).textInputBorderShape(.roundedRectangle)
+        } else {
+            content.textFieldStyle(.roundedBorder)
         }
     }
 }

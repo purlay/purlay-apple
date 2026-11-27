@@ -2,7 +2,7 @@ import Foundation
 import Security
 import Synchronization
 
-/// Where the session is kept between runs. One per server address (M-9).
+/// Where the session is kept between runs. One per server address.
 public protocol SessionStore: Sendable {
     func load(for server: ServerAddress) throws -> StoredSession?
     func save(_ session: StoredSession, for server: ServerAddress) throws
@@ -31,7 +31,7 @@ public struct KeychainError: Error, Sendable, Equatable {
     }
 }
 
-/// The session as a generic password in the login keychain (M-22): file-based, so it works in the sandbox and under the
+/// The session as a generic password in the login keychain: file-based, so it works in the sandbox and under the
 /// hardened runtime without an entitlement; no iCloud, and no reliance on `kSecAttrAccessible`.
 public struct KeychainSessionStore: SessionStore {
     // The Mac's workspaces each hold a store of their own over the same item: a compare and delete is one step among them.

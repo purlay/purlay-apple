@@ -1,7 +1,7 @@
 import Foundation
 
 /// The address of a Purlay server as a person types it, and as the app keeps it: an origin, `https` unless it is this
-/// machine (§6.4, M-9). What the server says its canonical address is (`appUrl`) is learned from the handshake and is
+/// machine. What the server says its canonical address is (`appUrl`) is learned from the handshake and is
 /// kept beside this; the two may differ behind a proxy, and the socket's `Origin` is the second.
 public struct ServerAddress: Sendable, Hashable, CustomStringConvertible {
     public let origin: URL

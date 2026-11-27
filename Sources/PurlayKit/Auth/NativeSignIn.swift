@@ -34,7 +34,7 @@ public enum SignInError: Error, Sendable, Equatable {
     case anotherPersonSignedIn(server: String)
 }
 
-/// The sign-in through the system browser, from the first redirect to the stored session (§7.2).
+/// The sign-in through the system browser, from the first redirect to the stored session.
 public struct NativeSignIn: Sendable {
     private let transport: any HTTPTransport
     private let appVersion: SemanticVersion

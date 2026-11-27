@@ -1,7 +1,7 @@
 import Foundation
 import PurlayKit
 
-/// The fault injector (§8.2): answers a request as the script says, and remembers what it was asked. Tests inject at
+/// The fault injector: answers a request as the script says, and remembers what it was asked. Tests inject at
 /// this seam; they never replace the client they are testing.
 public actor ScriptedTransport: HTTPTransport {
     public enum Step: Sendable {

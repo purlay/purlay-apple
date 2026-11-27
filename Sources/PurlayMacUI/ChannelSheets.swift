@@ -1,5 +1,6 @@
 #if os(macOS)
 import PurlayContract
+import PurlayDesign
 import PurlayKit
 import PurlayTokens
 import PurlayWords
@@ -222,7 +223,7 @@ struct BrowseChannelsSheet: View {
                 dismiss()
             }
             Divider()
-            TextField("Search channels", text: $query).textFieldStyle(.roundedBorder).controlSize(.large)
+            TextField("Search channels", text: $query).purlayTextField().controlSize(.large)
                 .padding(Spacing.space4)
             Group {
                 if model.joinableChannels.isEmpty {
@@ -298,7 +299,7 @@ struct NewConversationSheet: View {
             }
             .disabled(busy)
             Divider()
-            TextField("Search people", text: $query).textFieldStyle(.roundedBorder).controlSize(.large)
+            TextField("Search people", text: $query).purlayTextField().controlSize(.large)
                 .padding(Spacing.space4).disabled(busy)
             if !chosen.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {

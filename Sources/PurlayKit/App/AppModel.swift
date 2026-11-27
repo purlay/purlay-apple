@@ -1633,7 +1633,7 @@ public final class AppModel {
 
     // MARK: What is held
 
-    /// How much of the person's the model holds, by kind: what "Memory after sign-out" (§14) can count. A new collection that is not
+    /// How much of the person's the model holds, by kind: what "Memory after sign-out" can count. A new collection that is not
     /// added here is one a test cannot see leak, so a collection is added here when it is made.
     var retainedParts: [(String, Int)] {
         [
