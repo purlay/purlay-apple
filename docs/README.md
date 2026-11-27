@@ -12,11 +12,9 @@ The entry point: where things stand, what holds the code in shape, and which doc
   in English and Turkish, with the launch screen, connecting and Welcome of the [entry design](design/entry-shell-account.md),
   a first shell (tabs or sidebar, the workspace switcher, Sign Out) and native Chat (channels, history, sending), built before
   their design (TD-027). Nothing is distributed: Q-001 blocks it.
-- **Old repositories:** purlay-swift, purlay-macos and purlay-ios are to be frozen; the freeze waits on the owner's talk with
-  the team. Their merged work up to purlay-swift `d7b139f`, purlay-macos `b468562` and purlay-ios `c25436e` (2026-11-27) is here,
-  except purlay-swift `ba7cb36` (#32, logout scoped to its sign-in), which overlaps the session scoping this repository already
-  has and waits for a reconciliation;
-  anything merged there later, and their open pull requests, still has to be brought over.
+- **Old repositories:** purlay-swift, purlay-macos and purlay-ios are archived (read-only); this repository is the only home.
+  Their work up to their final commits (purlay-swift `83f32d7`, purlay-macos `b468562`, purlay-ios `c25436e`) is here; what
+  only managed the separate repositories (package pins, the Swift package's releases) has no place here and was left out.
 - **The engine:** shared by both apps; speaks the contract of server 0.8.0 and reads servers from 0.5.0. The server has
   released 0.9.0 ([contract drift](runbooks/contract-drift.md)).
 - **CI and releases:** the lanes run side by side behind one required check; releases run from tags

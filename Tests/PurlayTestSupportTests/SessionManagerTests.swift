@@ -67,6 +67,64 @@ struct SessionManagerTests {
             cookie: value, expiresAt: ends.map { start.addingTimeInterval($0) }, origin: "https://chat.example.com")
     }
 
+    @Test("an older manager's end leaves a session another manager of the server restored since")
+    func conditionalLocalEndAcrossManagers() async throws {
+        let store = InMemorySessionStore()
+        let old = parts(store: store)
+        let fresh = parts(store: store)
+        let original = session("old")
+        let replacement = session("fresh")
+        try store.save(original, for: server)
+        try await old.manager.restore(for: server)
+        try store.save(replacement, for: server)
+        try await fresh.manager.restore(for: server)
+
+        await old.manager.sessionEndedByServer(rejecting: original.cookie)
+        #expect(await old.manager.state == .signedOut(.endedByServer))
+        #expect(await fresh.manager.state == .signedIn(replacement, server: server))
+        #expect(try store.load(for: server) == replacement)
+        #expect(old.calls.all.isEmpty)
+    }
+
+    @Test("a late refusal of a replaced session ends nothing, and the replacement's own ends it")
+    func conditionalLocalEndAfterAdoption() async throws {
+        let p = parts()
+        let original = session("old")
+        let replacement = session("fresh")
+        await p.manager.adopt(original, for: server)
+        try p.store.save(replacement, for: server)
+        await p.manager.adopt(replacement, for: server)
+
+        await p.manager.sessionEndedByServer(rejecting: original.cookie)
+        #expect(await p.manager.state == .signedIn(replacement, server: server))
+        #expect(try p.store.load(for: server) == replacement)
+        await p.manager.sessionEndedByServer(rejecting: replacement.cookie)
+        #expect(await p.manager.state == .signedOut(.endedByServer))
+        #expect(try p.store.load(for: server) == nil)
+        #expect(p.calls.all.isEmpty)
+    }
+
+    @Test(
+        "an expiry or a server's end of an older session keeps a replacement written since", arguments: [false, true])
+    func replacementSurvivesLocalEnd(expired: Bool) async throws {
+        let p = parts()
+        try p.store.save(session("old", ends: 60), for: server)
+        try await p.manager.restore(for: server)
+        let replacement = session("replacement")
+        try p.store.save(replacement, for: server)
+
+        if expired {
+            p.clock.advance(60)
+            await p.manager.checkExpiry()
+        } else {
+            await p.manager.sessionEndedByServer()
+        }
+
+        #expect(await p.manager.state == .signedOut(expired ? .expired : .endedByServer))
+        #expect(try p.store.load(for: server) == replacement)
+        #expect(p.calls.all.isEmpty)
+    }
+
     // MARK: Starting
 
     @Test("with nothing kept the app starts signed out, and with no reason to give")

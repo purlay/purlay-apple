@@ -120,7 +120,7 @@ public actor SessionManager {
             return state
         }
         if let end = session.expiresAt, end <= now() {
-            try? store.delete(for: server)
+            _ = try? store.delete(ifMatching: session, for: server)
             move(to: .signedOut(.expired))
         } else {
             move(to: .signedIn(session, server: server))
@@ -172,18 +172,19 @@ public actor SessionManager {
 
     /// The server ended the session. Nothing the person made is removed: the draft and the outbox wait for the next
     /// sign-in, which is the same person's or is found out by `identify`. `rejecting`: the session value the server refused,
-    /// when known; a refusal of one that is no longer in use (replaced by a sign-in again) ends nothing.
+    /// when known; a refusal of one that is no longer in use (replaced by a sign-in again) ends nothing. Only this session's
+    /// entry leaves the Keychain: one another session of the server has written since stays.
     public func sessionEndedByServer(rejecting refused: String? = nil) {
         guard case .signedIn(let session, let server) = state else { return }
         if let refused, refused != session.cookie { return }
-        try? store.delete(for: server)
+        _ = try? store.delete(ifMatching: session, for: server)
         move(to: .signedOut(.endedByServer))
     }
 
     /// The session's time passed while the app ran.
     public func checkExpiry() {
         guard case .signedIn(let session, let server) = state, let end = session.expiresAt, end <= now() else { return }
-        try? store.delete(for: server)
+        _ = try? store.delete(ifMatching: session, for: server)
         move(to: .signedOut(.expired))
     }
 

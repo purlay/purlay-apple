@@ -260,4 +260,35 @@ struct DesktopSessionsTests {
         #expect(first.pending.count == 1 && second.pending.isEmpty)
         #expect(!first.isWaiting(channel: channel, parent: nil))
     }
+
+    @Test("a 401 to the old session, answered after a sign-in again, keeps the replacement")
+    func lateUnauthorizedAfterReplacement() async throws {
+        let h = ModelHarness()
+        await h.signedIn()
+        let address = try #require(h.model.server)
+        let original = try #require(try h.sessions.load(for: address))
+        let replacement = StoredSession(cookie: "replacement-credential", expiresAt: nil, origin: original.origin)
+        let old = try #require(h.model.api)
+        let response = Gate()
+        let prior = h.server.requests.filter { $0.url.path == "/api/me" }.count
+        h.server.edit {
+            $0.meStatus = 401
+            $0.beforeMeResponse = { await response.wait() }
+        }
+        let pending = Task { try await old.getMe() }
+        #expect(await eventually { h.server.requests.filter { $0.url.path == "/api/me" }.count == prior + 1 })
+        try h.sessions.save(replacement, for: address)
+        h.server.edit {
+            $0.meStatus = 200
+            $0.beforeMeResponse = nil
+        }
+        await h.model.connect()
+        #expect(h.model.phase == .ready)
+        await response.open()
+        await #expect(throws: APIError.self) { try await pending.value }
+
+        #expect(h.model.phase == .ready)
+        #expect(try h.sessions.load(for: address) == replacement)
+        #expect(!h.server.requests.contains { $0.url.path == "/auth/logout" })
+    }
 }
