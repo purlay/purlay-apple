@@ -61,6 +61,16 @@
         }
       }
     },
+    "Couldn’t load newer messages." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daha yeni mesajlar yüklenemedi."
+          }
+        }
+      }
+    },
     "Couldn’t send message." : {
       "localizations" : {
         "tr" : {

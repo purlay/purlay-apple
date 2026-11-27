@@ -79,6 +79,7 @@ public struct ChatStrings: Sendable {
     let loadEarlier: LocalizedStringResource
     let loadingEarlier: LocalizedStringResource
     let earlierFailed: LocalizedStringResource
+    let newerFailed: LocalizedStringResource
     let jumpToLatest: LocalizedStringResource
     let tryAgain: LocalizedStringResource
     let unknownSender: LocalizedStringResource
@@ -99,7 +100,7 @@ public struct ChatStrings: Sendable {
         noMessages: LocalizedStringResource, loadingMessages: LocalizedStringResource,
         messagesFailed: LocalizedStringResource,
         loadEarlier: LocalizedStringResource, loadingEarlier: LocalizedStringResource,
-        earlierFailed: LocalizedStringResource,
+        earlierFailed: LocalizedStringResource, newerFailed: LocalizedStringResource,
         jumpToLatest: LocalizedStringResource, tryAgain: LocalizedStringResource,
         unknownSender: LocalizedStringResource,
         messageUnavailable: LocalizedStringResource,
@@ -120,6 +121,7 @@ public struct ChatStrings: Sendable {
         self.loadEarlier = loadEarlier
         self.loadingEarlier = loadingEarlier
         self.earlierFailed = earlierFailed
+        self.newerFailed = newerFailed
         self.jumpToLatest = jumpToLatest
         self.tryAgain = tryAgain
         self.unknownSender = unknownSender

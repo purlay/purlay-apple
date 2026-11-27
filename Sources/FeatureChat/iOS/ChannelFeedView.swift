@@ -120,6 +120,9 @@ struct ChannelFeedView: View {
                         historyRow(item)
                             .id(item.id)
                     }
+                    if model.channelLoadFailed.contains(channelID), !opening {
+                        newerFailedControl
+                    }
                 }
                 .scrollTargetLayout()
                 .padding(.horizontal)
@@ -196,6 +199,24 @@ struct ChannelFeedView: View {
     private func retry(_ id: Uuid) {
         guard canPost, pending.contains(where: { $0.id == id && $0.delivery == .failed }) else { return }
         model.retry(id)
+    }
+
+    /// A read of a channel already shown failed: the messages it had stay, and this says beside them that newer ones did not
+    /// load, with Try Again. iOS shows no notice for it (`NoticeList.words`), so this is where it is said.
+    private var newerFailedControl: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(words.newerFailed)
+                .foregroundStyle(.secondary)
+            Button {
+                Task { await open(force: true) }
+            } label: {
+                Text(words.tryAgain)
+                    .frame(minHeight: 44, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityIdentifier("chat.retryNewer")
+        }
+        .padding(.vertical, 8)
     }
 
     private var earlierControl: some View {

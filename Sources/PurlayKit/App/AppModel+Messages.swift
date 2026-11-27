@@ -137,8 +137,9 @@ extension AppModel {
         } catch let error as APIError where error.isMissingRoute {
             closeChatRoute(on: engine)
         } catch {
-            // A channel with nothing to show says so on its own screen; one that already has messages keeps them.
-            if chat.windows[channelID] == nil { channelLoadFailed.insert(channelID) }
+            // The channel is marked whether or not it already has messages: one with nothing to show says so on its own
+            // screen, and one that keeps the messages it had can say beside them that newer ones did not load.
+            channelLoadFailed.insert(channelID)
             say(.loadFailed)
         }
     }

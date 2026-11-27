@@ -83,8 +83,9 @@ struct NoticeList: View {
         verticalSizeClass == .compact ? 8 : 0
     }
 
-    /// What a notice says in this app. The chat feed shows its own Try Again where messages did not load, so the engine's notice
-    /// of it would say the same thing twice; the Mac, whose feed has no such place, says it.
+    /// What a notice says in this app. The chat feed says in place that messages did not load (the channel's mark, whether or
+    /// not it already shows messages), with Try Again, so the engine's notice of it would say the same thing twice; the Mac
+    /// says it. iOS draws no other screen that reads `.loadFailed` yet: one that does says it in place too, or this changes.
     nonisolated static func words(_ kind: Notice.Kind) -> LocalizedStringResource? {
         if case .loadFailed = kind { return nil }
         return EngineWords.notice(kind)
@@ -102,6 +103,10 @@ struct NoticeList: View {
         .padding(.horizontal)
         .padding(.top, Self.topMargin(verticalSizeClass))
         .purlayAnimation(.smooth, value: model.notices)
+        // A notice this app does not show is dismissed as it arrives, so the model does not keep it for the session.
+        .onChange(of: model.notices, initial: true) { _, notices in
+            for notice in notices where Self.words(notice.kind) == nil { model.dismiss(notice) }
+        }
         .onChange(of: model.notices) { old, new in
             let sentences = Self.arrivals(from: old, to: new).compactMap { Self.words($0.kind) }
             guard !sentences.isEmpty else { return }

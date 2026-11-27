@@ -27,6 +27,7 @@ enum Words {
     static let messagesFailed = LocalizedStringResource("Couldn’t Load Messages")
     static let loadingEarlier = LocalizedStringResource("Loading earlier messages…")
     static let earlierFailed = LocalizedStringResource("Couldn’t load earlier messages.")
+    static let newerFailed = LocalizedStringResource("Couldn’t load newer messages.")
     static let unknownSender = LocalizedStringResource("Unknown Sender")
     static let messageUnavailable = LocalizedStringResource("Message unavailable")
     static let writeMessage = LocalizedStringResource("Write a message")
@@ -41,6 +42,7 @@ enum Words {
         noChannels: noChannels, channelUnavailable: channelUnavailable,
         noMessages: noMessages, loadingMessages: loadingMessages, messagesFailed: messagesFailed,
         loadEarlier: SharedWords.loadEarlier, loadingEarlier: loadingEarlier, earlierFailed: earlierFailed,
+        newerFailed: newerFailed,
         jumpToLatest: SharedWords.jumpToLatest, tryAgain: EngineWords.tryAgain, unknownSender: unknownSender,
         messageUnavailable: messageUnavailable,
         writeMessage: writeMessage, sendMessage: sendMessage, messageTooLong: messageTooLong,
@@ -65,7 +67,7 @@ enum Words {
         account, signingOut, signOutThisDevice, signOutEverywhereDetail,
         chat, noWorkspaceModules, noWorkspaces, twoFactorRequired, setUpTwoFactor,
         conversations, noChannels, channelUnavailable, noMessages, loadingMessages,
-        messagesFailed, loadingEarlier, earlierFailed, unknownSender, messageUnavailable,
+        messagesFailed, loadingEarlier, earlierFailed, newerFailed, unknownSender, messageUnavailable,
         writeMessage, sendMessage, messageTooLong, channelReadOnly, messageSendFailed, retryMessage,
     ]
 
