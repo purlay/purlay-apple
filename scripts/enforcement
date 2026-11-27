@@ -263,6 +263,7 @@ import json, plistlib, re, sys
 root = sys.argv[1]
 apps = {"iOS": "Apps/iOS", "macOS": "Apps/macOS"}
 spec = re.compile(r"%(?:\d+\$)?(?:lld|ld|lu|llu|@|d|u|f)")
+count = re.compile(r"%(?:\d+\$)?(?:lld|ld|lu|llu|d|u)")
 # Nothing to translate: only symbols, digits and format specifiers, or a code-like address.
 inert = re.compile(r"^[^A-Za-z]*$|^[a-z0-9.\-/]+$")
 plural_forms = {"zero", "one", "two", "few", "many", "other"}
@@ -321,6 +322,12 @@ for path, wanted in catalogues.items():
                     problems.append(f"{path}: {key!r} has no final {language} value ({unit.get('state')})")
                 elif norm(unit["value"]) != norm(key):
                     problems.append(f"{path}: {key!r} -> {unit['value']!r}: the format specifiers differ")
+        # A sentence with a count says it in English by plural forms, so that 1 is never "1 new replies". Turkish says a count
+        # with one form (the noun does not follow the number), so its value may be a single one.
+        if count.search(key):
+            plural = localizations.get("en", {}).get("variations", {}).get("plural", {})
+            if not {"one", "other"} <= set(plural):
+                problems.append(f"{path}: {key!r} has a count but no English plural forms (one and other)")
         # The English forms are held to the same rule, so that a plural cannot drop an argument.
         if "en" in localizations:
             for unit in units(path, key, "en", localizations["en"]):
@@ -819,6 +826,10 @@ plant_in "a Mac sentence said only in a block comment" . "python3 -c '$(recatalo
 plant_in "a Mac sentence said only in a trailing comment" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'let qaProbe = 1 // was Text(\"Never said\")' >> Sources/PurlayMacUI/Strings.swift"
 plant_in "a Mac sentence said only as a plain literal" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'let qaProbe = \"Never said\"' >> Sources/PurlayMacUI/Strings.swift"
 plant_in "a Mac sentence said only as an accessibility identifier" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'let qaProbe = Text(\"x\").accessibilityIdentifier(\"Never said\")' >> Sources/PurlayMacUI/Strings.swift"
+# A count said in English with one form reads "1 new replies".
+plant_in "a Mac count with no English plural forms" . "python3 -c '$(recatalogue $MAC_STRINGS 'del strings["%lld people"]["localizations"]["en"]')'"
+plant_in "an engine count with English plural forms but no one" . \
+  "python3 -c '$(recatalogue $WORDS 'del strings["%lld unsent messages could not be restored."]["localizations"]["en"]["variations"]["plural"]["one"]')'"
 plant_in "the Mac declaring no languages" Apps/macOS 'python3 -c "
 import re
 text = open(\"Info.plist\").read()

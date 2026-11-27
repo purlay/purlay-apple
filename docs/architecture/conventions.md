@@ -103,7 +103,11 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
   iOS a `LocalizedStringResource` in `Words.swift`, on the Mac English in the code (`Strings.swift`, `Text("…")`). For the Mac
   and the engine, `scripts/localize` adds new sentences to their catalogues. A view never writes a literal sentence on iOS.
   A sentence lives in one catalogue only, and every sentence in a catalogue is a string literal in the code that reads that
-  catalogue: the iOS app's, the Mac app's with `PurlayMacUI`, `PurlayWords`' (enforced). A sentence the code stopped saying
+  catalogue: the iOS app's, the Mac app's with `PurlayMacUI`, `PurlayWords`' (enforced). The literal counts where it is said as
+  a sentence (an argument SwiftUI or Foundation reads as one, or a parameter, property or declaration typed
+  `LocalizedStringKey`, `LocalizedStringResource` or `String.LocalizationValue`), never in a comment.
+- A sentence with a count (`%lld`, `%d`…) has English plural forms, `one` and `other`, so that 1 never reads "1 new replies"
+  (enforced). Turkish says a count with one form, so its value may be a single one. A sentence the code stopped saying
   is removed; the catalogues keep no extraction state, so `stale` alone would never show it.
 - A button is built from a `Text` label: `Button(Words.x)` showed English on a Turkish simulator (enforced).
 - Turkish addresses the person as "sen", as the web client does; its wording follows `apps/web/src/i18n/catalogue/tr.ts` of the
