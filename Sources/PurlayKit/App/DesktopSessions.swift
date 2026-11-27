@@ -219,12 +219,18 @@ public final class DesktopSessions {
             guard let self, let session else { return }
             self.changed(session)
         }
-        model.onSessionRenewed = { [weak self, weak model] renewed, person in
-            guard let self, let model else { return }
-            for other in self.sessions where other.model !== model && other.model.origin == model.origin {
-                await other.model.adoptRenewedSession(renewed, of: person)
-            }
-        }
+        model.sharedServer = SharedServer(
+            sessionInUse: { [weak self, weak model] in
+                self?.others(of: model).lazy.compactMap { other in
+                    other.heldSession.map { (session: $0, person: other.personHere) }
+                }.first
+            },
+            isEnding: { [weak self, weak model] in self?.others(of: model).contains { $0.isEndingSession } ?? false },
+            renew: { [weak self, weak model] old, fresh in
+                for other in self?.others(of: model) ?? [] {
+                    await other.adoptRenewedSession(fresh, replacing: old)
+                }
+            })
         // Every workspace of a server shares its credential, so one that ends ends them all; what each kept is removed only
         // when it is the same person's whose data the ending one removed.
         model.onSessionEnded = { [weak self, weak model, weak session] removedDataOf in
@@ -239,6 +245,12 @@ public final class DesktopSessions {
             }
             self.attention.clear(session.id.uuidString)
         }
+    }
+
+    /// The other workspaces' models of `model`'s server.
+    private func others(of model: AppModel?) -> [AppModel] {
+        guard let model, let origin = model.origin else { return [] }
+        return sessions.map(\.model).filter { $0 !== model && $0.origin == origin }
     }
 
     private func changed(_ session: DesktopSession) {

@@ -12,6 +12,7 @@ import Testing
 @Suite("erasing the account")
 struct AccountErasureTests {
     private static let erasePath = "/api/me/erase"
+    private let server = try! ServerAddress.parse("localhost:4390", allowsLocalHTTP: true)
 
     private func erases(_ h: ModelHarness) -> [HTTPRequest] {
         h.server.requests.filter { $0.url.path == Self.erasePath }
@@ -241,14 +242,16 @@ struct AccountErasureTests {
         await h.signedIn()
         h.server.edit { $0.eraseThrows = .timedOut }
         #expect(await h.model.eraseAccount(confirmation: "ada") == .unconfirmed)
-        #expect(h.preferences.string(for: AppModel.unconfirmedErasureKey) == FakeServer.userID)
+        #expect(h.preferences.string(for: AppModel.unconfirmedErasureKey(for: server)) == FakeServer.userID)
         h.server.edit {
             $0.eraseThrows = nil
             $0.eraseStatus = 403
             $0.eraseError = error("REAUTHENTICATION_REQUIRED")
         }
         #expect(await h.model.eraseAccount(confirmation: "ada") == .reauthenticationRequired)
-        #expect(h.preferences.string(for: AppModel.unconfirmedErasureKey) == nil, "the account was read: it is there")
+        #expect(
+            h.preferences.string(for: AppModel.unconfirmedErasureKey(for: server)) == nil,
+            "the account was read: it is there")
     }
 
     @Test("an unconfirmed erasure kept for somebody else is not read as this person's at launch, and is forgotten")
@@ -256,14 +259,14 @@ struct AccountErasureTests {
         let wiper = RecordingWiper()
         let h = ModelHarness(wipers: [wiper])
         h.owner.save(FakeServer.userID)
-        h.preferences.set("0199155c-6200-7b7f-8c11-0000000000e9", for: AppModel.unconfirmedErasureKey)
+        h.preferences.set("0199155c-6200-7b7f-8c11-0000000000e9", for: AppModel.unconfirmedErasureKey(for: server))
         try h.rememberedSession()
         h.server.edit { $0.sessionValid = false }
         await h.model.connect()
         await h.settle()
         #expect(h.model.notices.map(\.kind) == [.sessionEndedByServer])
         #expect(wiper.wipes == 0)
-        #expect(h.preferences.string(for: AppModel.unconfirmedErasureKey) == nil)
+        #expect(h.preferences.string(for: AppModel.unconfirmedErasureKey(for: server)) == nil)
     }
 
     @Test("an erasure asked while a sign-out is under way waits for it, does not ask the server, and says it ended")

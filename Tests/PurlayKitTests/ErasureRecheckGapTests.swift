@@ -105,14 +105,12 @@ struct ErasureRecheckGapTests {
             $0.userIDBySession[Self.fresh] = Self.stranger
         }
         await studio.signIn()
+        // One person per server (ADR 0011): the other workspace joins Ada's session, so no other person's sign-out can
+        // reach her data; what one workspace removes is still only the same person's.
         #expect(studio.phase == .ready)
-        #expect(studio.me?.user.id.value == Self.stranger)
+        #expect(studio.me?.user.id.value == FakeServer.userID, "nobody else is signed in where Ada is")
         #expect(first.me?.user.id.value == FakeServer.userID)
-        _ = await studio.signOut(.thisDevice)
-        await h.settle()
         let adasDraft = Drafts.key(user: try #require(Uuid(FakeServer.userID)), channel: place, parent: nil)
-        #expect(
-            first.environment.preferences.string(for: adasDraft) == "ada's draft",
-            "another person's sign-out removed Ada's draft")
+        #expect(first.environment.preferences.string(for: adasDraft) == "ada's draft")
     }
 }

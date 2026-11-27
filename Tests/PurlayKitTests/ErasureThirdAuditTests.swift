@@ -69,7 +69,8 @@ private func desktop(_ h: ModelHarness, holding door: Door? = nil) -> DesktopSes
     return DesktopSessions(environment)
 }
 
-/// Ada in the first workspace, somebody else signed in in the second (Studio) of the same server.
+/// Ada signed in to the first workspace of the server, and a second workspace (Studio) asked to sign in as somebody else.
+/// One person per server (ADR 0011): Studio joins Ada's session, and nobody else is signed in.
 @MainActor
 private func twoPeople(_ h: ModelHarness) async throws -> (DesktopSessions, ada: AppModel, other: AppModel) {
     try h.rememberedSession()
@@ -120,7 +121,9 @@ struct ErasureThirdGapTests {
         h.server.edit { $0.nextSession = fresh }
         #expect(await first.reauthenticate() == .done)
         let studio = try #require(desktop.sessions.last?.model)
-        #expect(studio !== first && studio.phase == .loading && studio.me == nil, "the precondition: still reading")
+        // The precondition: its first read, on the old session, is still held. (It may already have read again on the new
+        // session, which is the fix: what the old read finds must not undo that.)
+        #expect(studio !== first && door.reached, "the precondition: still reading")
         door.open()
         await h.settle()
         #expect(first.phase == .ready, "the workspace that signed in again was signed out by one still loading")
@@ -218,42 +221,99 @@ struct ErasureThirdGapTests {
         #expect(first.phase == .signedOut && studio.phase == .signedOut)
         #expect(
             try h.sessions.load(for: address) == nil, "the person signed out, and the next launch signs them in again")
-        #expect(h.server.snapshot.revoked.contains(fresh), "the session the browser made is left alive on the server")
+        // Refused before the browser opens (another workspace is signing out), or, if it opened, its session is ended.
+        #expect(
+            !h.server.requests.contains { $0.url.path == "/api/native/token" }
+                || h.server.snapshot.revoked.contains(fresh),
+            "the session the browser made is left alive on the server")
     }
 
-    @Test("follow-up (pre-existing): two people on one server on the Mac each keep their own sign-in across a relaunch")
+    @Test(
+        "on the Mac, a second workspace's sign-in where Ada is signed in joins her session: Ada keeps it, and her data, across a relaunch"
+    )
     func twoPeopleKeepTheirSignIns() async throws {
         let h = ModelHarness()
-        let (sessions, ada, other) = try await twoPeople(h)
-        #expect(ada.me?.user.id.value == FakeServer.userID && other.me?.user.id.value == stranger)
+        let tokens = { h.server.requests.count { $0.url.path == "/api/native/token" } }
+        try h.rememberedSession()
+        let mac = desktop(h)
+        await mac.launch()
+        let first = mac.active
+        await mac.selectWorkspace(Uuid(DesktopTransport.otherWorkspace)!, from: first)
+        let studio = mac.active
+        _ = await studio.signOut(.thisDevice)
+        await h.settle()
+        await first.signIn()
+        let afterAda = tokens()
+        h.server.edit {
+            $0.nextSession = fresh
+            $0.userIDBySession[fresh] = stranger
+        }
+        await studio.signIn()
+        await h.settle()
+        #expect(tokens() == afterAda, "joined without the browser")
+        #expect(first.me?.user.id.value == FakeServer.userID && studio.me?.user.id.value == FakeServer.userID)
         let place = try #require(Uuid(channel(1)))
-        ada.setDraft("ada's draft", for: place)
+        first.setDraft("ada's draft", for: place)
         let relaunched = desktop(h)
         await relaunched.launch()
         await h.settle()
         let people = relaunched.sessions.map { $0.model.me?.user.id.value }
-        #expect(people.contains(FakeServer.userID), "Ada's workspace opened as somebody else: \(people)")
+        #expect(people.allSatisfy { $0 == FakeServer.userID }, "\(people)")
         let adasDraft = Drafts.key(user: try #require(Uuid(FakeServer.userID)), channel: place, parent: nil)
         #expect(h.preferences.string(for: adasDraft) == "ada's draft", "Ada's draft was removed at launch")
-        withExtendedLifetime(sessions) {}
+        withExtendedLifetime(mac) {}
     }
 
     @Test(
-        "follow-up (pre-existing): on the Mac, another person signing out of the server does not sign Ada out at the next launch"
+        "on the Mac, a browser that brings back somebody else where Ada is signed in is refused: their session ends, nothing is kept or removed, and Ada stays"
     )
     func anotherPersonsSignOutKeepsAda() async throws {
-        let h = ModelHarness()
-        let (sessions, ada, other) = try await twoPeople(h)
-        _ = await other.signOut(.thisDevice)
+        let target = Mutex<AppModel?>(nil)
+        let browser = ScriptedBrowser { page in
+            // While Studio's browser is open, Ada signs in to the first workspace; Studio's browser then brings back a stranger.
+            if let first = target.withLock({ $0 }) {
+                target.withLock { $0 = nil }
+                await first.signIn()
+            }
+            return try await ScriptedBrowser.approving.answer(page)
+        }
+        let wiper = RecordingWiper()
+        let h = ModelHarness(browser: browser, wipers: [wiper])
+        try h.rememberedSession()
+        let mac = desktop(h)
+        await mac.launch()
+        let first = mac.active
+        await mac.selectWorkspace(Uuid(DesktopTransport.otherWorkspace)!, from: first)
+        let studio = mac.active
+        _ = await studio.signOut(.thisDevice)
         await h.settle()
-        #expect(ada.phase == .signedOut, "today every workspace of the server ends together")
+        let wipesBefore = wiper.wipes
+        target.withLock { $0 = first }
+        h.server.edit { $0.nextSession = nil }
+        let strangerOnReturn = Task { @MainActor in
+            // The token Studio's code buys is the stranger's: set once Ada's own sign-in has bought hers.
+            while first.phase != .ready { await Task.yield() }
+            h.server.edit {
+                $0.nextSession = fresh
+                $0.userIDBySession[fresh] = stranger
+            }
+        }
+        await studio.signIn()
+        await strangerOnReturn.value
+        await h.settle()
+        #expect(first.phase == .ready && first.me?.user.id.value == FakeServer.userID)
+        #expect(studio.phase == .signedOut)
+        #expect(
+            studio.notices.map(\.kind) == [.signInFailed(.anotherPersonSignedIn(server: "localhost"))],
+            "\(studio.notices.map(\.kind))")
+        #expect(h.server.snapshot.revoked.contains(fresh), "the stranger's session is left alive")
+        #expect(try h.sessions.load(for: address)?.cookie == FakeServer.sessionValue, "the Keychain holds Ada's")
+        #expect(wiper.wipes == wipesBefore, "nothing of anybody's was removed")
         let relaunched = desktop(h)
         await relaunched.launch()
         await h.settle()
-        #expect(
-            relaunched.sessions.contains { $0.model.me?.user.id.value == FakeServer.userID },
-            "Ada never signed out, and her session is still alive on the server, but she is signed out")
-        withExtendedLifetime(sessions) {}
+        #expect(relaunched.sessions.allSatisfy { $0.model.me?.user.id.value == FakeServer.userID })
+        withExtendedLifetime(mac) {}
     }
 }
 
@@ -282,16 +342,18 @@ struct ErasureThirdGuardTests {
         #expect(first.notices.isEmpty && studio.notices.isEmpty)
     }
 
-    @Test("on the Mac, signing in again does not hand Ada's new session to a workspace held by somebody else")
+    @Test("on the Mac, a workspace that joined Ada's session moves with it when she signs in again elsewhere")
     func strangersWorkspaceIsNotRenewed() async throws {
         let h = ModelHarness()
         let (sessions, ada, other) = try await twoPeople(h)
+        #expect(other.me?.user.id.value == FakeServer.userID, "joined Ada's session")
         h.server.edit { $0.nextSession = adasFresh }
         #expect(await ada.reauthenticate() == .done)
         await other.refreshAccount()
         await h.settle()
-        #expect(other.phase == .ready)
-        #expect(other.me?.user.id.value == stranger, "the other person's workspace now reads as Ada")
+        #expect(other.phase == .ready && ada.phase == .ready)
+        let read = try #require(h.server.requests.last { $0.url.path == "/api/me" })
+        #expect(read.headers["Cookie"] == "__Host-purlay_session=\(adasFresh)")
         withExtendedLifetime(sessions) {}
     }
 
@@ -327,7 +389,7 @@ struct ErasureThirdGuardTests {
         h.server.edit { $0.eraseThrows = .timedOut }
         #expect(await h.model.eraseAccount(confirmation: "ada") == .unconfirmed)
         _ = await h.model.signOut(.thisDevice)
-        #expect(h.preferences.string(for: AppModel.unconfirmedErasureKey) == nil)
+        #expect(h.preferences.string(for: AppModel.unconfirmedErasureKey(for: address)) == nil)
         h.server.edit { $0.eraseThrows = nil }
         await h.model.signIn()
         await h.settle()

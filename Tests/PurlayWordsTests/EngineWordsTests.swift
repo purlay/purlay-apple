@@ -16,7 +16,7 @@ struct EngineWordsTests {
     private static let signIns: [SignInError] = [
         .browserFailed("x"), .callbackRejected(.notOurs), .codeRejected, .rateLimited(retryAfter: nil),
         .refused(status: 403, code: .forbidden), .noSessionInAnswer, .unreachable(.offline),
-        .storage(KeychainError(status: -25291, operation: "write")),
+        .storage(KeychainError(status: -25291, operation: "write")), .anotherPersonSignedIn(server: "chat.example.com"),
     ]
     private static let notices: [Notice.Kind] =
         [ServerAddress.Problem.empty, .unreadable, .notAWebAddress, .hasCredentials, .hasMoreThanAHost, .insecure]
@@ -109,6 +109,9 @@ struct EngineWordsTests {
         let minimum = ClientMinimum(appVersion: "9.0.0", contractVersion: nil, downloadUrl: nil)
         #expect(text(EngineWords.problem(.appTooOld(minimum)).detail, in: "en") == "It needs version 9.0.0 or newer.")
         #expect(text(EngineWords.problem(.appTooOld(minimum)).detail, in: "tr").contains("9.0.0"))
+        let refused = EngineWords.signIn(.anotherPersonSignedIn(server: "chat.example.com"))
+        #expect(refused.map { text($0, in: "en") } == "Sign out of chat.example.com first to use another account.")
+        #expect(refused.map { text($0, in: "tr") }?.contains("chat.example.com") == true)
         let held = EngineWords.notice(.sendHeld("# general"))
         #expect(held.map { text($0, in: "tr") }?.contains("# general") == true)
     }

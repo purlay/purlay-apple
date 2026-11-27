@@ -212,6 +212,13 @@ public actor SessionManager {
         return told ? .done : .serverNotTold
     }
 
+    /// A sign-in whose session was not kept (another person than the server's, or a Keychain that refused it): forgotten
+    /// here without touching the Keychain, which holds the session in use by the server's other sessions, and without
+    /// removing anything of anybody's.
+    public func forgetUnkeptSession() {
+        move(to: .signedOut(nil))
+    }
+
     /// The person signed out, or their account was erased, through another of this app's sessions that shares this one's
     /// credential (the Mac's workspaces of one server): what this one kept of them goes too, its owner forgotten when all of
     /// it went. The credential is the other session's to remove.

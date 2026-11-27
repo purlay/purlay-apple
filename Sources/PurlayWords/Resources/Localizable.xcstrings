@@ -487,6 +487,16 @@
         }
       }
     },
+    "Sign out of %@ first to use another account." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Başka bir hesap kullanmak için önce %@ sunucusundan çıkış yap."
+          }
+        }
+      }
+    },
     "Some of your data on this device could not be removed. Purlay tries again when you next sign out, or when someone else signs in here." : {
       "localizations" : {
         "tr" : {

@@ -104,6 +104,9 @@ public struct AppEnvironment {
     public var allowsLocalHTTP: Bool
     /// The one server this app signs in to: Purlay's own. Only a development build points it elsewhere.
     public var serverAddress: String
+    /// Preferences every session of the app shares, where the Mac scopes `preferences` per workspace: for what belongs to a
+    /// server's one credential and person rather than to a workspace (an unconfirmed erasure). `preferences` unless given.
+    public var sharedPreferences: any PreferenceStore
     /// Where per-person files are kept (`outbox/<userId>.json`).
     public var dataDirectory: URL
     /// Where copies the app can make again are kept (the Mac's Quick Look copies, `Previews/`): the system may empty it.
@@ -142,6 +145,7 @@ public struct AppEnvironment {
         self.transport = transport
         self.sessions = sessions
         self.preferences = preferences
+        self.sharedPreferences = preferences
         self.authenticator = authenticator
         self.appVersion = appVersion
         self.identity = identity

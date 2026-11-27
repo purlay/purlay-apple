@@ -113,6 +113,21 @@ struct ReauthenticationTests {
         #expect(h.model.phase == .ready)
     }
 
+    @Test("a browser sign-in's session is kept in the Keychain only once /api/me says whose it is")
+    func keptOnlyOnceKnown() async throws {
+        let h = ModelHarness()
+        await h.model.connect()
+        h.server.edit { $0.meStatus = 500 }
+        await h.model.signIn()
+        #expect(h.model.phase != .ready)
+        #expect(try h.sessions.load(for: server) == nil)
+        h.server.edit { $0.meStatus = 200 }
+        await h.model.connect()
+        await h.model.signIn()
+        #expect(h.model.phase == .ready)
+        #expect(try h.sessions.load(for: server)?.cookie == FakeServer.sessionValue)
+    }
+
     @Test("a session restored at launch is of an unknown age: erasing it needs a sign-in again first")
     func restoredNeedsIt() async throws {
         let h = ModelHarness()
