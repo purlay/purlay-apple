@@ -50,7 +50,7 @@ Every run shows the target and where the time went, on the run's summary page an
 | `generated` | `xcode-27` | `Contract/`, `Tools/`, `Sources/*/Generated` or their scripts change | the pinned bundle, `scripts/generate --check`, the generator's tests | 57–100 s |
 | `simulator` | `xcode-27` | every push to main, nightly, by hand: beside the other lanes | the tests that need iOS (`TestPlans/iOS.xctestplan`: `PurlayTests`, `PurlayUITests`, `PurlayDesignTests`), built for testing, then the simulator booted, then tested without building. A release requires it on main | 369–594 s: over the target (below) |
 | `simulator (pull request)` (`simulator-pr`) | `xcode-27` | a pull request that changes `Apps/iOS`, `Sources/PurlayDesign`, `Tests/PurlayDesignTests`, `TestPlans/iOS.xctestplan` or the simulator's scripts, **once `verify` has passed** | the same steps as `simulator` (one YAML anchor, `simulator-steps`; `scripts/ci/job-conditions-test` holds the two jobs' runner, timeout and permissions equal). **Not required**; cancelled when the pull request is merged or closed | as `simulator`, after `verify` (run 45935368669: `verify` green 03:47:58, this job 03:48:54–03:56:31, 55 tests, 0 failed; every lane ran in that run, so the case its status function exists for, an iOS-only change with lanes skipped before `verify`, is held by `job-conditions-test` and not yet seen on a run: the first such pull request shows it) |
-| `simulator-red-on-main` | Linux | the simulator failed on main | opens the one issue labelled `ci-red-main`, or brings the open one up to date (`scripts/ci/red-main-issue`) | 5–10 s |
+| `simulator-red-on-main` | Linux | the simulator failed on main | opens the one issue labelled `broken`, or brings the open one up to date (`scripts/ci/red-main-issue`) | 5–10 s |
 | `verify` | Linux | always, after every lane but the simulator | the timing summary; every lane passed or was not needed (`scripts/ci/verify-needs`) | 5–10 s |
 
 The exact mapping from paths to lanes is `scripts/ci/changes`, which a person can run: `git diff --name-only main | scripts/ci/changes
@@ -75,7 +75,7 @@ nothing else: `permissions: {}`, nothing checked out, one job whose name is no r
 check counts as passed, so a reopened pull request (or Dependabot's auto-merge after a reopen) would read as green until its new
 run's `verify` existed. Cancelling on a merge is not yet seen on a run. A fork's pull request is the exception: its `ci-cancel.yml` run, like every workflow a fork starts, waits for an approval (*Require approval for all external contributors*, [settings.md](../../.github/settings.md)) that nobody gives to a closed pull request, so a fork's simulator run keeps its runner to the end, 6–10 minutes. That is accepted: `pull_request_target` would cancel it, at the price of running with the repository's token on a fork's event. A person who wants its result before merging waits for it; nothing makes them. A change can
 therefore merge with the iOS tests red; main's run catches it on the push, `simulator-red-on-main` opens (or updates) one
-`ci-red-main` issue, and no release ships from a commit whose main run, simulator included, did not pass
+`broken` issue, and no release ships from a commit whose main run, simulator included, did not pass
 ([releasing.md](releasing.md#what-every-release-workflow-does-first-the-gate)). Whoever reads that issue fixes main first.
 
 ## Where a pull request's time goes
@@ -229,4 +229,4 @@ release resolves the same code; Dependabot proposes its updates. The runner labe
 - **A change that makes the check slower** says why in its description, with the run's times.
 - **A new lane** is a job that `verify` needs and `scripts/ci/changes` maps, or it is not checked. The simulator is the one
   exception: main and the release gate check it, `verify` does not wait for it, and on a pull request it waits for `verify`.
-- **A `ci-red-main` issue:** main's simulator is red. Fix main before anything else; until it is green no release can ship.
+- **A `broken` issue:** main's simulator is red. Fix main before anything else; until it is green no release can ship.

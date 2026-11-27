@@ -18,7 +18,7 @@ iPhone and iPad app, the Mac app and the Swift they share. Start with [`docs/REA
 5. **`make verify` before pushing.** It runs what CI's required check runs: the rules, format and every package test, both apps
    built. `make verify-security` scans the history for secrets; `make verify-all` runs every lane, the simulator included.
 6. **Open a pull request** with the template filled in. Its title becomes the squash commit's message, so it is a conventional
-   commit too. CI labels it by its paths; add a `type:` label and, if it is urgent, a `priority:` one.
+   commit too. CI labels it by its paths; add a type label (`bug`, `feature`, `chore`...) and, if it is urgent, a priority one (`p0`, `p1`, `p2`).
 7. **Merge** when `verify` is green and every review conversation is resolved. Main takes **squash merges only**, and the branch
    is deleted on merge. A branch does not need to be up to date with main to merge: `verify` runs on the merge with main, and
    requiring it would restart every open pull request's check after each merge.
