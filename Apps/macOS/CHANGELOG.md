@@ -6,8 +6,10 @@ User-facing changes to Purlay for macOS. Releases require macOS 26 or later.
 
 ### Fixed
 
-- Inbox and message search keep working while a server rollout briefly stops serving chat: the notification or the search is
-  dismissed, and you stay signed in with Updates and later requests available.
+- During a server rollout, message search and Chat notifications close cleanly when a server node cannot serve them.
+  The session and Updates stay available.
+- Threads, Saved Messages, Open Topics, Scheduled Messages, Reminders and Pins close the same way when a server node does not
+  serve them, and reminders already set on this Mac still go off.
 
 ### Fixed
 
