@@ -71,6 +71,16 @@
         }
       }
     },
+    "Couldn’t send message." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesaj gönderilemedi."
+          }
+        }
+      }
+    },
     "Direct Messages" : {
       "localizations" : {
         "tr" : {
@@ -117,6 +127,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mesajlar yükleniyor…"
+          }
+        }
+      }
+    },
+    "Message is too long." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesaj çok uzun."
           }
         }
       }
@@ -181,12 +201,62 @@
         }
       }
     },
+    "Only workspace owners and admins can post here." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Burada yalnızca çalışma alanı sahipleri ve yöneticileri mesaj gönderebilir."
+          }
+        }
+      }
+    },
     "Read More" : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Devamını Oku"
+          }
+        }
+      }
+    },
+    "Retry Message" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yeniden Gönder"
+          }
+        }
+      }
+    },
+    "Send Message" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesajı Gönder"
+          }
+        }
+      }
+    },
+    "Sending…" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gönderiliyor…"
+          }
+        }
+      }
+    },
+    "Sent" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gönderildi"
           }
         }
       }
@@ -257,6 +327,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Çalışma Alanı"
+          }
+        }
+      }
+    },
+    "Write a message" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesaj yaz"
           }
         }
       }
