@@ -13,6 +13,13 @@ enum Words {
     /// Under a notice too long to show whole at a large text size; it opens the whole sentence. Not "Show More": the Mac says
     /// that, and a sentence lives in one catalogue.
     static let readMore = LocalizedStringResource("Read More")
+    static let account = LocalizedStringResource("Account")
+    static let cancel = LocalizedStringResource("Cancel")
+    static let signingOut = LocalizedStringResource("Signing out…")
+    static let signOutThisDevice = LocalizedStringResource("Sign Out on This Device")
+    static let signOutEverywhere = LocalizedStringResource("Sign Out Everywhere")
+    static let signOutEverywhereMenu = LocalizedStringResource("Sign Out Everywhere…")
+    static let signOutEverywhereDetail = LocalizedStringResource("This will end your Purlay sessions on all devices.")
     static let workspace = LocalizedStringResource("Workspace")
     static let chat = LocalizedStringResource("Chat")
     static let starred = LocalizedStringResource("Starred")
@@ -67,6 +74,8 @@ enum Words {
     /// The fixed sentences of the screens, so a test can look at each in every language.
     static let fixed: [LocalizedStringResource] = [
         tagline, signInButton, continuesInBrowserNoHost, newAccount, readMore,
+        account, cancel, signingOut, signOutThisDevice, signOutEverywhere, signOutEverywhereMenu,
+        signOutEverywhereDetail,
         workspace, chat, noWorkspaceModules, noWorkspaces, twoFactorRequired, setUpTwoFactor,
         starred, channels, conversations, noChannels, channelUnavailable, noMessages, loadingMessages,
         messagesFailed, loadEarlier, loadingEarlier, earlierFailed, jumpToLatest, unknownSender, messageUnavailable,

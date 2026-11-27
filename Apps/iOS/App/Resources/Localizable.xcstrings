@@ -11,12 +11,32 @@
         }
       }
     },
+    "Account" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesap"
+          }
+        }
+      }
+    },
     "Back to %@" : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ Çalışma Alanına Dön"
+          }
+        }
+      }
+    },
+    "Cancel" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vazgeç"
           }
         }
       }
@@ -281,6 +301,46 @@
         }
       }
     },
+    "Sign Out Everywhere" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tüm Cihazlarda Oturumu Kapat"
+          }
+        }
+      }
+    },
+    "Sign Out Everywhere…" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tüm Cihazlarda Oturumu Kapat…"
+          }
+        }
+      }
+    },
+    "Sign Out on This Device" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu Cihazda Oturumu Kapat"
+          }
+        }
+      }
+    },
+    "Signing out…" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oturum kapatılıyor…"
+          }
+        }
+      }
+    },
     "Starred" : {
       "localizations" : {
         "tr" : {
@@ -297,6 +357,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Çalışma Alanını Değiştir, %@"
+          }
+        }
+      }
+    },
+    "This will end your Purlay sessions on all devices." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu işlem tüm cihazlarınızdaki Purlay oturumlarını kapatır."
           }
         }
       }
