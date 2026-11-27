@@ -952,4 +952,33 @@ plant "the URL scheme compared by hand in the engine" Sources/PurlayKit/App/AppE
   'func leakedScheme(_ url: URL) -> Bool { url.scheme == "purlay" }'
 plant "the URL scheme spelt in an address in the Mac app" Apps/macOS/App/PurlayApp.swift \
   'let leakedCallback = URL(string: "purlay://auth")'
+# QA (pr6-recheck): sentences said by code the next slices write, which the rule must not refuse.
+# AppIntents' titles, descriptions and dialogs take LocalizedStringResource; the SDK interfaces read are SwiftUI and Foundation only.
+INTENT_SENTENCES="$(printf '%s\n' 'import AppIntents' \
+  'struct QAOpen: AppIntent { static let title: LocalizedStringResource = "Intent 1"' \
+  '  static let description = IntentDescription("Intent 2")' \
+  '  @Parameter(title: "Intent 3") var name: String' \
+  '  func perform() async throws -> some IntentResult & ProvidesDialog { .result(dialog: "Intent 4") } }' \
+  'struct QAEntity: AppEntity { static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Intent 5")' \
+  '  static let defaultQuery = QAQuery(); var id: String' \
+  '  var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "Intent 6") } }' \
+  'struct QAQuery: EntityQuery { func entities(for identifiers: [String]) async throws -> [QAEntity] { [] } }')"
+export INTENT_SENTENCES
+accept_in "QA: an App Intent's title, description, parameter, dialog and display representations" . \
+  "python3 -c '$(recatalogue $IOS_STRINGS 'strings.update({f"Intent {n}": {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": f"Niyet {n}"}}}} for n in range(1, 7)})')' && printf '%s\\n' \"\$INTENT_SENTENCES\" > Apps/iOS/App/QAIntents.swift"
+# A component of the design system, titled by a sentence of the app that shows it.
+accept_in "QA: a PurlayDesign component whose initialiser takes a LocalizedStringKey, used by the iOS app" . \
+  "printf '%s\\n' 'import SwiftUI' 'public struct QAPill: View { let title: LocalizedStringKey' '  public init(_ title: LocalizedStringKey) { self.title = title }' '  public var body: some View { Text(title) } }' > Sources/PurlayDesign/QAPill.swift \
+    && printf '%s\\n' 'import PurlayDesign' 'let qaPill = QAPill(\"Pill 1\")' > Apps/iOS/App/QAPillUse.swift \
+    && python3 -c '$(recatalogue $IOS_STRINGS 'strings["Pill 1"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hap 1"}}}}')'"
+accept_in "QA: a declared sentence chosen by a ternary, and Text.init" . \
+  "python3 -c '$(recatalogue $MAC_STRINGS 'strings.update({f"Choice {n}": {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": f"Seçim {n}"}}}} for n in range(1, 4)})')' \
+    && printf '%s\\n' 'let qaFlag = true' 'let qaChoice: LocalizedStringKey = qaFlag ? \"Choice 1\" : \"Choice 2\"' 'let qaInit = Text.init(\"Choice 3\")' >> Sources/PurlayMacUI/Strings.swift"
+# Two counts in one sentence are said in Xcode's substitutions (%#@name@), each with its own plural forms.
+accept_in "QA: a sentence with two counts, in English substitutions with plural forms" . \
+  "python3 -c '$(recatalogue $MAC_STRINGS 'forms = lambda one, other: {"plural": {"one": {"stringUnit": {"state": "translated", "value": one}}, "other": {"stringUnit": {"state": "translated", "value": other}}}}; strings["%lld messages in %lld channels"] = {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "%#@messages@ in %#@channels@"}, "substitutions": {"messages": {"argNum": 1, "formatSpecifier": "lld", "variations": forms("%arg message", "%arg messages")}, "channels": {"argNum": 2, "formatSpecifier": "lld", "variations": forms("%arg channel", "%arg channels")}}}, "tr": {"stringUnit": {"state": "translated", "value": "%2$lld kanalda %1$lld mesaj"}}}}')' \
+    && printf '%s\\n' 'let qaMulti = Text(\"\\(1) messages in \\(2) channels\")' >> Sources/PurlayMacUI/Strings.swift"
+# A literal assigned to a String property of another value is not said as a sentence, though a type of this module has a
+# property of that name typed as one.
+plant_in "QA: a Mac sentence assigned only to an AppKit String property sharing a typed name" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' 'import AppKit' 'func qaProbe(_ item: NSMenuItem) { item.title = \"Never said\" }' >> Sources/PurlayMacUI/Strings.swift"
 exit $fail
