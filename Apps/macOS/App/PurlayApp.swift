@@ -25,11 +25,11 @@ struct PurlayApp: App {
         attention.openLink = { url in Task { await sessions.openLink(url) } }
         let attention = attention
         attention.reply = { channel, source, text in
-            guard !sessions.reply(text, to: channel, sourceID: source) else { return }
+            guard !(await sessions.reply(text, to: channel, sourceID: source)) else { return }
             // Not sent (signed out, or no longer in the conversation): the words wait in its box, and the person is shown it.
             attention.bringForward?()
             NSApp.activate()
-            Task { await sessions.openNotification(channel: channel, sourceID: source) }
+            await sessions.openNotification(channel: channel, sourceID: source)
         }
         _sessions = State(initialValue: sessions)
         // What Shortcuts and Spotlight act on: the same sessions the windows show.

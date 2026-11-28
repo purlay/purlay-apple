@@ -36,7 +36,7 @@ public final class DesktopSessions {
     private var settingsSessionID: UUID?
     private let environment: AppEnvironment
     private let attention: DesktopAttention
-    private var launched = false
+    private var launching: Task<Void, Never>?
     public var linkEntryOpen = false
     public var linkProblem: LinkProblem?
     public private(set) var pendingLink: ConversationLink?
@@ -75,14 +75,24 @@ public final class DesktopSessions {
         if let selected = sessions.first(where: { $0.id == selectedID }) { active = selected.model }
     }
 
+    /// Launches every kept workspace once. A caller that comes while the launch is under way (a notice's reply or a shortcut that
+    /// started the app, beside the window's own launch) waits for that launch to end, so it never decides on a phase that is
+    /// still being read.
     public func launch() async {
-        guard !launched else { return }
-        launched = true
-        await withTaskGroup(of: Void.self) { group in
-            for session in sessions {
-                group.addTask { await session.model.launch() }
+        if let launching {
+            await launching.value
+            return
+        }
+        let sessions = sessions
+        let launch = Task {
+            await withTaskGroup(of: Void.self) { group in
+                for session in sessions {
+                    group.addTask { await session.model.launch() }
+                }
             }
         }
+        launching = launch
+        await launch.value
     }
 
     public var settingsModel: AppModel {

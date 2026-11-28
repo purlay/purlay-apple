@@ -15,7 +15,7 @@ final class SystemAttention: NSObject, AttentionPresenter, UNUserNotificationCen
     /// Opens a conversation, from a click on its notice.
     var open: ((Uuid, String?) -> Void)?
     /// Sends what was typed into a conversation's notice, to that conversation, without bringing the app forward.
-    var reply: ((Uuid, String?, String) -> Void)?
+    var reply: ((Uuid, String?, String) async -> Void)?
     var openLink: ((URL) -> Void)?
     private var reminderChanges: [String: UUID] = [:]
     private var reminderTasks: [String: Task<Void, Never>] = [:]
@@ -170,6 +170,11 @@ final class SystemAttention: NSObject, AttentionPresenter, UNUserNotificationCen
         notification.request.content.userInfo["reminderLink"] is String ? [.banner, .list] : []
     }
 
+    /// Hands a reply to the app, and returns once it is sent or kept: the system may have started the app only to deliver it.
+    private func answer(_ channel: Uuid, source: String?, text: String) async {
+        await reply?(channel, source, text)
+    }
+
     /// A click brings the window forward on the conversation; a reply typed into the notice is sent and leaves the window where it is.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse
@@ -179,7 +184,7 @@ final class SystemAttention: NSObject, AttentionPresenter, UNUserNotificationCen
         if response.actionIdentifier == Self.replyAction, let channel,
             let text = (response as? UNTextInputNotificationResponse)?.userText
         {
-            await MainActor.run { reply?(channel, source, text) }
+            await answer(channel, source: source, text: text)
             return
         }
         let reminderLink = (response.notification.request.content.userInfo["reminderLink"] as? String).flatMap(

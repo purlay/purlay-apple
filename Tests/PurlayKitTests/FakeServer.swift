@@ -1317,12 +1317,14 @@ final class FakeServer: HTTPTransport {
         case ("DELETE", _) where path.hasPrefix("/api/me/sessions/"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
             let id = String(path.dropFirst("/api/me/sessions/".count))
-            guard snapshot.deviceSessions.contains(where: { $0.id.value == id && !$0.current }) else {
+            guard let ended = snapshot.deviceSessions.first(where: { $0.id.value == id }) else {
                 return json(404, #"{"error":{"code":"SESSION_NOT_FOUND","message":"x"}}"#)
             }
+            // As the contract says: ending the session the request came in on signs out of it, the cookie kept.
             state.withLock {
                 $0.endedSessions.append(id)
                 $0.deviceSessions.removeAll { $0.id.value == id }
+                if ended.current { $0.sessionValid = false }
             }
             return HTTPResponse(status: 204)
         case ("POST", _)

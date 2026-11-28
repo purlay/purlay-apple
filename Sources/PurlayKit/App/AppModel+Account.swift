@@ -59,9 +59,19 @@ extension AppModel {
         }
     }
 
-    /// Signs one other device out. This device is signed out with `signOut`, which also forgets what it keeps.
+    /// Signs one other device out. This device is signed out with `signOut`, which also forgets what it keeps: the server ends
+    /// the session a request comes in on when asked, which would leave this device holding a dead credential, so the session in
+    /// use, as the server lists it now, is refused before anything is asked.
     public func endDeviceSession(_ id: Uuid) async throws {
         guard let api else { throw CancellationError() }
+        let current = try await api.listMySessions().data.first(where: \.current)?.id
+        guard id != current else { throw DeviceSessionRefusal.current }
         try await api.endMySession(sessionId: id.value)
     }
+}
+
+/// Why a device session was not ended.
+public enum DeviceSessionRefusal: Error, Equatable, Sendable {
+    /// It is the session this device uses: that is signing out, which `signOut` does.
+    case current
 }

@@ -2,6 +2,7 @@ import AppIntents
 import PurlayContract
 import PurlayKit
 import PurlayMacUI
+import PurlayWords
 
 // What Shortcuts, Spotlight and Siri can ask of Purlay. Each intent calls the model, as a menu item does; nothing here decides
 // what the app does. The identifiers below (type names, the entity's id, the enum's raw values, the phrases) are kept by people's
@@ -21,15 +22,15 @@ struct PurlayIntentError: Error, CustomLocalizedStringResourceConvertible {
         switch refusal {
         case .notSignedIn: "Open Purlay and sign in first."
         case .conversationGone: "That conversation is not in your sidebar any more."
-        case .notSent: "The message could not be sent."
+        case .notSent: SharedWords.messageNotSent
         }
     }
 }
 
 /// What a shortcut asks of the sessions (`DesktopSessions`' shortcut methods decide it), its refusal said in the app's words.
 @MainActor
-private func asking<T>(_ work: () throws -> T) throws -> T {
-    do { return try work() } catch let refusal as ShortcutRefusal { throw PurlayIntentError(refusal: refusal) }
+private func asking<T>(_ work: () async throws -> T) async throws -> T {
+    do { return try await work() } catch let refusal as ShortcutRefusal { throw PurlayIntentError(refusal: refusal) }
 }
 
 // MARK: Conversations
@@ -55,23 +56,23 @@ struct ConversationQuery: EntityStringQuery {
     @Dependency private var sessions: DesktopSessions
 
     @MainActor
-    private func conversations() throws -> [ConversationEntity] {
-        try asking { try sessions.shortcutConversations() }.map(ConversationEntity.init)
+    private func conversations() async throws -> [ConversationEntity] {
+        try await asking { try await sessions.shortcutConversations() }.map(ConversationEntity.init)
     }
 
     @MainActor
     func entities(for identifiers: [String]) async throws -> [ConversationEntity] {
         let wanted = Set(identifiers)
-        return try conversations().filter { wanted.contains($0.id) }
+        return try await conversations().filter { wanted.contains($0.id) }
     }
 
     @MainActor
     func entities(matching string: String) async throws -> [ConversationEntity] {
-        try conversations().filter { $0.name.localizedStandardContains(string) }
+        try await conversations().filter { $0.name.localizedStandardContains(string) }
     }
 
     @MainActor
-    func suggestedEntities() async throws -> [ConversationEntity] { try conversations() }
+    func suggestedEntities() async throws -> [ConversationEntity] { try await conversations() }
 }
 
 struct OpenConversationIntent: AppIntent {
@@ -85,7 +86,7 @@ struct OpenConversationIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        let (model, channel) = try asking { try sessions.shortcutConversation(conversation.id) }
+        let (model, channel) = try await asking { try await sessions.shortcutConversation(conversation.id) }
         mainWindow.open?()
         await model.showChannel(channel)
         return .result()
@@ -108,7 +109,9 @@ struct SendMessageIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        try asking { try sessions.shortcutSend(text, to: conversation.id) }
+        // Words leave in the person's name from the background, so the person is asked before they go.
+        try await requestConfirmation(actionName: .send, dialog: "Send this message to \(conversation.name)?")
+        try await asking { try await sessions.shortcutSend(text, to: conversation.id) }
         return .result()
     }
 }
@@ -125,7 +128,7 @@ struct OpenInboxIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        let model = try asking { try sessions.shortcutModel() }
+        let model = try await asking { try await sessions.shortcutModel() }
         mainWindow.open?()
         await model.openInbox()
         return .result()
@@ -162,7 +165,7 @@ struct StartDeepWorkIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        try await asking { try sessions.shortcutModel() }.startDeepWork(length.length)
+        try await asking { try await sessions.shortcutModel() }.startDeepWork(length.length)
         return .result()
     }
 }
@@ -176,7 +179,7 @@ struct EndDeepWorkIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        try await asking { try sessions.shortcutModel() }.endDeepWork()
+        try await asking { try await sessions.shortcutModel() }.endDeepWork()
         return .result()
     }
 }

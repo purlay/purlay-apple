@@ -65,10 +65,12 @@ struct OutsidePostingGuardTests {
         for socket in h.sockets { socket.handlers.opened() }
         await h.settle()
 
-        #expect(!(try desktop.shortcutConversations().map(\.id).contains(Uuid(channel(4))!)))
-        #expect(throws: ShortcutRefusal.conversationGone) { try desktop.shortcutSend("hello", to: channel(4)) }
-        #expect(throws: ShortcutRefusal.conversationGone) { try desktop.shortcutConversation(channel(4)) }
-        #expect(!desktop.reply("hello", to: Uuid(channel(4))!, sourceID: desktop.selectedID.uuidString))
+        #expect(!(try await desktop.shortcutConversations().map(\.id).contains(Uuid(channel(4))!)))
+        await #expect(throws: ShortcutRefusal.conversationGone) {
+            try await desktop.shortcutSend("hello", to: channel(4))
+        }
+        await #expect(throws: ShortcutRefusal.conversationGone) { try await desktop.shortcutConversation(channel(4)) }
+        #expect(!(await desktop.reply("hello", to: Uuid(channel(4))!, sourceID: desktop.selectedID.uuidString)))
         #expect(messageSends(h.last).isEmpty)
     }
 }
@@ -88,7 +90,7 @@ struct ColdStartReplyTests {
         let desktop = DesktopSessions(environment)
         let api = try #require(Uuid(channel(1)))
 
-        let sentAtOnce = desktop.reply("on my way", to: api, sourceID: desktop.selectedID.uuidString)
+        let sentAtOnce = await desktop.reply("on my way", to: api, sourceID: desktop.selectedID.uuidString)
         await desktop.launch()
         for socket in h.sockets { socket.handlers.opened() }
         await h.settle()
