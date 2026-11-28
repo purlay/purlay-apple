@@ -196,7 +196,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Derin Çalışma değiştirilemedi. Yeniden deneyin."
+            "value" : "Deep Work değiştirilemedi. Yeniden deneyin."
           }
         }
       }
@@ -276,7 +276,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu konunun çözüldü durumu değiştirilemedi. Yeniden deneyin."
+            "value" : "Bu thread'in çözüldü durumu değiştirilemedi. Yeniden deneyin."
           }
         }
       }
@@ -286,7 +286,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu konuyu takip etme durumunuz değiştirilemedi. Yeniden deneyin."
+            "value" : "Bu thread'i takip etme durumunuz değiştirilemedi. Yeniden deneyin."
           }
         }
       }
@@ -346,7 +346,7 @@
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Konu yüklenemedi. Bağlantınızı denetleyip yeniden deneyin."
+            "value" : "Thread yüklenemedi. Bağlantınızı denetleyip yeniden deneyin."
           }
         }
       }

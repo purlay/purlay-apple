@@ -156,7 +156,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ dahil olduğunuz bir konuda yanıtladı"
+            "value": "%@ dahil olduğunuz bir thread'de yanıtladı"
           }
         }
       }
@@ -166,7 +166,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ konunuzda yanıtladı"
+            "value": "%@ thread'inizde yanıtladı"
           }
         }
       }
@@ -176,7 +176,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ bir konuyu çözüldü olarak işaretledi"
+            "value": "%@ bir thread'i çözüldü olarak işaretledi"
           }
         }
       }
@@ -2127,7 +2127,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konuyu kapat"
+            "value": "Thread'i kapat"
           }
         }
       }
@@ -2137,7 +2137,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Açık olanı kapat: önce düzenleme, sonra konu"
+            "value": "Açık olanı kapat: önce düzenleme, sonra thread"
           }
         }
       }
@@ -2457,7 +2457,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konu Yüklenemedi"
+            "value": "Thread Yüklenemedi"
           }
         }
       }
@@ -2507,7 +2507,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu konuyu takip edip etmediğiniz okunamadı"
+            "value": "Bu thread'i takip edip etmediğiniz okunamadı"
           }
         }
       }
@@ -2517,7 +2517,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu konuyu takip edip etmediğiniz okunamadı. Takip etmek için basın."
+            "value": "Bu thread'i takip edip etmediğiniz okunamadı. Takip etmek için basın."
           }
         }
       }
@@ -2707,7 +2707,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Derin Çalışma"
+            "value": "Deep Work"
           }
         }
       }
@@ -2717,7 +2717,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Derin Çalışma  ⇧⌘D"
+            "value": "Deep Work  ⇧⌘D"
           }
         }
       }
@@ -2727,7 +2727,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yarına Kadar Derin Çalışma"
+            "value": "Yarına Kadar Deep Work"
           }
         }
       }
@@ -2737,7 +2737,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Derin Çalışma bitti."
+            "value": "Deep Work bitti."
           }
         }
       }
@@ -2747,7 +2747,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "2 Saat Derin Çalışma"
+            "value": "2 Saat Deep Work"
           }
         }
       }
@@ -2757,7 +2757,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "30 Dakika Derin Çalışma"
+            "value": "30 Dakika Deep Work"
           }
         }
       }
@@ -2767,7 +2767,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "1 Saat Derin Çalışma"
+            "value": "1 Saat Deep Work"
           }
         }
       }
@@ -2777,7 +2777,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Derin Çalışma kesintileri sessize alır"
+            "value": "Deep Work kesintileri sessize alır"
           }
         }
       }
@@ -2787,7 +2787,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Derin Çalışma başladı."
+            "value": "Deep Work başladı."
           }
         }
       }
@@ -2797,7 +2797,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ saatine kadar Derin Çalışma"
+            "value": "%@ saatine kadar Deep Work"
           }
         }
       }
@@ -3127,7 +3127,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Derin Çalışmayı Bitir"
+            "value": "Deep Work'ü Bitir"
           }
         }
       }
@@ -3137,7 +3137,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Derin Çalışmayı Bitir (%lld dk kaldı)"
+            "value": "Deep Work'ü Bitir (%lld dk kaldı)"
           }
         }
       }
@@ -3187,7 +3187,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kanaldaki herkes yine de konularda yanıt verebilir."
+            "value": "Kanaldaki herkes yine de thread'lerde yanıt verebilir."
           }
         }
       }
@@ -3337,7 +3337,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konuyu takip eder"
+            "value": "Thread'i takip eder"
           }
         }
       }
@@ -3497,7 +3497,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konuk"
+            "value": "Misafir"
           }
         }
       }
@@ -4399,7 +4399,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu konuyu çözüldü olarak işaretle  ⇧⌘R"
+            "value": "Bu thread'i çözüldü olarak işaretle  ⇧⌘R"
           }
         }
       }
@@ -5009,7 +5009,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Biten Sorun Yok"
+            "value": "Bitti Olarak İşaretli Sorun Yok"
           }
         }
       }
@@ -5109,7 +5109,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konu Güncellemesi Yok"
+            "value": "Thread Güncellemesi Yok"
           }
         }
       }
@@ -5519,7 +5519,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu kanalda yalnızca sahipler ve yöneticiler yazar. Yine de konuda yanıt verebilirsiniz."
+            "value": "Bu kanalda yalnızca sahipler ve yöneticiler yazar. Yine de bir thread'de yanıt verebilirsiniz."
           }
         }
       }
@@ -5659,7 +5659,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konuyu Tarayıcıda Aç"
+            "value": "Thread'i Tarayıcıda Aç"
           }
         }
       }
@@ -5719,7 +5719,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Seçilen mesajın konusunu aç"
+            "value": "Seçilen mesajın thread'ini aç"
           }
         }
       }
@@ -6199,7 +6199,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu konuyu takip edip etmediğiniz okunuyor"
+            "value": "Bu thread'i takip edip etmediğiniz okunuyor"
           }
         }
       }
@@ -6469,7 +6469,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konuyu Yeniden Aç"
+            "value": "Thread'i Yeniden Aç"
           }
         }
       }
@@ -6479,7 +6479,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu konuyu yeniden aç  ⇧⌘R"
+            "value": "Bu thread'i yeniden aç  ⇧⌘R"
           }
         }
       }
@@ -6499,7 +6499,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konuda Yanıtla"
+            "value": "Thread'de Yanıtla"
           }
         }
       }
@@ -6509,7 +6509,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konuda yanıtla"
+            "value": "Thread'de yanıtla"
           }
         }
       }
@@ -6549,7 +6549,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konuyu Çözüldü İşaretle"
+            "value": "Thread'i Çözüldü İşaretle"
           }
         }
       }
@@ -6559,7 +6559,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Açık konuyu çöz veya yeniden aç"
+            "value": "Açık thread'i çöz veya yeniden aç"
           }
         }
       }
@@ -7327,7 +7327,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yanıtı konuda göster"
+            "value": "Yanıtı thread'de göster"
           }
         }
       }
@@ -7337,7 +7337,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konuyu göster"
+            "value": "Thread'i göster"
           }
         }
       }
@@ -7347,7 +7347,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yanıtı konuda gösterir"
+            "value": "Yanıtı thread'de gösterir"
           }
         }
       }
@@ -7457,7 +7457,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bunu önce başka biri değiştirdi. Onun değişikliği konuda gösteriliyor; sizinkini uygulamak için yeniden kaydedin."
+            "value": "Bunu önce başka biri değiştirdi. Onun değişikliği thread'de gösteriliyor; sizinkini uygulamak için yeniden kaydedin."
           }
         }
       }
@@ -7477,7 +7477,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Derin Çalışma ile odaklanmak için alan"
+            "value": "Deep Work ile odaklanmak için alan"
           }
         }
       }
@@ -7527,7 +7527,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bir Saatlik Derin Çalışma Başlat"
+            "value": "Bir Saatlik Deep Work Başlat"
           }
         }
       }
@@ -7537,7 +7537,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Derin Çalışmayı başlat, off ile bitir"
+            "value": "Deep Work'ü başlat, off ile bitir"
           }
         }
       }
@@ -7557,7 +7557,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Derin Çalışmayı başlat veya bitir"
+            "value": "Deep Work'ü başlat veya bitir"
           }
         }
       }
@@ -7945,7 +7945,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konu"
+            "value": "Thread"
           }
         }
       }
@@ -7955,7 +7955,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konu açık"
+            "value": "Thread açık"
           }
         }
       }
@@ -7965,7 +7965,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konu durumu"
+            "value": "Thread durumu"
           }
         }
       }
@@ -7975,7 +7975,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konu durumu, içerik, sorular, bir depo ve tarihler"
+            "value": "Thread durumu, içerik, sorular, bir depo ve tarihler"
           }
         }
       }
@@ -7985,7 +7985,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konular"
+            "value": "Thread'ler"
           }
         }
       }

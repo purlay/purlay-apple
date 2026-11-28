@@ -16,10 +16,10 @@ request there — before your first contribution here, or with it — add yourse
 ```
 
 Adding that entry, under your own GitHub account, is your agreement to the terms below for your
-contributions, present and future, in this repository too. A pull request whose author has not signed
-cannot be merged, and nobody can sign for anybody else (D-145; the server repository checks the list
-with `bun run check:cla`, and here the maintainer checks it before merging). If you contribute on
-behalf of your employer, or your employer has rights in what you create, see section 4 first.
+contributions, present and future, to this repository as to the server's. That list is the only one:
+this repository keeps no signatures of its own. A pull request whose author is not in it cannot be
+merged, and nobody can sign for anybody else (D-145). If you contribute on behalf of your employer, or
+your employer has rights in what you create, see section 4 first.
 
 This text is the Apache Software Foundation's Individual Contributor License Agreement, version 2.2,
 changed only where the Foundation is not a party here: "the Foundation" is the Maintainer named below;
