@@ -110,24 +110,26 @@ SEN = re.compile(
 )
 
 
-# "Purlay" is said "pörley", so its Turkish suffixes take front vowels: Purlay'i, Purlay'in, Purlay'de, Purlay'den, Purlay'e.
+# "Purlay" is said "pörley", so its Turkish suffixes take front vowels and no buffer y: Purlay'i, Purlay'in, Purlay'de,
+# Purlay'den, Purlay'e.
 # The same for the English words the glossary keeps: "Thread" is said "tred" (Thread'i, Thread'de, Thread'ler) and "Deep Work"
-# "dip vörk" (Deep Work'ü, Deep Work'te).
+# "dip vörk" (Deep Work'ü, Deep Work'te); Thread ends on a voiced d, so it takes -de, never -te.
 WRONG_SUFFIX = re.compile(
     # Not IGNORECASE: it would read the dotless ı as i.
-    r"(?:Purlay['’](?:da|dan|ı|ın|a|ya|la)|[Tt]hread['’](?:ı|ın|da|dan|a|lar|larda|u|un|ü|ün)"
+    r"(?:Purlay['’](?:da|dan|ı|ın|a|ya|ye|la)|[Tt]hread['’](?:ı|ın|da|dan|te|ten|a|lar|larda|u|un|ü|ün)"
     r"|[Dd]eep [Ww]ork['’](?:ı|ın|i|in|u|un|a|da|de|dan|den))(?![^\W\d_])"
 )
 # The server's product glossary (purlay/purlay docs/GLOSSARY.md, D-359): the Turkish words it rules out. "konu" is a channel's
 # topic there, so it is refused only where the English says thread.
 GLOSSARY_NEVER = [
     (re.compile(r"derin çalışma"), "Deep Work is \"Deep Work\" in both languages"),
-    (re.compile(rf"(?<!{LETTER})biten(?!{LETTER})"), "a finished issue is \"Bitti\""),
     (re.compile(rf"(?<!{LETTER})konuk"), "a guest is \"Misafir\""),
     (re.compile(r"iki faktörlü"), "two-step verification is \"İki Adımlı Doğrulama\""),
     (re.compile(r"giriş yap|çıkış yap"), "sign in and out are \"Oturum Aç\" and \"Oturumu Kapat\""),
 ]
 THREAD_AS_TOPIC = re.compile(rf"(?<!{LETTER})konu(?!ş)")
+# "biten" is an ordinary participle ("Süresi biten davetler"); the glossary rules it out only as the name of a finished issue.
+FINISHED_AS_BITEN = re.compile(rf"(?<!{LETTER})biten(?!{LETTER})")
 
 
 def glossary_problem(key, value):
@@ -138,6 +140,8 @@ def glossary_problem(key, value):
             return says
     if re.search(r"thread", key, re.IGNORECASE) and THREAD_AS_TOPIC.search(folded):
         return "a thread is \"Thread\", never \"konu\", which is a channel's topic"
+    if re.search(r"finished|done", key, re.IGNORECASE) and FINISHED_AS_BITEN.search(folded):
+        return "a finished issue is \"Bitti\", never \"Biten\""
     return None
 
 

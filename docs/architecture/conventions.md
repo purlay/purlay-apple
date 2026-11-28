@@ -122,12 +122,13 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
   rules that read Swift and data are in `scripts/lib/rules.py`.
 - The product's words, in English and Turkish, are the server's: `docs/GLOSSARY.md` of purlay/purlay (D-359) is the single
   source, and a term the apps need that it does not have is added there first. The words it rules out are refused
-  (`scripts/lib/rules.py`, enforced): "Derin Çalışma", "Biten", "Konuk", "İki Faktörlü", "giriş yap", "çıkış yap", and "konu"
-  where the English says thread ("konu" is a channel's topic). What is the apps' own: Turkish titles and buttons are in
+  (`scripts/lib/rules.py`, enforced): "Derin Çalışma", "Konuk", "İki Faktörlü", "giriş yap", "çıkış yap", "konu" where the
+  English says thread ("konu" is a channel's topic) and "Biten" where it says a finished issue ("biten" is otherwise a plain
+  participle). What is the apps' own: Turkish titles and buttons are in
   Apple-style title case ("Oturum Aç", "Thread'i Yeniden Aç"), the word being the glossary's, and "thread" is lower case inside
   a sentence, as the web writes it. A Turkish suffix after a name or an English word follows how it is said (enforced):
-  "Purlay" is "pörley" ("Purlay'i", "Purlay'in", "Purlay'de", "Purlay'e"), "Thread" is "tred" ("Thread'i", "Thread'de",
-  "Thread'ler"), "Deep Work" is "dip vörk" ("Deep Work'ü", "Deep Work'te").
+  "Purlay" is "pörley" ("Purlay'i", "Purlay'in", "Purlay'de", "Purlay'e", never "Purlay'ye"), "Thread" is "tred"
+  ("Thread'i", "Thread'de", never "Thread'te", "Thread'ler"), "Deep Work" is "dip vörk" ("Deep Work'ü", "Deep Work'te").
 - A sentence with a count (`%lld`, `%d`, `%i`…) has English plural forms whose `one` is not its `other` (enforced), unless the
   count changes no English word ("Filters (%lld)"): those are listed in `scripts/lib/rules.py`, and a new one is a review
   point. A sentence with two counts has them as Xcode writes them, substitutions (`%#@messages@ in %#@channels@`), each with
