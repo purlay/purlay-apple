@@ -117,16 +117,21 @@ Both actions require an explicit choice in the same confirmation dialog, and fai
 ## From outside the windows: notices, Shortcuts and Handoff
 
 Words sent from outside a message box (a notice's Reply field, Forward…, a shortcut) go through `AppModel.post`: the outbox,
-no files, and the conversation's own box and draft left as they were.
+no files, and the conversation's own box and draft left as they were. They go only where that box could send them
+(`canPost`): chat on, no sign-out holding sends, a conversation the person is in, and a channel's feed only where they may
+start a conversation (an announcement channel's is its owners' and admins').
 
 - **Reply from a notice** (`DesktopSessions.reply`): sent from the workspace that showed the notice (its `source`, as a click on
-  it reads it), never from the one in front, since two workspaces can share a channel's id. Words that cannot be sent go into
+  it reads it), never from the one in front, since two workspaces can share a channel's id. A reply can be what starts the app,
+so the kept workspaces are launched first, or the launch under way is waited for. Words that cannot be sent go into
   the conversation's draft after what was already written there, and the conversation is shown; with that workspace no longer
   open, nothing holds them.
 - **Shortcuts, Spotlight and Siri** (`Apps/macOS/App/Intents`, deciding through `DesktopSessions`' shortcut methods): each acts
-  on the workspace in front, as a menu item does, and is refused while it is not signed in. A conversation is kept by its
+  on the workspace in front, as a menu item does, and is refused while it is not signed in; a shortcut that starts the app
+waits for the launch, so a signed-in person is not told to sign in. A conversation is kept by its
   channel id, so a saved shortcut keeps working across renames and says so when the conversation is gone. Open Inbox and Open
-  Conversation bring the main window forward; Send a Message and Deep Work run in the background.
+  Conversation bring the main window forward; Send a Message and Deep Work run in the background, and Send a Message asks the
+person before it sends.
 - **Handoff**: the conversation in front is offered as its web address (`WebPage.channel`), so another device opens it in a
   browser; there is no app-to-app activity yet.
 
