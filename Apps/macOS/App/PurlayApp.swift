@@ -25,12 +25,8 @@ struct PurlayApp: App {
         attention.openLink = { url in Task { await sessions.openLink(url) } }
         let attention = attention
         attention.reply = { channel, source, text in
-            let model =
-                source.flatMap(UUID.init(uuidString:)).flatMap { id in sessions.sessions.first { $0.id == id }?.model }
-                ?? sessions.active
-            guard !model.post(text, to: channel) else { return }
+            guard !sessions.reply(text, to: channel, sourceID: source) else { return }
             // Not sent (signed out, or no longer in the conversation): the words wait in its box, and the person is shown it.
-            model.setDraft(text, for: channel)
             attention.bringForward?()
             NSApp.activate()
             Task { await sessions.openNotification(channel: channel, sourceID: source) }

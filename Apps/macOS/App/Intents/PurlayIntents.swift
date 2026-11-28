@@ -13,13 +13,12 @@ final class MainWindowOpener {
     var open: (() -> Void)?
 }
 
-enum PurlayIntentError: Error, CustomLocalizedStringResourceConvertible {
-    case notSignedIn
-    case conversationGone
-    case notSent
+/// A refused shortcut, said in the app's words.
+struct PurlayIntentError: Error, CustomLocalizedStringResourceConvertible {
+    let refusal: ShortcutRefusal
 
     var localizedStringResource: LocalizedStringResource {
-        switch self {
+        switch refusal {
         case .notSignedIn: "Open Purlay and sign in first."
         case .conversationGone: "That conversation is not in your sidebar any more."
         case .notSent: "The message could not be sent."
@@ -27,11 +26,10 @@ enum PurlayIntentError: Error, CustomLocalizedStringResourceConvertible {
     }
 }
 
+/// What a shortcut asks of the sessions (`DesktopSessions`' shortcut methods decide it), its refusal said in the app's words.
 @MainActor
-private func readyModel(_ sessions: DesktopSessions) throws -> AppModel {
-    let model = sessions.active
-    guard model.phase == .ready else { throw PurlayIntentError.notSignedIn }
-    return model
+private func asking<T>(_ work: () throws -> T) throws -> T {
+    do { return try work() } catch let refusal as ShortcutRefusal { throw PurlayIntentError(refusal: refusal) }
 }
 
 // MARK: Conversations
@@ -58,7 +56,7 @@ struct ConversationQuery: EntityStringQuery {
 
     @MainActor
     private func conversations() throws -> [ConversationEntity] {
-        try readyModel(sessions).sidebar.flatMap(\.channels).map(ConversationEntity.init)
+        try asking { try sessions.shortcutConversations() }.map(ConversationEntity.init)
     }
 
     @MainActor
@@ -87,12 +85,9 @@ struct OpenConversationIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        let model = try readyModel(sessions)
-        guard let id = Uuid(conversation.id), model.chat.channels[id] != nil else {
-            throw PurlayIntentError.conversationGone
-        }
+        let (model, channel) = try asking { try sessions.shortcutConversation(conversation.id) }
         mainWindow.open?()
-        await model.showChannel(id)
+        await model.showChannel(channel)
         return .result()
     }
 }
@@ -113,11 +108,7 @@ struct SendMessageIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        let model = try readyModel(sessions)
-        guard let id = Uuid(conversation.id), model.chat.channels[id] != nil else {
-            throw PurlayIntentError.conversationGone
-        }
-        guard model.post(text, to: id) else { throw PurlayIntentError.notSent }
+        try asking { try sessions.shortcutSend(text, to: conversation.id) }
         return .result()
     }
 }
@@ -134,7 +125,7 @@ struct OpenInboxIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        let model = try readyModel(sessions)
+        let model = try asking { try sessions.shortcutModel() }
         mainWindow.open?()
         await model.openInbox()
         return .result()
@@ -171,7 +162,7 @@ struct StartDeepWorkIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        try await readyModel(sessions).startDeepWork(length.length)
+        try await asking { try sessions.shortcutModel() }.startDeepWork(length.length)
         return .result()
     }
 }
@@ -185,7 +176,7 @@ struct EndDeepWorkIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        try await readyModel(sessions).endDeepWork()
+        try await asking { try sessions.shortcutModel() }.endDeepWork()
         return .result()
     }
 }
