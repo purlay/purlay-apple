@@ -8,6 +8,11 @@ other feed.
 
 Do the steps in this order: each makes the next safe, and no Mac is ever pointed at an address that does not answer.
 
+**Status (2026-11-28):** step 1.3 (Pages from GitHub Actions, custom domain `updates.purlay.app`) and step 1.4 (the
+`macos/v*` tag pattern on `github-pages`) are done. Owed by the owner: the domain verification (1.1), the `CNAME` at
+Cloudflare (1.2), *Enforce HTTPS* once the certificate is issued, and the release secrets in the `release` environment
+([release-macos.md](release-macos.md)). The owner chose the bridge appcast (step 3, second option).
+
 ## 1. The address (the owner)
 
 1. **Verify the domain for the organisation** so nobody else can claim it on Pages: organisation Settings → Pages → *Add a

@@ -10,7 +10,7 @@ ENABLE_HARDENED_RUNTIME = YES
 COMBINE_HIDPI_IMAGES = YES
 LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/../Frameworks
 // The empty expansion keeps xcconfig from interpreting the URL as a comment.
-PURLAY_UPDATE_FEED_URL = https:/$()/github.com/purlay/purlay-macos/releases/latest/download/appcast.xml
+PURLAY_UPDATE_FEED_URL = https:/$()/updates.purlay.app/macos/appcast.xml
 INFOPLIST_FILE = macOS/Info.plist
 CODE_SIGN_ENTITLEMENTS = macOS/App/Resources/Purlay.entitlements
 // Sparkle is prebuilt: ad-hoc development signatures have no Team ID for library validation.
