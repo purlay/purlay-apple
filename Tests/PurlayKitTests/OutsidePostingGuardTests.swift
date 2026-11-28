@@ -73,6 +73,32 @@ struct OutsidePostingGuardTests {
     }
 }
 
+/// A notice's Reply can be the thing that starts the app (macOS launches it to deliver the response), so `reply` can run before
+/// the sessions have launched: no engine, and no `me`, so no drafts store. FR-132 says words that cannot be sent wait in the
+/// conversation's box; here they must be either sent once the app is up or kept, never dropped.
+@MainActor
+@Suite("a notice's reply on a cold start")
+struct ColdStartReplyTests {
+    @Test("a reply that arrives before the launch is sent or kept, not lost")
+    func replyBeforeLaunch() async throws {
+        let h = ModelHarness()
+        try h.rememberedSession()
+        var environment = h.model.environment
+        environment.transport = DesktopTransport(first: h.server, second: FakeServer())
+        let desktop = DesktopSessions(environment)
+        let api = try #require(Uuid(channel(1)))
+
+        let sentAtOnce = desktop.reply("on my way", to: api, sourceID: desktop.selectedID.uuidString)
+        await desktop.launch()
+        for socket in h.sockets { socket.handlers.opened() }
+        await h.settle()
+
+        let sent = h.sockets.flatMap { messageSends($0) }.contains { $0["content"] as? String == "on my way" }
+        let kept = desktop.active.draft(for: api).contains("on my way")
+        #expect(sentAtOnce || sent || kept, "the words typed into the notice are gone")
+    }
+}
+
 /// `endDeviceSession` is "one other device" (its own words, FR-224): the session in use is ended with `signOut`, which also
 /// forgets what this device keeps. The server ends the caller's own session when asked (API.md, `DELETE /api/me/sessions/:id`),
 /// which would leave this device holding a dead credential, so the engine must not ask.
