@@ -3,16 +3,19 @@
 #
 # - Sources/PurlayWords/Resources/Localizable.xcstrings: what both apps say about what the engine reports (EngineWords).
 # - Apps/macOS/App/Resources/Localizable.xcstrings: the Mac app's own sentences, read by the app and PurlayMacUI (SwiftUI and
-#   String(localized:) look in the main bundle).
+#   String(localized:) look in the main bundle), an App Intent's parameter summary among them (`${text}`), which the build does
+#   not extract: it is added by hand.
+# - Apps/macOS/App/Resources/AppShortcuts.xcstrings: the phrases of the Mac's App Shortcuts (Siri), each a set of phrases.
 # - The iOS app's own catalogue is edited in Xcode: its sentences are the few in Apps/iOS/App/Root/Words.swift.
 #
-#   scripts/localize    build the Mac app with string extraction and sync both catalogues with what the code says
+#   scripts/localize    build the Mac app with string extraction and sync the catalogues with what the code says
 #
 # A new sentence shows as "new" until it has a Turkish value; scripts/enforcement (the rules lane) refuses every catalogue until
 # each sentence has a final value in every language the apps declare (CFBundleLocalizations).
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 MAC_CATALOG=Apps/macOS/App/Resources/Localizable.xcstrings
+SHORTCUTS_CATALOG=Apps/macOS/App/Resources/AppShortcuts.xcstrings
 WORDS_CATALOG=Sources/PurlayWords/Resources/Localizable.xcstrings
 
 derived="$(mktemp -d)"; trap 'rm -rf "$derived"' EXIT
@@ -24,4 +27,6 @@ find "$derived" -name '*.stringsdata' -path '*/PurlayWords*.build/*' -print0 \
   | xargs -0 xcrun xcstringstool sync "$WORDS_CATALOG" --stringsdata
 find "$derived" -name '*.stringsdata' -not -path '*SourcePackages*' -not -path '*/PurlayWords*.build/*' -print0 \
   | xargs -0 xcrun xcstringstool sync "$MAC_CATALOG" --stringsdata
+find "$derived" -name ExtractedAppShortcutsMetadata.stringsdata -not -path '*SourcePackages*' -print0 \
+  | xargs -0 xcrun xcstringstool sync "$SHORTCUTS_CATALOG" --stringsdata
 echo "synced; add the Turkish value of every new sentence, then run scripts/enforcement tree"

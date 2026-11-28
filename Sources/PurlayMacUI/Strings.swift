@@ -22,55 +22,6 @@ enum Words {
         case .public, .private, .unknown: return "# \(channel.title)"
         }
     }
-
-    // MARK: Scheduled messages and reminders
-
-    /// What a scheduling failure says. The model's own description is English, so it is never shown; anything that is not a
-    /// `SchedulingFailure` is said as a change that could not be confirmed.
-    static func scheduling(_ error: any Error) -> String {
-        switch (error as? SchedulingFailure) ?? .failed {
-        case .unavailable: return String(localized: "This server does not support scheduled messages yet.")
-        case .temporarilyUnavailable:
-            return String(localized: "Scheduled messages are temporarily unavailable. Try again.")
-        case .files: return String(localized: "Wait for every attachment to finish uploading before scheduling.")
-        case .content: return String(localized: "Add a message or an attachment, within the message length limit.")
-        case .time: return String(localized: "Choose a time at least a minute from now and within the next year.")
-        case .limit: return String(localized: "Cancel a scheduled message before adding another.")
-        case .sent:
-            return String(
-                localized: "This message has already been sent. Refresh the list to see what is still scheduled.")
-        case .access: return String(localized: "This conversation or message is no longer available to you.")
-        case .failed:
-            return String(localized: "The change could not be confirmed. Check your connection and try again.")
-        case .sessionChanged:
-            return String(localized: "The account changed. Open this action again in the current account.")
-        }
-    }
-
-    /// What a reminder failure says, for the same reason as `scheduling(_:)`.
-    static func reminder(_ error: any Error) -> String {
-        switch (error as? ReminderFailure) ?? .failed {
-        case .unavailable: return String(localized: "This server does not support message reminders yet.")
-        case .temporarilyUnavailable:
-            return String(localized: "Message reminders are temporarily unavailable. Try again.")
-        case .time: return String(localized: "Choose a time at least a minute from now and within the next year.")
-        case .validation:
-            return String(
-                localized:
-                    "Check the reminder time. You can keep up to \(ContractConstants.messageRemindersMax) pending reminders per workspace."
-            )
-        case .access: return String(localized: "This message is no longer available to you.")
-        case .failed:
-            return String(localized: "The reminder change could not be confirmed. Check your connection and try again.")
-        case .sessionChanged:
-            return String(localized: "The account changed. Open this action again in the current account.")
-        }
-    }
-
-    /// How many files a scheduled message carries: one key with the count in it, so the catalogue can vary it by plural.
-    static func attachmentCount(_ count: Int) -> String {
-        String(localized: "\(count) attachments")
-    }
 }
 
 /// What a system notice says: where and why, never what was said, because a notice is read over a shoulder and stays in the notification

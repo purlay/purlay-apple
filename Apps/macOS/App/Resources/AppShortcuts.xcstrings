@@ -1,0 +1,108 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "End Deep Work in ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "End Deep Work in ${applicationName}"
+            ]
+          }
+        },
+        "tr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} uygulamasında Deep Work'ü bitir"
+            ]
+          }
+        }
+      }
+    },
+    "Open a conversation in ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Open a conversation in ${applicationName}"
+            ]
+          }
+        },
+        "tr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} uygulamasında bir konuşma aç"
+            ]
+          }
+        }
+      }
+    },
+    "Open my ${applicationName} inbox": {
+      "localizations": {
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Open my ${applicationName} inbox",
+              "Show ${applicationName} inbox"
+            ]
+          }
+        },
+        "tr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} gelen kutumu aç",
+              "${applicationName} gelen kutusunu göster"
+            ]
+          }
+        }
+      }
+    },
+    "Send a message with ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Send a message with ${applicationName}"
+            ]
+          }
+        },
+        "tr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ile mesaj gönder"
+            ]
+          }
+        }
+      }
+    },
+    "Start Deep Work in ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Start Deep Work in ${applicationName}"
+            ]
+          }
+        },
+        "tr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} uygulamasında Deep Work başlat"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

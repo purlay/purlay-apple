@@ -109,9 +109,14 @@ the sign-in test above, on iPhone and on iPad, each run with a fresh fixture:
   `Apps/iOS/App/Resources/Localizable.xcstrings`. A feature's screens take their sentences from the app (`FeatureChat`'s
   `ChatStrings`), so a sentence keeps one home.
 - **The Mac's own:** write the sentence in English in the code.
-- `scripts/localize` builds the Mac app with string extraction and adds the new sentences of the Mac and of `PurlayWords` to their
-  catalogues. Give each its Turkish value with the state `translated`, then run `scripts/enforcement tree`: its one checker
-  holds the three catalogues to every language the apps declare (`CFBundleLocalizations`).
+- **The Mac's App Intents:** titles, descriptions and parameters are sentences in the code like any other. A parameter summary
+  (`Summary("Send \(\.$text) to \(\.$conversation)")`) is looked up by its parameters' names, `Send ${text} to ${conversation}`,
+  which the build does not extract: add that key to the Mac's catalogue by hand. An App Shortcut's phrases (what a person says
+  to Siri) are in `Apps/macOS/App/Resources/AppShortcuts.xcstrings`, a set of phrases per shortcut.
+- `scripts/localize` builds the Mac app with string extraction and adds the new sentences of the Mac and of `PurlayWords`, and
+  the Mac's App Shortcut phrases, to their catalogues. Give each its Turkish value with the state `translated`, then run
+  `scripts/enforcement tree`: its one checker holds the four catalogues to every language the apps declare
+  (`CFBundleLocalizations`).
 
 ## Where to read next
 

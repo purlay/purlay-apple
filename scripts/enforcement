@@ -249,7 +249,7 @@ APIS
   # The logo is stated once, in Design/purlay.svg: PurlayMark and the Welcome field draw `Logo`, which scripts/icon writes from it.
   if ! scripts/logo-swift --check "$root"; then failed=1; fi
   # The rules that read files as data, in one process (scripts/lib/rules.py, where each is described): the privacy manifest's
-  # reasons; the three catalogues (languages, final values, format specifiers, plural forms, one home per sentence) and that
+  # reasons; the four catalogues (languages, final values, format specifiers, plural forms, one home per sentence) and that
   # code says each sentence; colour literals and colour sets; the accent asset against its token; the Mac's Sparkle keys and
   # entitlements; both apps' URL types.
   if ! PYTHONPATH=scripts/lib python3 scripts/lib/rules.py "$root"; then failed=1; fi
@@ -527,7 +527,7 @@ plant_in "a reason Apple does not list" Apps/iOS/App/Resources \
   'sed -i.bak "s/CA92.1/ZZ99.9/" PrivacyInfo.xcprivacy && rm PrivacyInfo.xcprivacy.bak'
 plant_in "a declared category with no reason" Apps/iOS/App/Resources \
   'python3 -c "import plistlib; p=\"PrivacyInfo.xcprivacy\"; m=plistlib.load(open(p,\"rb\")); m[\"NSPrivacyAccessedAPITypes\"][0][\"NSPrivacyAccessedAPITypeReasons\"]=[]; plistlib.dump(m, open(p,\"wb\"))"'
-# The sentences, in each of the three catalogues.
+# The sentences, in each of the four catalogues.
 recatalogue() { # catalogue (relative), Python statements over `strings`, the catalogue's entries
   printf 'import json; p = "%s"; c = json.load(open(p)); strings = c["strings"]; %s; json.dump(c, open(p, "w"), ensure_ascii=False)' "$1" "$2"
 }
@@ -560,6 +560,23 @@ plant_in "a sentence in two catalogues" . "python3 -c '$(recatalogue $IOS_STRING
 plant_in "an iOS sentence no code says" . "python3 -c '$(recatalogue $IOS_STRINGS 'strings["Your session ends on %@. Sign in again before then to stay connected."] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Oturumun %@ tarihinde sona eriyor."}}}}')'"
 plant_in "a Mac sentence no code says" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')'"
 plant_in "an engine sentence no code says" . "python3 -c '$(recatalogue $WORDS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')'"
+# App Intents: an intent's parameter summary is in the Mac's catalogue and an App Shortcut's phrases in their own, each keyed by
+# its parameters' names (`${text}`), which every translation keeps.
+# shellcheck disable=SC2016 # the App Intents parameters (${text}), written as they are
+SUMMARY='Send ${text} to ${conversation}' PHRASE='Open my ${applicationName} inbox'
+SHORTCUTS=Apps/macOS/App/Resources/AppShortcuts.xcstrings
+plant_in "an intent's parameter summary with no Turkish" . "python3 -c '$(recatalogue $MAC_STRINGS "del strings[\"$SUMMARY\"][\"localizations\"][\"tr\"]")'"
+plant_in "a parameter summary translated without one of its parameters" . \
+  "python3 -c '$(recatalogue $MAC_STRINGS "strings[\"$SUMMARY\"][\"localizations\"][\"tr\"][\"stringUnit\"][\"value\"] = \"Mesajı gönder\"")'"
+# shellcheck disable=SC2016 # an App Intents parameter, written as it is
+plant_in "a parameter summary no code says" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said ${text}"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi ${text}"}}}}')'"
+plant_in "an App Shortcut phrase with no Turkish" . "python3 -c '$(recatalogue $SHORTCUTS "del strings[\"$PHRASE\"][\"localizations\"][\"tr\"]")'"
+plant_in "a Turkish App Shortcut phrase without the app's name" . \
+  "python3 -c '$(recatalogue $SHORTCUTS "strings[\"$PHRASE\"][\"localizations\"][\"tr\"][\"stringSet\"][\"values\"] = [\"gelen kutumu aç\"]")'"
+plant_in "an App Shortcut with no Turkish phrase" . \
+  "python3 -c '$(recatalogue $SHORTCUTS "strings[\"$PHRASE\"][\"localizations\"][\"tr\"][\"stringSet\"][\"values\"] = []")'"
+# shellcheck disable=SC2016 # an App Intents parameter, written as it is
+plant_in "an App Shortcut phrase no code says" . "python3 -c '$(recatalogue $SHORTCUTS 'strings["Never said in ${applicationName}"] = {"localizations": {"tr": {"stringSet": {"state": "translated", "values": ["${applicationName} hiç söylenmedi"]}}}}')'"
 # A sentence whose only trace is a comment (code commented out, an old call noted beside its replacement), or a literal in a place
 # no sentence is read from, is one no code says.
 plant_in "a Mac sentence said only in a block comment" . "python3 -c '$(recatalogue $MAC_STRINGS 'strings["Never said"] = {"localizations": {"tr": {"stringUnit": {"state": "translated", "value": "Hiç söylenmedi"}}}}')' && printf '%s\\n' '/* Text(\"Never said\") */' >> Sources/PurlayMacUI/Strings.swift"

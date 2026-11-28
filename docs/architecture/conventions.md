@@ -10,7 +10,7 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
 | Format | `xcrun swift-format lint --strict` (Xcode's toolchain): 120 columns, 4 spaces | `.swift-format`; the `packages` lane, and the pre-commit hook on staged files |
 | Compiler | Swift 6 language mode, complete strict concurrency, every warning an error | `Package.swift` (`strict`), `Config/Shared.xcconfig` |
 | Architecture rules | `scripts/enforcement`, and `--demo`, which plants each violation and requires the refusal, and writes valid code a rule must leave alone and requires it accepted | the `rules` lane |
-| Strings | `scripts/enforcement`: one checker for the three catalogues; `scripts/localize` adds the Mac's and the engine's new sentences | the `rules` lane |
+| Strings | `scripts/enforcement`: one checker for the four catalogues; `scripts/localize` adds the Mac's and the engine's new sentences | the `rules` lane |
 | Generated code | `scripts/generate --check` | the `generated` lane |
 | Tests | Swift Testing (`@Test`, `@Suite`, `#expect`); XCUITest for the iOS sign-in only | `Tests/` (`Tests/ContractTests` among them), `Apps/iOS/Tests/`, `Tools/PurlayGen/Tests/` |
 | Secrets | gitleaks, pinned, over the whole history; the pre-commit hook on staged changes | `scripts/verify security`, [ADR 0005](../decisions/0005-make-verify-and-a-secret-scan.md) |
@@ -120,6 +120,9 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
   typed (a ternary of literals too) or a literal its computed body gives, or an assignment to a property so typed, through
   `self` or a value whose type the code states. The same literal given to an API that takes a `String` does not count. The
   rules that read Swift and data are in `scripts/lib/rules.py`.
+- App Intents are read the same way, with two additions the SDK scan cannot see: an intent's parameter summary (`Summary`) is
+  keyed by its parameters' names (`Send ${text} to ${conversation}`) in the Mac's catalogue, and an App Shortcut's phrases are
+  sets of phrases in the Mac's `AppShortcuts.xcstrings`. Every translation keeps the parameters' names (enforced).
 - The product's words, in English and Turkish, are the server's: `docs/GLOSSARY.md` of purlay/purlay (D-359) is the single
   source, and a term the apps need that it does not have is added there first. The words it rules out are refused
   (`scripts/lib/rules.py`, enforced): "Derin Çalışma", "Konuk", "İki Faktörlü", "giriş yap", "çıkış yap", "konu" where the

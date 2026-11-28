@@ -17,13 +17,21 @@
         }
       }
     },
-    "%@": {},
+    "%@": {
+      "shouldTranslate": false
+    },
     "%@ %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "new",
             "value": "%1$@ %2$@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %@"
           }
         }
       }
@@ -416,12 +424,6 @@
     },
     "%lld attachments": {
       "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld ek"
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -435,6 +437,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld attachments"
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld ek"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld ek"
                 }
               }
             }
@@ -1201,16 +1221,6 @@
         }
       }
     },
-    "Add a message or an attachment, within the message length limit.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mesaj uzunluğu sınırı içinde bir mesaj veya ek ekleyin."
-          }
-        }
-      }
-    },
     "Add a note (optional)": {
       "localizations": {
         "tr": {
@@ -1851,16 +1861,6 @@
         }
       }
     },
-    "Cancel a scheduled message before adding another.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yenisini eklemeden önce zamanlanmış bir mesajı iptal edin."
-          }
-        }
-      }
-    },
     "Cancel this scheduled message?": {
       "localizations": {
         "tr": {
@@ -2061,34 +2061,6 @@
         }
       }
     },
-    "Check the reminder time. You can keep up to %lld pending reminders per workspace.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hatırlatma zamanını kontrol edin. Her çalışma alanında en fazla %lld bekleyen hatırlatıcı tutabilirsiniz."
-          }
-        },
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Check the reminder time. You can keep up to %lld pending reminder per workspace."
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Check the reminder time. You can keep up to %lld pending reminders per workspace."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "Check your connection and try again.": {
       "localizations": {
         "tr": {
@@ -2125,16 +2097,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bir mesaj seçin"
-          }
-        }
-      }
-    },
-    "Choose a time at least a minute from now and within the next year.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "En az bir dakika sonrası ve önümüzdeki bir yıl içinde bir zaman seçin."
           }
         }
       }
@@ -6606,7 +6568,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bir odak oturumu boyunca Purlay'in bölmelerini susturur."
+            "value": "Bir odak oturumu boyunca Purlay'in kesintilerini sessize alır."
           }
         }
       }
@@ -7561,6 +7523,16 @@
         }
       }
     },
+    "Send ${text} to ${conversation}": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${conversation} konuşmasına ${text} gönder"
+          }
+        }
+      }
+    },
     "Send Now": {
       "localizations": {
         "tr": {
@@ -7904,7 +7876,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Purlay'deki bahsetmelerinizi, doğrudan mesajlarınızı ve konularınızı gösterir."
+            "value": "Purlay'deki bahsetmelerinizi, doğrudan mesajlarınızı ve thread'lerinizi gösterir."
           }
         }
       }
@@ -8124,7 +8096,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Derin Çalışma Başlat"
+            "value": "Deep Work Başlat"
           }
         }
       }
@@ -8397,32 +8369,12 @@
         }
       }
     },
-    "The account changed. Open this action again in the current account.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hesap değişti. Bu işlemi geçerli hesapta yeniden açın."
-          }
-        }
-      }
-    },
     "The account changed. Try again in the current account.": {
       "localizations": {
         "tr": {
           "stringUnit": {
             "state": "translated",
             "value": "Hesap değişti. Geçerli hesapta yeniden deneyin."
-          }
-        }
-      }
-    },
-    "The change could not be confirmed. Check your connection and try again.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Değişiklik doğrulanamadı. Bağlantınızı kontrol edip yeniden deneyin."
           }
         }
       }
@@ -8487,16 +8439,6 @@
         }
       }
     },
-    "The reminder change could not be confirmed. Check your connection and try again.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hatırlatıcı değişikliği doğrulanamadı. Bağlantınızı kontrol edip yeniden deneyin."
-          }
-        }
-      }
-    },
     "These Filters Cannot Be Searched": {
       "localizations": {
         "tr": {
@@ -8537,16 +8479,6 @@
         }
       }
     },
-    "This conversation or message is no longer available to you.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bu konuşmaya veya mesaja artık erişiminiz yok."
-          }
-        }
-      }
-    },
     "This is a question": {
       "localizations": {
         "tr": {
@@ -8563,26 +8495,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bu liste"
-          }
-        }
-      }
-    },
-    "This message has already been sent. Refresh the list to see what is still scheduled.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bu mesaj zaten gönderildi. Hâlâ zamanlanmış olanları görmek için listeyi yenileyin."
-          }
-        }
-      }
-    },
-    "This message is no longer available to you.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bu mesaja artık erişiminiz yok."
           }
         }
       }
@@ -8623,26 +8535,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bu sunucu, parolayla oturum açan herkesten iki adımlı doğrulamayı açmasını istiyor. Tarayıcınızda kurun, sonra geri dönün."
-          }
-        }
-      }
-    },
-    "This server does not support message reminders yet.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bu sunucu henüz mesaj hatırlatıcılarını desteklemiyor."
-          }
-        }
-      }
-    },
-    "This server does not support scheduled messages yet.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bu sunucu henüz zamanlanmış mesajları desteklemiyor."
           }
         }
       }
@@ -9131,16 +9023,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Denetim Günlüğünü Tarayıcıda Görüntüle"
-          }
-        }
-      }
-    },
-    "Wait for every attachment to finish uploading before scheduling.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zamanlamadan önce tüm eklerin yüklenmesini bekleyin."
           }
         }
       }
