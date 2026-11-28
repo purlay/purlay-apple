@@ -115,16 +115,6 @@
         }
       }
     },
-    "Couldn’t send message." : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mesaj gönderilemedi."
-          }
-        }
-      }
-    },
     "Direct Messages" : {
       "localizations" : {
         "tr" : {

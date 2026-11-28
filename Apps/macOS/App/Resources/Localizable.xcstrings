@@ -220,16 +220,6 @@
         }
       }
     },
-    "%@ will need to sign in again.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ cihazının yeniden oturum açması gerekecek."
-          }
-        }
-      }
-    },
     "%@ would reach everybody, and Purlay does not send to everybody. Mention people by name.": {
       "localizations": {
         "tr": {
@@ -7553,6 +7543,16 @@
         }
       }
     },
+    "Send this message to %@?": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu mesaj %@ konuşmasına gönderilsin mi?"
+          }
+        }
+      }
+    },
     "Sending… %@": {
       "localizations": {
         "tr": {
@@ -7931,6 +7931,16 @@
         }
       }
     },
+    "Sign out %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ oturumunu kapat"
+          }
+        }
+      }
+    },
     "Sign out of Purlay on this Mac?": {
       "localizations": {
         "tr": {
@@ -8096,7 +8106,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deep Work Başlat"
+            "value": "Deep Work'ü Başlat"
           }
         }
       }
@@ -8415,16 +8425,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "İlk veya son mesaj"
-          }
-        }
-      }
-    },
-    "The message could not be sent.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mesaj gönderilemedi."
           }
         }
       }
@@ -9383,6 +9383,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Önemli olanları takip etmeniz için size ait alan."
+          }
+        }
+      }
+    },
+    "Your session on “%@” ends, and you will need to sign in there again.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” üzerindeki oturumunuz kapanır ve orada yeniden oturum açmanız gerekir."
           }
         }
       }

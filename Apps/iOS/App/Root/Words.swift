@@ -34,7 +34,7 @@ enum Words {
     static let sendMessage = LocalizedStringResource("Send Message")
     static let messageTooLong = LocalizedStringResource("Message is too long.")
     static let channelReadOnly = LocalizedStringResource("Only workspace owners and admins can post here.")
-    static let messageSendFailed = LocalizedStringResource("Couldn’t send message.")
+    static let messageSendFailed = SharedWords.messageNotSent
     static let retryMessage = LocalizedStringResource("Retry Message")
 
     static let chatStrings = ChatStrings(

@@ -38,13 +38,13 @@ struct DeviceSessionsSection: View {
         ) { session in
             Button("Sign Out", role: .destructive) { Task { await end(session) } }
         } message: { session in
-            Text("\(Self.name(of: session)) will need to sign in again.")
+            Text("Your session on “\(Self.name(of: session))” ends, and you will need to sign in there again.")
         }
     }
 
     private func row(_ session: DeviceSession) -> some View {
         HStack(spacing: Spacing.space3) {
-            Image(systemName: session.kind == .browser ? "safari" : "desktopcomputer")
+            Image(systemName: Self.symbol(for: session))
                 .foregroundStyle(NativePalette.secondary.style)
                 .frame(width: Size.sizeIconLg)
                 .accessibilityHidden(true)
@@ -63,9 +63,20 @@ struct DeviceSessionsSection: View {
             if !session.current {
                 Button("Sign Out…") { ending = session }
                     .controlSize(.small)
+                    .accessibilityLabel(Text("Sign out \(Self.name(of: session))"))
             }
         }
         .accessibilityElement(children: .contain)
+    }
+
+    /// What kind of device a session is on. The contract says only browser or app, and the name the device gave itself, so an
+    /// iPhone or iPad is known by that name ("Ada's iPhone"); any other app session is drawn as a Mac.
+    nonisolated static func symbol(for session: DeviceSession) -> String {
+        guard session.kind != .browser else { return "safari" }
+        let name = (session.name ?? "").lowercased()
+        if name.contains("iphone") { return "iphone" }
+        if name.contains("ipad") { return "ipad" }
+        return "desktopcomputer"
     }
 
     private static func name(of session: DeviceSession) -> String {

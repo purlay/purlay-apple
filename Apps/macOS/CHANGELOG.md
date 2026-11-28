@@ -17,9 +17,10 @@ User-facing changes to Purlay for macOS. Releases require macOS 26 or later.
   Return or Tab.
 - **Others see you typing** in a channel, as they do from the web app.
 - **Reply from a notification.** A conversation's notification has a Reply field; what you type is sent without opening the
-  app. If it cannot be sent, it waits in the conversation's message box, after anything you had already written there.
+  app, even when the reply is what starts it. If it cannot be sent, it waits in the conversation's message box, after anything
+  you had already written there.
 - **Shortcuts, Spotlight and Siri:** Open Inbox, Open Conversation, Send a Message, Start Deep Work and End Deep Work, in
-  English and Turkish.
+  English and Turkish. Send a Message asks you before it sends.
 - **Handoff:** the conversation in front can be picked up in a browser on your other devices.
 
 ### Changed

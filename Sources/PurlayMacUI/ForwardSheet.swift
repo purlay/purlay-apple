@@ -2,6 +2,7 @@
 import PurlayContract
 import PurlayKit
 import PurlayTokens
+import PurlayWords
 import SwiftUI
 
 /// Forward (server D-217): a message sent on to another channel or conversation, as a message of the person's own whose last line
@@ -14,11 +15,13 @@ struct ForwardSheet: View {
     @State private var query = ""
     @State private var note = ""
     @State private var target: Uuid?
+    @State private var failed = false
     @FocusState private var searching: Bool
 
-    /// The conversations the person is in, in the sidebar's order, found by name without case or accents.
+    /// The conversations the person can post in (an announcement channel only for its owners and admins), in the sidebar's
+    /// order, found by name without case or accents.
     private var destinations: [Channel] {
-        let all = model.sidebar.flatMap(\.channels)
+        let all = model.sidebar.flatMap(\.channels).filter { model.canPost(to: $0.id, parent: nil) }
         let wanted = query.trimmingCharacters(in: .whitespaces)
         guard !wanted.isEmpty else { return all }
         return all.filter { Words.channelLabel($0).localizedStandardContains(wanted) }
@@ -64,6 +67,10 @@ struct ForwardSheet: View {
                 Text("The note is too long to send with the link.")
                     .font(.callout)
                     .foregroundStyle(Colors.dangerText.style)
+            } else if failed {
+                Text(SharedWords.messageNotSent)
+                    .font(.callout)
+                    .foregroundStyle(Colors.dangerText.style)
             }
             HStack {
                 Spacer()
@@ -77,6 +84,11 @@ struct ForwardSheet: View {
         .padding(Spacing.space5)
         .frame(width: 440, height: 520)
         .onAppear { searching = true }
+        // A conversation the search hides is no longer the one chosen, so Forward never sends where the person cannot see.
+        .onChange(of: query) {
+            if let target, !destinations.contains(where: { $0.id == target }) { self.target = nil }
+        }
+        .onChange(of: target) { failed = false }
     }
 
     private static func symbol(for channel: Channel) -> String {
@@ -89,7 +101,7 @@ struct ForwardSheet: View {
 
     private func forward() {
         guard let target, let link else { return }
-        if model.post(Self.content(note: note, link: link), to: target) { dismiss() }
+        if model.post(Self.content(note: note, link: link), to: target) { dismiss() } else { failed = true }
     }
 }
 #endif
