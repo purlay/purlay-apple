@@ -73,6 +73,36 @@ struct EngineWordsTests {
         }
     }
 
+    /// The server's product glossary (purlay/purlay `docs/GLOSSARY.md`, D-359) owns the product's words; the terms it says are
+    /// never used, in Turkish. "konu" is a channel's topic there, never a thread; no engine sentence speaks of a topic.
+    private static let glossaryNever: [(pattern: String, glossary: String)] = [
+        ("derin çalışma", "Deep Work is \"Deep Work\" in both languages, never \"Derin Çalışma\" (D-348)"),
+        (#"(?<!\p{L})konu(?!ş)"#, "a thread is \"Thread\", never \"konu\", which is a channel's topic (D-348)"),
+        (#"(?<!\p{L})biten(?!\p{L})"#, "a finished issue is \"Bitti\", never \"Biten\" (D-348)"),
+        (#"(?<!\p{L})konuk"#, "a guest is \"Misafir\""),
+        ("iki faktörlü", "two-step verification is \"İki adımlı doğrulama\""),
+        ("giriş yap", "sign in is \"Oturum aç\", never \"giriş\""),
+        ("çıkış yap", "sign out is \"Oturumu kapat\", never \"çıkış yap\""),
+    ]
+
+    @Test("Turkish uses the server glossary's terms, never the ones it rules out")
+    func glossaryTerms() {
+        let turkishLocale = Locale(identifier: "tr")
+        for sentence in Self.everySentence {
+            let turkish = text(sentence, in: "tr").lowercased(with: turkishLocale)
+            for rule in Self.glossaryNever where turkish.range(of: rule.pattern, options: .regularExpression) != nil {
+                Issue.record("\(turkish): \(rule.glossary)")
+            }
+        }
+    }
+
+    @Test("Deep Work keeps its name in Turkish")
+    func deepWorkName() {
+        #expect(
+            EngineWords.notice(.deepWorkFailed).map { text($0, in: "tr") }
+                == "Deep Work değiştirilemedi. Yeniden deneyin.")
+    }
+
     @Test("the words the two apps used to say differently are one: connecting is \"Bağlanıyor…\"")
     func oneWording() {
         #expect(text(EngineWords.connecting, in: "tr") == "Bağlanıyor…")
@@ -134,7 +164,7 @@ struct EngineWordsTests {
             let words = EngineWords.erasure(result).map { text($0, in: "en") }
             #expect(words?.isEmpty == false, "\(result)")
         }
-        #expect(EngineWords.notice(.accountErased).map { text($0, in: "tr") } == "Hesabın silindi.")
+        #expect(EngineWords.notice(.accountErased).map { text($0, in: "tr") } == "Hesabınız silindi.")
         let probable = EngineWords.notice(.accountPossiblyErased).map { text($0, in: "en") } ?? ""
         #expect(!probable.contains("Sign in"), "an erased account that signs in again is a new account: not invited")
     }
@@ -164,6 +194,6 @@ struct EngineWordsTests {
         let two = try #require(EngineWords.erasure(.lastOwner(workspaceIDs: ids)))
         #expect(text(one, in: "en").hasPrefix("You are the last owner of 1 workspace with other people in it."))
         #expect(text(two, in: "en").hasPrefix("You are the last owner of 2 workspaces with other people in them."))
-        #expect(text(two, in: "tr").contains("2 çalışma alanının son sahibisin"))
+        #expect(text(two, in: "tr").contains("2 çalışma alanının son sahibisiniz"))
     }
 }

@@ -196,7 +196,9 @@ struct ReauthenticationTests {
         #expect(h.model.erasureNeedsReauthentication)
     }
 
-    @Test("a browser sign-in is recent enough to erase for a little less than the server allows, and then not")
+    @Test(
+        "before D-356, a server judged the session's own age: a browser sign-in is recent enough to erase for a little less than it allows, and then not"
+    )
     func recentForAWhile() async {
         let h = ModelHarness()
         await h.signedIn()
@@ -209,5 +211,112 @@ struct ReauthenticationTests {
         h.server.edit { $0.nextSession = Self.fresh }
         #expect(await h.model.reauthenticate() == .done)
         #expect(!h.model.erasureNeedsReauthentication, "signing in again starts the time again")
+    }
+
+    // MARK: A server that judges the browser's own sign-in (D-356)
+
+    private static let freshMinutes = TimeInterval(ContractConstants.nativeFreshSignInMinutes * 60)
+    private static let erasureMinutes = TimeInterval(ContractConstants.erasureSignInMinutes * 60)
+
+    /// A server of D-356, whose browser last signed the person in `browserAge` seconds before the test's start.
+    private func judging(browserAge: TimeInterval) -> ModelHarness {
+        let h = ModelHarness()
+        h.server.edit {
+            $0.clientInfo = FakeServer.clientInfo(nativeFreshSignIn: true)
+            $0.browserSignedInAt = -browserAge
+        }
+        return h
+    }
+
+    @Test(
+        "on the Mac, a workspace that takes the session another workspace signed in again with did not see that browser: it is not fresh enough to erase"
+    )
+    func renewedElsewhereIsNotFresh() async throws {
+        let h = judging(browserAge: 3_600)
+        try h.rememberedSession()
+        var environment = h.model.environment
+        environment.transport = DesktopTransport(first: h.server, second: FakeServer())
+        let desktop = DesktopSessions(environment)
+        await desktop.launch()
+        let first = desktop.active
+        await desktop.selectWorkspace(Uuid(DesktopTransport.otherWorkspace)!, from: first)
+        let studio = desktop.active
+        #expect(first.phase == .ready && studio.phase == .ready)
+        h.server.edit { $0.nextSession = Self.fresh }
+        #expect(await first.reauthenticate() == .done)
+        await h.settle()
+        #expect(!first.erasureNeedsReauthentication)
+        #expect(studio.erasureNeedsReauthentication, "the session it took was taken as fresh")
+    }
+
+    @Test("a sign-in again asks the browser for a fresh sign-in; the first sign-in does not")
+    func asksForAFreshSignIn() async {
+        let h = judging(browserAge: 3_600)
+        await h.signedIn()
+        h.server.edit { $0.nextSession = Self.fresh }
+        #expect(await h.model.reauthenticate() == .done)
+        #expect(h.server.snapshot.prompts == [nil, "login"])
+    }
+
+    @Test(
+        "a browser sign-in may hand over a browser that signed in long ago: it is never taken as fresh enough to erase")
+    func browserSignInIsNotFresh() async {
+        let h = judging(browserAge: 3_600)
+        await h.signedIn()
+        #expect(h.model.erasureNeedsReauthentication)
+        #expect(await h.model.eraseAccount(confirmation: "ada") == .reauthenticationRequired)
+    }
+
+    @Test(
+        "the time before the browser comes back counts: the app counts from when it opened the page, not from when the browser returned"
+    )
+    func timeBeforeTheBrowserReturnsCounts() async {
+        // The browser signed in 4 minutes before the page opened, so prompt=login hands it over at once; the person then leaves
+        // the "open in Purlay" question for 4 minutes. The server holds a sign-in 8 minutes old when the app has the session.
+        let clock = HarnessClock()
+        let h = ModelHarness(
+            browser: ScriptedBrowser { page in
+                let answer = clock.server!.browse(page)
+                if page.query?.contains("prompt=login") == true { clock.elapsed!.set(clock.elapsed!.seconds + 240) }
+                return answer
+            })
+        clock.attach(h)
+        h.server.edit {
+            $0.clientInfo = FakeServer.clientInfo(nativeFreshSignIn: true)
+            $0.browserSignedInAt = -240
+        }
+        await h.signedIn()
+        h.server.edit { $0.nextSession = Self.fresh }
+        #expect(await h.model.reauthenticate() == .done)
+        h.elapsed.set(Self.erasureMinutes - Self.freshMinutes - AppModel.erasureSignInMargin)
+        #expect(h.model.erasureNeedsReauthentication, "counted from the page's opening, the limit has come")
+    }
+
+    @Test(
+        "after a fresh sign-in the account can be erased, and the app counts the server's limit from the earliest the browser may have signed in"
+    )
+    func freshSignInErases() async {
+        let h = judging(browserAge: 3_600)
+        await h.signedIn()
+        h.server.edit { $0.nextSession = Self.fresh }
+        #expect(await h.model.reauthenticate() == .done)
+        #expect(!h.model.erasureNeedsReauthentication)
+        h.elapsed.set(Self.erasureMinutes - Self.freshMinutes - AppModel.erasureSignInMargin - 1)
+        #expect(!h.model.erasureNeedsReauthentication)
+        h.elapsed.set(Self.erasureMinutes - Self.freshMinutes - AppModel.erasureSignInMargin)
+        #expect(h.model.erasureNeedsReauthentication, "the browser may have signed in up to its fresh limit before")
+        h.elapsed.set(0)
+        #expect(await h.model.eraseAccount(confirmation: "ada") == .erased)
+    }
+}
+
+/// Lets a browser made before the harness reach the harness's server and clock.
+@MainActor
+private final class HarnessClock: @unchecked Sendable {
+    nonisolated(unsafe) var server: FakeServer?
+    nonisolated(unsafe) var elapsed: Elapsed?
+    func attach(_ harness: ModelHarness) {
+        server = harness.server
+        elapsed = harness.elapsed
     }
 }

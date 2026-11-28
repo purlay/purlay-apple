@@ -91,6 +91,61 @@ ONE_FORM = {
 # Nothing to translate: only symbols, digits and format specifiers, or a code-like address.
 INERT = re.compile(r"^[^A-Za-z]*$|^[a-z0-9.\-/]+$")
 PLURAL_FORMS = {"zero", "one", "two", "few", "many", "other"}
+# Turkish addresses the person as siz (the server's D-350). Refused: every form of sen a pattern can tell from siz Turkish: the
+# pronoun in each case (sen, seni, sana, senin, seninle, sende, senden, seninki, sence); the question particle, written apart
+# (misin, mısın, musun, müsün); and the verb endings that end on the person with nothing after them: -abilirsin/-ebilirsin,
+# -amazsın/-emezsin, -ıyorsun…, -acaksın/-eceksin, -malısın/-melisin, -mışsın…, değilsin, the conditional -rsan/-rsen,
+# -mazsan/-mezsen, -ysan/-ysen. Each siz form goes on with "-iz" or "-niz" (misiniz, yapabilirsiniz, değiştirirseniz), so none
+# is refused. Not refused, because siz Turkish spells them too: sen's past tense (-dın, as siz's imperative edin), its "your"
+# (-ın, as a genitive) and its bare verb in a sentence (as a control's verb): a review point. A value is folded the Turkish way
+# first (İ to i, I to ı), so capitals are read as the letters they are.
+LETTER = r"[^\W\d_]"
+V4 = "[ıiuü]"
+SEN = re.compile(
+    rf"(?<!{LETTER})(?:sen|seni|sana|senin|seninle|senle|sende|senden|seninki|seninkini|sence)(?!{LETTER})"
+    rf"|(?<!{LETTER})m{V4}s{V4}n(?!{LETTER})"
+    rf"|{LETTER}(?:[ae]bilirsin|amazsın|emezsin|{V4}yorsun|acaksın|eceksin|malısın|melisin|m{V4}şs{V4}n|"
+    rf"{V4}rsan|{V4}rsen|arsan|ersen|mazsan|mezsen|ysan|ysen)(?!{LETTER})"
+    rf"|(?<!{LETTER})değilsin(?!{LETTER})",
+)
+
+
+# "Purlay" is said "pörley", so its Turkish suffixes take front vowels: Purlay'i, Purlay'in, Purlay'de, Purlay'den, Purlay'e.
+# The same for the English words the glossary keeps: "Thread" is said "tred" (Thread'i, Thread'de, Thread'ler) and "Deep Work"
+# "dip vörk" (Deep Work'ü, Deep Work'te).
+WRONG_SUFFIX = re.compile(
+    # Not IGNORECASE: it would read the dotless ı as i.
+    r"(?:Purlay['’](?:da|dan|ı|ın|a|ya|la)|[Tt]hread['’](?:ı|ın|da|dan|a|lar|larda|u|un|ü|ün)"
+    r"|[Dd]eep [Ww]ork['’](?:ı|ın|i|in|u|un|a|da|de|dan|den))(?![^\W\d_])"
+)
+# The server's product glossary (purlay/purlay docs/GLOSSARY.md, D-359): the Turkish words it rules out. "konu" is a channel's
+# topic there, so it is refused only where the English says thread.
+GLOSSARY_NEVER = [
+    (re.compile(r"derin çalışma"), "Deep Work is \"Deep Work\" in both languages"),
+    (re.compile(rf"(?<!{LETTER})biten(?!{LETTER})"), "a finished issue is \"Bitti\""),
+    (re.compile(rf"(?<!{LETTER})konuk"), "a guest is \"Misafir\""),
+    (re.compile(r"iki faktörlü"), "two-step verification is \"İki Adımlı Doğrulama\""),
+    (re.compile(r"giriş yap|çıkış yap"), "sign in and out are \"Oturum Aç\" and \"Oturumu Kapat\""),
+]
+THREAD_AS_TOPIC = re.compile(rf"(?<!{LETTER})konu(?!ş)")
+
+
+def glossary_problem(key, value):
+    """What the server's glossary rules out in a Turkish value, if anything."""
+    folded = value.replace("İ", "i").replace("I", "ı").lower()
+    for pattern, says in GLOSSARY_NEVER:
+        if pattern.search(folded):
+            return says
+    if re.search(r"thread", key, re.IGNORECASE) and THREAD_AS_TOPIC.search(folded):
+        return "a thread is \"Thread\", never \"konu\", which is a channel's topic"
+    return None
+
+
+def addresses_as_sen(value):
+    """Whether a Turkish value says something to the person in a form of sen (`SEN`)."""
+    return SEN.search(value.replace("İ", "i").replace("I", "ı").lower()) is not None
+
+
 CATALOGUES = {
     "Apps/iOS/App/Resources/Localizable.xcstrings": ("iOS",),
     "Apps/macOS/App/Resources/Localizable.xcstrings": ("macOS",),
@@ -158,6 +213,13 @@ def catalogues(root):
                         problems.append(f"{path}: {key!r} has no final {language} value ({unit.get('state')})")
                     elif arguments(unit["value"], substitutions) != arguments(key):
                         problems.append(f"{path}: {key!r} -> {unit['value']!r}: the format specifiers differ")
+                    elif language == "tr" and addresses_as_sen(unit["value"]):
+                        problems.append(f"{path}: {key!r} -> {unit['value']!r}: Turkish addresses the person as siz, not sen")
+                    elif language == "tr" and WRONG_SUFFIX.search(unit["value"]):
+                        problems.append(
+                            f"{path}: {key!r} -> {unit['value']!r}: the suffix follows how the word is said (Purlay'i, Thread'i)")
+                    elif language == "tr" and (says := glossary_problem(key, unit["value"])):
+                        problems.append(f"{path}: {key!r} -> {unit['value']!r}: the server's glossary: {says}")
             english = localizations.get("en", {})
             # A sentence with a count says it in English by plural forms, `one` not the same as `other`, so that 1 is never
             # "1 new replies": the forms of the whole sentence, or, for a sentence with more than one count, those of each

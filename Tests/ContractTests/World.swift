@@ -16,6 +16,10 @@ struct World: Sendable {
     let workspaceID: String
     let workspaceSlug: String
     let personas: [String: Persona]
+    /// The people in no workspace (erin, frank, gwen): for a test that ends a person, such as erasing their account, which
+    /// done as one of the workspace's people would pull the ground from under every other test. Each has two sessions; this
+    /// is the first.
+    let outsiders: [String: Persona]
     let channels: [String: String]
 
     static var isAvailable: Bool {
@@ -44,13 +48,23 @@ struct World: Sendable {
             personas[name] = Persona(
                 userID: userID, username: username, session: String(cookie[cookie.index(after: equals)...]))
         }
+        var outsiders: [String: Persona] = [:]
+        if case .object(let others)? = root["outsiders"] {
+            for (name, value) in others {
+                guard case .object(let fields) = value, case .string(let userID)? = fields["userId"],
+                    case .string(let username)? = fields["username"], case .array(let tokens)? = fields["tokens"],
+                    case .string(let token)? = tokens.first
+                else { throw WorldError.shape("an outsider has no session: \(name)") }
+                outsiders[name] = Persona(userID: userID, username: username, session: token)
+            }
+        }
         var channels: [String: String] = [:]
         for (name, value) in rooms {
             if case .string(let channelID) = value { channels[name] = channelID }
         }
         return World(
             server: try ServerAddress.parse(server, allowsLocalHTTP: true), workspaceID: id, workspaceSlug: slug,
-            personas: personas, channels: channels)
+            personas: personas, outsiders: outsiders, channels: channels)
     }
 
     enum WorldError: Error {
@@ -74,12 +88,21 @@ struct World: Sendable {
         try #require(personas[name], "the demo has no \(name)")
     }
 
-    /// A client that is signed in as `persona`, with the transport the app uses.
-    func client(as persona: Persona, onRejected: @escaping @Sendable () async -> Void = {}) -> APIClient {
+    func outsider(_ name: String) throws -> Persona {
+        try #require(outsiders[name], "the demo has no outsider \(name)")
+    }
+
+    /// The iOS app's minimum `scripts/contract-test` started the server with (`MIN_CLIENT_IOS_VERSION`), when it did.
+    static var iOSMinimum: String? { ProcessInfo.processInfo.environment["PURLAY_TEST_IOS_MINIMUM"] }
+
+    /// A client that is signed in as `persona`, with the transport the app uses, speaking as the app on `platform`.
+    func client(
+        as persona: Persona, platform: ClientPlatform? = nil, onRejected: @escaping @Sendable () async -> Void = {}
+    ) -> APIClient {
         APIClient(
             configuration: APIConfiguration(
                 baseURL: server.origin,
-                clientHeader: ClientHeader.value(appVersion: appVersion, platform: identity.platform),
+                clientHeader: ClientHeader.value(appVersion: appVersion, platform: platform ?? identity.platform),
                 sessionCookie: { persona.session }, onSessionRejected: { _ in await onRejected() }),
             transport: URLSessionTransport())
     }

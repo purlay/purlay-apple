@@ -51,8 +51,7 @@ enum Words {
 
     static let noWorkspaceModules = LocalizedStringResource("No Modules Available")
     static let noWorkspaces = LocalizedStringResource("No Workspaces Yet")
-    static let twoFactorRequired = LocalizedStringResource("Two-Factor Authentication Required")
-    static let setUpTwoFactor = LocalizedStringResource("Set Up Two-Factor Authentication")
+    static let setUpTwoStepVerification = LocalizedStringResource("Set Up Two-Step Verification")
     static func switchWorkspace(_ current: String) -> LocalizedStringResource {
         LocalizedStringResource("Switch Workspace, \(current)")
     }
@@ -75,7 +74,7 @@ enum Words {
     static let fixed: [LocalizedStringResource] = [
         tagline, signInButton, continuesInBrowserNoHost, newAccount, readMore,
         account, signingOut, signOutThisDevice, signOutEverywhereDetail,
-        chat, noWorkspaceModules, noWorkspaces, twoFactorRequired, setUpTwoFactor,
+        chat, noWorkspaceModules, noWorkspaces, setUpTwoStepVerification,
         conversations, noChannels, channelUnavailable, noMessages, loadingMessages,
         messagesFailed, loadingEarlier, earlierFailed, newerFailed, unknownSender, messageUnavailable,
         writeMessage, sendMessage, messageTooLong, channelReadOnly, messageSendFailed, retryMessage,

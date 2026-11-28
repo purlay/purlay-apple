@@ -37,14 +37,19 @@ public struct SignInAttempt: Sendable, Equatable {
             .replacingOccurrences(of: "=", with: "")
     }
 
-    /// The server's sign-in page for an app on `platform`, with the challenge and state.
-    public func authorizationURL(on origin: ServerAddress, platform: ClientPlatform) -> URL? {
+    /// The server's sign-in page for an app on `platform`, with the challenge and state. With `prompt: .login` the page hands
+    /// over only a browser that signed in within `NATIVE_FRESH_SIGN_IN_MINUTES`, and has the person sign in again otherwise
+    /// (D-356); a server before it ignores the word.
+    public func authorizationURL(
+        on origin: ServerAddress, platform: ClientPlatform, prompt: NativeAuthorizeRequest.Prompt? = nil
+    ) -> URL? {
         var components = URLComponents(url: origin.origin, resolvingAgainstBaseURL: false)
         components?.path = "/sign-in/native"
         components?.queryItems = [
             URLQueryItem(name: "challenge", value: challenge), URLQueryItem(name: "state", value: state),
             URLQueryItem(name: "platform", value: platform.rawValue),
         ]
+        if let prompt { components?.queryItems?.append(URLQueryItem(name: "prompt", value: prompt.rawValue)) }
         return components?.url
     }
 }

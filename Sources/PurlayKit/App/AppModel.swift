@@ -219,9 +219,9 @@ public final class AppModel {
     @ObservationIgnored private var leaving: Task<Void, Never>?
     /// A sign-in again under way: one asked for meanwhile waits for it and shares its answer, so one browser is opened.
     @ObservationIgnored private var reauthenticating: Task<ReauthenticationResult, Never>?
-    /// When this run signed the person in through the browser (`signIn`, `reauthenticate`); nil for a session restored at
-    /// launch, whose age the app does not know.
-    private var signedInAt: Date?
+    /// The earliest time the server can hold as this session's sign-in, as far as this app knows; nil when it cannot know
+    /// (`signInFreshness`).
+    private var signedInNoEarlierThan: Date?
     /// How long before the server's limit a sign-in is no longer called recent: the request takes time to arrive.
     static let erasureSignInMargin: TimeInterval = 60
     private var observation: Task<Void, Never>?
@@ -848,7 +848,7 @@ public final class AppModel {
                 unkeptCredential = session
                 rememberPendingSession(session, for: server)
             }
-            signedInAt = environment.clock()
+            signedInNoEarlierThan = signInFreshness(prompted: nil)
             warnedOfExpiry = false
             observe(manager)
             await bootstrap()
@@ -867,14 +867,24 @@ public final class AppModel {
     }
 
     /// Whether erasing the account needs a sign-in again first: the server asks for one within `ERASURE_SIGN_IN_MINUTES`,
-    /// less a minute here for the request to arrive, and a session restored at launch is of an unknown age. A screen goes
-    /// straight to `reauthenticate()` rather than ask and be refused; the server still decides
+    /// less a minute here for the request to arrive, counted from the earliest the server may hold as the sign-in. A screen
+    /// goes straight to `reauthenticate()` rather than ask and be refused; the server still decides
     /// (`EraseAccountResult.reauthenticationRequired`).
     public var erasureNeedsReauthentication: Bool {
         if let sessionOwner { return sessionOwner.erasureNeedsReauthentication }
-        guard let signedInAt else { return true }
+        guard let signedInNoEarlierThan else { return true }
         let allowed = TimeInterval(ContractConstants.erasureSignInMinutes * 60) - Self.erasureSignInMargin
-        return environment.clock().timeIntervalSince(signedInAt) >= allowed
+        return environment.clock().timeIntervalSince(signedInNoEarlierThan) >= allowed
+    }
+
+    /// What a browser sign-in tells of the session's sign-in time. A server that judges the browser's own sign-in (D-356,
+    /// `capabilities.nativeFreshSignIn`) gives the session the time its browser signed in: unknown after an ordinary sign-in,
+    /// which hands over a browser however long it has been signed in, and no earlier than `NATIVE_FRESH_SIGN_IN_MINUTES`
+    /// before the page was opened after one that asked `prompt=login` (`prompted`, when it was asked). A server before it
+    /// judged the session's own age, which starts now.
+    private func signInFreshness(prompted: Date?) -> Date? {
+        guard serverInfo?.capabilities?.nativeFreshSignIn == true else { return environment.clock() }
+        return prompted?.addingTimeInterval(-TimeInterval(ContractConstants.nativeFreshSignInMinutes * 60))
     }
 
     /// Signs the person in again through the browser, as `signIn` does, while they stay signed in: for erasing the account,
@@ -897,10 +907,12 @@ public final class AppModel {
         else {
             return .notSignedIn
         }
-        // Not kept until it is known to be this person's: the Keychain holds the session in use until then.
+        // Not kept until it is known to be this person's: the Keychain holds the session in use until then. The browser is
+        // asked for a fresh sign-in, so that the session it hands over is one the server lets erase the account.
+        let asked = environment.clock()
         let fresh: StoredSession
         do {
-            fresh = try await signInFlow(keepingIn: UnkeptSessions()).signIn(to: server, origin: origin)
+            fresh = try await signInFlow(keepingIn: UnkeptSessions()).signIn(to: server, origin: origin, prompt: .login)
         } catch {
             return .failed(error)
         }
@@ -929,7 +941,7 @@ public final class AppModel {
         }
         await manager.adopt(fresh, for: server)
         heldSession = fresh
-        signedInAt = environment.clock()
+        signedInNoEarlierThan = signInFreshness(prompted: asked)
         warnedOfExpiry = false
         // The socket moves to the new session before the old one ends, so the old one's ending is not heard here; so does
         // every other session that holds the old one.
@@ -946,7 +958,8 @@ public final class AppModel {
         guard heldSession?.cookie == old, let server, let manager else { return }
         await manager.adopt(session, for: server)
         heldSession = session
-        signedInAt = environment.clock()
+        // Made by another workspace's sign-in again, whose browser this one did not see.
+        signedInNoEarlierThan = signInFreshness(prompted: nil)
         switch phase {
         case .ready: engine?.reconnect()
         case .loading, .problem:
@@ -1362,6 +1375,10 @@ public final class AppModel {
             if let first { await open(first.id) }
         } catch let error as APIError where error.status == 401 {
             // Told by the session manager already.
+        } catch let error as APIError where error.status == 426 {
+            // The server raised this platform's minimum after the handshake let the app in: what it asks now.
+            guard context == contextGeneration else { return }
+            phase = .problem(.appTooOld(tooOld(error)))
         } catch {
             guard context == contextGeneration else { return }
             if (error as? TransportError)?.isTransient == true {
@@ -1423,12 +1440,25 @@ public final class AppModel {
 
     private func currentCookie() -> String? { cookieCache }
 
+    /// What a `426` asks of this app: the minimum the refusal names, else this platform's from the handshake, else none known.
+    private func tooOld(_ error: APIError?) -> ClientMinimum {
+        if let details = error?.clientTooOld {
+            return ClientMinimum(
+                appVersion: details.minAppVersion, contractVersion: details.minContractVersion,
+                downloadUrl: details.downloadUrl)
+        }
+        return serverInfo?.minimum(for: environment.identity.platform)
+            ?? ClientMinimum(appVersion: nil, contractVersion: nil, downloadUrl: nil)
+    }
+
     private func upgradeRefused(_ status: Int) {
         switch status {
         case 401:
             if let manager { Task { await manager.sessionEndedByServer() } }
         case 426:
-            if let minimum = serverInfo?.minClient.macos {
+            if serverInfo != nil {
+                // The server refused this app for good; it may have raised a minimum it did not give at the handshake.
+                let minimum = tooOld(nil)
                 tearDown()
                 phase = .problem(.appTooOld(minimum))
             }
@@ -1447,7 +1477,7 @@ public final class AppModel {
         unkeptCredential = nil
         sendHolds = []
         engineHolds = []
-        signedInAt = nil
+        signedInNoEarlierThan = nil
         awayChange += 1
         for window in liveConversationWindows {
             // Only the session owner stops the connection and clears shared state.

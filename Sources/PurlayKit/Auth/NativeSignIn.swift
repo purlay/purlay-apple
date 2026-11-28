@@ -62,10 +62,13 @@ public struct NativeSignIn: Sendable {
         self.now = now
     }
 
-    /// Signs in to `server`, whose handshake said `origin` is its canonical address. A new attempt each call.
-    public func signIn(to server: ServerAddress, origin: ServerAddress) async throws(SignInError) -> StoredSession {
+    /// Signs in to `server`, whose handshake said `origin` is its canonical address. A new attempt each call. `prompt` is the
+    /// page's (`SignInAttempt.authorizationURL`).
+    public func signIn(
+        to server: ServerAddress, origin: ServerAddress, prompt: NativeAuthorizeRequest.Prompt? = nil
+    ) async throws(SignInError) -> StoredSession {
         let attempt = makeAttempt()
-        guard let page = attempt.authorizationURL(on: server, platform: platform),
+        guard let page = attempt.authorizationURL(on: server, platform: platform, prompt: prompt),
             let scheme = Callback.expected?.scheme
         else {
             throw .browserFailed("the sign-in address could not be made")

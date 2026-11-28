@@ -24,7 +24,9 @@ difference, so the pin never moves by accident.
    server checkout.
 2. `scripts/generate`, then fix what the compiler and the tests show. A change to how code is generated is a change to
    `Tools/PurlayGen`, with its tests.
-3. With a server checkout at that version: `PURLAY_SERVER_CHECKOUT=~/Projects/purlay scripts/contract-test` (TD-017).
+3. Required, and its result said in the pull request: with a server checkout at that version,
+   `PURLAY_SERVER_CHECKOUT=~/Projects/purlay scripts/contract-test` (TD-017). No CI job runs it: a hosted macOS runner has no
+   Docker for the server's database, and whether to pay its minutes for a nightly run is the owner's (Q-008).
 4. Update the server version the documents name (`docs/product/mac-behaviour.md` "Server features", the NFR-VER row), and the
    changelogs if a person would notice.
 5. One pull request, `feat(contract): speak server X.Y.Z` (or `fix`), closing the `drift` issue if one is open.

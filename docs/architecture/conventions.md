@@ -120,16 +120,25 @@ module rules are in [modules-and-layers.md](modules-and-layers.md).
   typed (a ternary of literals too) or a literal its computed body gives, or an assignment to a property so typed, through
   `self` or a value whose type the code states. The same literal given to an API that takes a `String` does not count. The
   rules that read Swift and data are in `scripts/lib/rules.py`.
-- Turkish glossary, one term for one action in every catalogue: sign in = "Oturum Aç", sign out = "Oturumu Kapat" (and their
-  sentence forms, "oturum aç", "oturumu kapat"), cancel = "İptal"; the address is "sen".
+- The product's words, in English and Turkish, are the server's: `docs/GLOSSARY.md` of purlay/purlay (D-359) is the single
+  source, and a term the apps need that it does not have is added there first. The words it rules out are refused
+  (`scripts/lib/rules.py`, enforced): "Derin Çalışma", "Biten", "Konuk", "İki Faktörlü", "giriş yap", "çıkış yap", and "konu"
+  where the English says thread ("konu" is a channel's topic). What is the apps' own: Turkish titles and buttons are in
+  Apple-style title case ("Oturum Aç", "Thread'i Yeniden Aç"), the word being the glossary's, and "thread" is lower case inside
+  a sentence, as the web writes it. A Turkish suffix after a name or an English word follows how it is said (enforced):
+  "Purlay" is "pörley" ("Purlay'i", "Purlay'in", "Purlay'de", "Purlay'e"), "Thread" is "tred" ("Thread'i", "Thread'de",
+  "Thread'ler"), "Deep Work" is "dip vörk" ("Deep Work'ü", "Deep Work'te").
 - A sentence with a count (`%lld`, `%d`, `%i`…) has English plural forms whose `one` is not its `other` (enforced), unless the
   count changes no English word ("Filters (%lld)"): those are listed in `scripts/lib/rules.py`, and a new one is a review
   point. A sentence with two counts has them as Xcode writes them, substitutions (`%#@messages@ in %#@channels@`), each with
   its own forms. That the `one` form is the right singular is a review point too. Turkish says a count with one form, so its
   value may be a single one.
 - A button is built from a `Text` label: `Button(Words.x)` showed English on a Turkish simulator (enforced).
-- Turkish addresses the person as "sen", as the web client does; its wording follows `apps/web/src/i18n/catalogue/tr.ts` of the
-  server repository.
+- Turkish addresses the person as "siz" (the server's D-350, and the glossary's address form). A control keeps the bare verb
+  ("Kaydet", "Oturum Aç"); every sentence said to the person (a hint, a description, an error, a notice, a confirmation) uses
+  siz ("yeniden deneyin", "yapabilirsiniz"), and "your" is "-iniz" everywhere, in short labels too ("Hesabınız"). The forms of
+  sen a pattern can tell from siz are refused (`scripts/lib/rules.py`, enforced); sen's past tense, its "your" as "-ın" and a
+  bare verb in a sentence are spelled like siz Turkish, so they are a review point.
 - Titles and buttons in Apple-style title case. Every control has an accessibility label; text uses Dynamic Type and scrolls
   instead of clipping; Reduce Motion, Reduce Transparency and Increase Contrast are honoured; nothing is said by colour alone.
 

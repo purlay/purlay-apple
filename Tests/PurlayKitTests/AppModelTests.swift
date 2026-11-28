@@ -136,8 +136,9 @@ final class ModelHarness {
     let elapsed = Elapsed()
     private(set) var model: AppModel!
 
+    /// `browser`: the person's browser; by default the server's own (`FakeServer.browse`), which says yes.
     init(
-        browser: ScriptedBrowser = .approving, allowsLocalHTTP: Bool = true,
+        browser: ScriptedBrowser? = nil, allowsLocalHTTP: Bool = true,
         preferences: MemoryPreferences = MemoryPreferences(),
         identity: AppIdentity = AppIdentity(bundleIdentifier: "dev.purlay.kit-tests", platform: .macOS),
         wipers: [any UserDataWiper] = []
@@ -156,6 +157,8 @@ final class ModelHarness {
         let directory = directory
         let loginItem = loginItem
         let elapsed = elapsed
+        server.edit { $0.now = { elapsed.seconds } }
+        let browser = browser ?? ScriptedBrowser { page in server.browse(page) }
         model = AppModel(
             AppEnvironment(
                 transport: server, sessions: sessions, preferences: preferences, authenticator: browser,
@@ -478,6 +481,47 @@ struct SignedInTests {
             return
         }
         #expect(h.sockets.count == 1)
+    }
+
+    @Test(
+        "an iOS app whose upgrade is refused as too old is shown the iOS minimum, or none where the server gives none; never the Mac's",
+        arguments: [
+            (
+                #"{"appVersion":"0.1.0","contractVersion":1,"downloadUrl":"https://apps.example.com/purlay"}"#
+                    as String?,
+                ClientMinimum(appVersion: "0.1.0", contractVersion: 1, downloadUrl: "https://apps.example.com/purlay")
+            ),
+            (nil, ClientMinimum(appVersion: nil, contractVersion: nil, downloadUrl: nil)),
+        ])
+    func iOSUpgradeRefused(ios: String?, shown: ClientMinimum) async {
+        let h = ModelHarness(identity: AppIdentity(bundleIdentifier: "dev.purlay.kit-tests", platform: .iOS))
+        h.server.edit { $0.clientInfo = FakeServer.clientInfo(minApp: "0.0.1", ios: ios) }
+        await h.model.connect()
+        await h.model.signIn()
+        await h.settle()
+        h.last.handlers.refused(426)
+        await h.settle()
+        #expect(h.model.phase == .problem(.appTooOld(shown)))
+    }
+
+    @Test(
+        "an iOS app the server refuses with 426 CLIENT_TOO_OLD on a request, after a handshake that let it in, is told to update with the minimum the server gave"
+    )
+    func iOSRequestRefusedAsTooOld() async {
+        let h = ModelHarness(identity: AppIdentity(bundleIdentifier: "dev.purlay.kit-tests", platform: .iOS))
+        // The operator raised the iOS minimum after this app's handshake: the edge refuses every request (client-policy.ts).
+        h.server.edit {
+            $0.meStatus = 426
+            $0.meErrorBody =
+                #"{"error":{"code":"CLIENT_TOO_OLD","message":"Update Purlay.","details":{"minContractVersion":null,"minAppVersion":"9.0.0","downloadUrl":null}}}"#
+        }
+        await h.model.connect()
+        await h.model.signIn()
+        await h.settle()
+        #expect(
+            h.model.phase
+                == .problem(.appTooOld(ClientMinimum(appVersion: "9.0.0", contractVersion: nil, downloadUrl: nil))),
+            "a 426 is said as \(h.model.phase), not as an app too old")
     }
 }
 

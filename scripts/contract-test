@@ -5,6 +5,9 @@
 #   PURLAY_SERVER_CHECKOUT=~/Projects/purlay scripts/contract-test
 #   PURLAY_TEST_CORE_ONLY=1 scripts/contract-test  # only the macOS sign-in test, with chat switched off
 #
+# The server runs with an iOS minimum above every iOS app (MIN_CLIENT_IOS_VERSION, PURLAY_TEST_IOS_MINIMUM), so the tests can see
+# the iOS gate refuse while the Mac, which the other tests speak as, is served.
+#
 # The server repository must be at the version `Contract/contract.lock` names (or a branch carrying it), with its web client
 # built (`apps/web/dist`) and a database up (`bun run db:up`). The demo only ever creates a database named `purlay_e2e…`.
 set -euo pipefail
@@ -44,7 +47,8 @@ if [ "${PURLAY_TEST_CORE_ONLY:-}" = "1" ]; then
   demo_args+=(--modules none)
   filter='^ContractTests\..*coreOnlyWorkspace'
 fi
-(cd "$CHECKOUT" && exec bun --no-env-file --env-file=.env.test run scripts/demo.ts "${demo_args[@]}") >"$LOG" 2>&1 &
+export PURLAY_TEST_IOS_MINIMUM="${PURLAY_TEST_IOS_MINIMUM:-99.0.0}"
+(cd "$CHECKOUT" && MIN_CLIENT_IOS_VERSION="$PURLAY_TEST_IOS_MINIMUM" exec bun --no-env-file --env-file=.env.test run scripts/demo.ts "${demo_args[@]}") >"$LOG" 2>&1 &
 SERVER=$!
 
 for _ in $(seq 1 120); do

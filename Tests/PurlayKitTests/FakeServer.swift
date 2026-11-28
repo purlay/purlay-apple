@@ -12,6 +12,8 @@ final class FakeServer: HTTPTransport {
         var clientInfo = FakeServer.clientInfo()
         var infoStatus = 200
         var meStatus = 200
+        /// When set, `GET /api/me` answers this error body with `meStatus`, as the server's edge does (a 426 `CLIENT_TOO_OLD`).
+        var meErrorBody: String?
         /// Runs while `GET /api/me` is at the server, before it answers.
         var beforeMeResponse: (@Sendable () async -> Void)?
         var profile = #"{"title":null,"timeZone":null,"status":null}"#
@@ -151,6 +153,17 @@ final class FakeServer: HTTPTransport {
         var beforeLogoutResponse: (@Sendable () async -> Void)?
         /// What the transport throws for `POST /api/me/erase` after the server received it: an answer lost on the way back.
         var eraseThrows: TransportError?
+        /// When set, the server judges sign-ins as D-356 does, on the model's clock (seconds from the tests' epoch): this is when
+        /// the person's browser last signed in. A page asking `prompt=login` of a browser signed in longer ago than
+        /// `NATIVE_FRESH_SIGN_IN_MINUTES` has the person sign in again; a handed-over session keeps the browser's sign-in, and
+        /// erasing refuses one older than `ERASURE_SIGN_IN_MINUTES`. Nil: the browser and erasure are as scripted.
+        var browserSignedInAt: TimeInterval?
+        /// The browser's sign-in each session was handed over with, while the server judges sign-ins.
+        var sessionSignedInAt: [String: TimeInterval] = [:]
+        /// The `prompt` of each sign-in page the browser opened, in order (nil: none asked).
+        var prompts: [String?] = []
+        /// The model's clock, in seconds from the tests' epoch.
+        var now: @Sendable () -> TimeInterval = { 0 }
         /// The person `/api/me` names: their username as the server keeps it.
         var username = "ada"
         /// The session value the next sign-in hands out; the usual one when nil.
@@ -209,12 +222,29 @@ final class FakeServer: HTTPTransport {
     }
 
     func edit(_ change: (inout State) -> Void) { state.withLock { change(&$0) } }
+
+    /// The person's browser on the server's sign-in page: says yes to the application and hands back a code. A page asking
+    /// `prompt=login` of a browser signed in too long ago has the person sign in again first, while the server judges
+    /// sign-ins (`browserSignedInAt`).
+    func browse(_ page: URL) -> URL {
+        let items = URLComponents(url: page, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        let prompt = items.first { $0.name == "prompt" }?.value
+        state.withLock {
+            $0.prompts.append(prompt)
+            let fresh = TimeInterval(ContractConstants.nativeFreshSignInMinutes * 60)
+            if prompt == "login", let browser = $0.browserSignedInAt, $0.now() - browser > fresh {
+                $0.browserSignedInAt = $0.now()
+            }
+        }
+        let callbackState = items.first { $0.name == "state" }?.value ?? ""
+        return URL(string: "purlay://auth?code=\(String(repeating: "a", count: 64))&state=\(callbackState)")!
+    }
     var snapshot: State { state.withLock { $0 } }
 
     static func clientInfo(
         minApp: String = "0.1.0", contract: Int = 1, appUrl: String = "http://localhost:4390",
         notificationTypeFilters: Bool? = true, scheduledMessages: Bool? = nil, messageReminders: Bool? = nil,
-        personalMessageDeletion: Bool? = nil
+        personalMessageDeletion: Bool? = nil, nativeFreshSignIn: Bool? = nil, ios: String? = nil
     )
         -> String
     {
@@ -223,11 +253,13 @@ final class FakeServer: HTTPTransport {
             scheduledMessages.map { "\"scheduledMessages\":\($0)" },
             personalMessageDeletion.map { "\"personalMessageDeletion\":\($0)" },
             messageReminders.map { "\"messageReminders\":\($0)" },
+            nativeFreshSignIn.map { "\"nativeFreshSignIn\":\($0)" },
         ].compactMap { $0 }.joined(separator: ",")
+        let iosMinimum = ios.map { ",\"ios\":\($0)" } ?? ""
         let capability = flags.isEmpty ? "" : ",\"capabilities\":{\(flags)}"
         return """
             {"server":{"version":"0.6.1"},"contractVersion":\(contract),"appUrl":"\(appUrl)",\
-            "minClient":{"macos":{"appVersion":"\(minApp)","contractVersion":1,"downloadUrl":null}},\
+            "minClient":{"macos":{"appVersion":"\(minApp)","contractVersion":1,"downloadUrl":null}\(iosMinimum)},\
             "auth":{"email":true,"github":true,"google":false,"oidc":null,"password":true,"signUp":"invite-only"}\(capability)}
             """
     }
@@ -423,6 +455,7 @@ final class FakeServer: HTTPTransport {
             state.withLock {
                 $0.sessionValid = true
                 $0.revoked.remove(issued)
+                if let browser = $0.browserSignedInAt { $0.sessionSignedInAt[issued] = browser }
             }
             let headers =
                 snapshot.cookieOnToken
@@ -445,6 +478,7 @@ final class FakeServer: HTTPTransport {
         case ("GET", "/api/me"):
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
             await snapshot.beforeMeResponse?()
+            if let body = snapshot.meErrorBody { return json(snapshot.meStatus, body) }
             return json(
                 snapshot.meStatus,
                 Self.meJSON(
@@ -1254,6 +1288,13 @@ final class FakeServer: HTTPTransport {
             guard hasSession, snapshot.sessionValid else { return unauthenticated() }
             await snapshot.beforeEraseResponse?()
             if let lost = snapshot.eraseThrows { throw lost }
+            if snapshot.browserSignedInAt != nil {
+                let signedIn = cookie.flatMap { snapshot.sessionSignedInAt[$0] }
+                let limit = TimeInterval(ContractConstants.erasureSignInMinutes * 60)
+                guard let signedIn, snapshot.now() - signedIn <= limit else {
+                    return json(403, #"{"error":{"code":"REAUTHENTICATION_REQUIRED","message":"x"}}"#)
+                }
+            }
             if snapshot.eraseStatus == 204 {
                 state.withLock { $0.sessionValid = false }
                 return HTTPResponse(status: 204)
