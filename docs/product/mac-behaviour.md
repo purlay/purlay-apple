@@ -1,7 +1,7 @@
 # The Mac app's behaviour
 
 What the Mac app does, feature by feature, where a behaviour is not obvious from the screen. The requirement each belongs to is
-in [requirements.md](requirements.md) (FR-101 to FR-125). The model code named here is in `Sources/PurlayKit`; the views are in
+in [requirements.md](requirements.md) (FR-101 to FR-135). The model code named here is in `Sources/PurlayKit`; the views are in
 `Sources/PurlayMacUI`.
 
 ## Inbox
@@ -113,6 +113,22 @@ A deleted root keeps an empty placeholder when it has replies, so the thread rem
 Private events and replay projections also clear companion windows; older in-flight reads cannot restore the words.
 **Delete for Everyone** uses the existing server deletion rule: the author, workspace owner or workspace admin.
 Both actions require an explicit choice in the same confirmation dialog, and failures retain the message.
+
+## From outside the windows: notices, Shortcuts and Handoff
+
+Words sent from outside a message box (a notice's Reply field, Forward…, a shortcut) go through `AppModel.post`: the outbox,
+no files, and the conversation's own box and draft left as they were.
+
+- **Reply from a notice** (`DesktopSessions.reply`): sent from the workspace that showed the notice (its `source`, as a click on
+  it reads it), never from the one in front, since two workspaces can share a channel's id. Words that cannot be sent go into
+  the conversation's draft after what was already written there, and the conversation is shown; with that workspace no longer
+  open, nothing holds them.
+- **Shortcuts, Spotlight and Siri** (`Apps/macOS/App/Intents`, deciding through `DesktopSessions`' shortcut methods): each acts
+  on the workspace in front, as a menu item does, and is refused while it is not signed in. A conversation is kept by its
+  channel id, so a saved shortcut keeps working across renames and says so when the conversation is gone. Open Inbox and Open
+  Conversation bring the main window forward; Send a Message and Deep Work run in the background.
+- **Handoff**: the conversation in front is offered as its web address (`WebPage.channel`), so another device opens it in a
+  browser; there is no app-to-app activity yet.
 
 ## Server features
 
