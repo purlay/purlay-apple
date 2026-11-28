@@ -1,3 +1,4 @@
+import AppIntents
 import AppKit
 import PurlayKit
 import PurlayMacUI
@@ -10,6 +11,7 @@ struct PurlayApp: App {
     @StateObject private var updates = UpdateController()
     @State private var sessions: DesktopSessions
     private let attention = SystemAttention(log: RealEnvironment.log.attention)
+    private let mainWindow = MainWindowOpener()
 
     init() {
         let environment = RealEnvironment.make(attention: attention)
@@ -21,12 +23,24 @@ struct PurlayApp: App {
             Task { await sessions.openNotification(channel: channel, sourceID: source) }
         }
         attention.openLink = { url in Task { await sessions.openLink(url) } }
+        let attention = attention
+        attention.reply = { channel, source, text in
+            guard !(await sessions.reply(text, to: channel, sourceID: source)) else { return }
+            // Not sent (signed out, or no longer in the conversation): the words wait in its box, and the person is shown it.
+            attention.bringForward?()
+            NSApp.activate()
+            await sessions.openNotification(channel: channel, sourceID: source)
+        }
         _sessions = State(initialValue: sessions)
+        // What Shortcuts and Spotlight act on: the same sessions the windows show.
+        let mainWindow = mainWindow
+        AppDependencyManager.shared.add(dependency: sessions)
+        AppDependencyManager.shared.add(dependency: mainWindow)
     }
 
     var body: some Scene {
         Window("Purlay", id: "main") {
-            DesktopMainScene(sessions: sessions, delegate: delegate, attention: attention)
+            DesktopMainScene(sessions: sessions, delegate: delegate, attention: attention, mainWindow: mainWindow)
         }
         .defaultSize(width: 1_180, height: 780)
         .windowToolbarStyle(.unified)
@@ -57,6 +71,7 @@ private struct DesktopMainScene: View {
     let sessions: DesktopSessions
     let delegate: AppDelegate
     let attention: SystemAttention
+    let mainWindow: MainWindowOpener
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -69,6 +84,7 @@ private struct DesktopMainScene: View {
             .modifier(DesktopLinkPresentation(sessions: sessions))
             .task {
                 attention.bringForward = { openWindow(id: "main") }
+                mainWindow.open = { openWindow(id: "main") }
                 delegate.install(sessions: sessions, openMain: { openWindow(id: "main") })
                 delegate.model = sessions.active
                 await sessions.launch()
@@ -204,8 +220,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let model, model.phase == .ready, model.chatAvailable, dockActions.indices.contains(item.tag) else {
             return
         }
+        // The main window, opened again if it was closed: a conversation window in front is not where the inbox is shown.
+        openMain?()
         NSApp.activate()
-        NSApp.windows.first { $0.canBecomeMain }?.makeKeyAndOrderFront(nil)
         dockActions[item.tag]()
     }
 }

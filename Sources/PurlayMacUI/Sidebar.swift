@@ -39,6 +39,9 @@ struct SidebarView: View {
     }
 
     var body: some View {
+        // The sections are sorted and grouped from every channel: worked out once for the list, not once for each place below.
+        let sections = model.sidebar.map { (section: $0, rows: visible($0.channels)) }
+        let nothingShown = sections.allSatisfy(\.rows.isEmpty)
         List(selection: $selection) {
             Section {
                 VStack(spacing: 0) {
@@ -110,8 +113,7 @@ struct SidebarView: View {
                 .help("Discover public channels  ⇧⌘O")
             }
             .listRowInsets(EdgeInsets(top: 2, leading: -Spacing.space1, bottom: 2, trailing: -Spacing.space1))
-            ForEach(model.sidebar) { section in
-                let rows = visible(section.channels)
+            ForEach(sections, id: \.section.id) { section, rows in
                 if !rows.isEmpty || (section.channels.isEmpty && query.isEmpty && !unreadOnly) {
                     Section(isExpanded: expanded(section)) {
                         ForEach(rows, id: \.id) { channel in
@@ -134,7 +136,7 @@ struct SidebarView: View {
                     }
                 }
             }
-            if model.sidebar.allSatisfy({ visible($0.channels).isEmpty }) && query.isEmpty && !unreadOnly {
+            if nothingShown && query.isEmpty && !unreadOnly {
                 // Nothing is filtered away: the workspace simply has no channel the person is in yet.
                 VStack(alignment: .leading, spacing: Spacing.space2) {
                     Label("No channels yet", systemImage: "number")
@@ -148,7 +150,7 @@ struct SidebarView: View {
                 }
                 .padding(.vertical, Spacing.space3)
                 .listRowSeparator(.hidden)
-            } else if model.sidebar.allSatisfy({ visible($0.channels).isEmpty }) {
+            } else if nothingShown {
                 VStack(alignment: .leading, spacing: Spacing.space2) {
                     Label(
                         unreadOnly ? "You're all caught up" : "No matching channels",
@@ -542,6 +544,7 @@ private struct AccountFooter: View {
     @Environment(\.desktopSessions) private var sessions
     let model: AppModel
     @State private var confirmingEverywhere = false
+    @State private var confirmingSignOut = false
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
@@ -564,7 +567,7 @@ private struct AccountFooter: View {
                 Button("Keyboard Shortcuts", systemImage: "keyboard") { model.shortcutsOpen = true }
             }
             Section {
-                Button("Sign Out") { Task { await model.signOut(.thisDevice) } }
+                Button("Sign Out…") { confirmingSignOut = true }
                 Button {
                     confirmingEverywhere = true
                 } label: {
@@ -596,6 +599,7 @@ private struct AccountFooter: View {
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .padding(Spacing.space3)
+        .modifier(SignOutConfirmation(model: model, isPresented: $confirmingSignOut))
         .confirmationDialog("Sign out on every device?", isPresented: $confirmingEverywhere) {
             Button(role: .destructive) {
                 Task { await model.signOut(.everywhere) }
@@ -640,5 +644,19 @@ private struct SwitcherSurface: ViewModifier {
 
 extension View {
     fileprivate func switcherSurface() -> some View { modifier(SwitcherSurface()) }
+}
+
+/// Signing this Mac out asks first, from the menu bar and from the account menu alike: it is undone only in the browser.
+struct SignOutConfirmation: ViewModifier {
+    let model: AppModel
+    @Binding var isPresented: Bool
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog("Sign out of Purlay on this Mac?", isPresented: $isPresented) {
+            Button("Sign Out", role: .destructive) { Task { await model.signOut(.thisDevice) } }
+        } message: {
+            Text("You will sign in again in your browser. Other devices stay signed in.")
+        }
+    }
 }
 #endif

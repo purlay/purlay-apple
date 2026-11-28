@@ -22,6 +22,9 @@ struct PaletteSheet: View {
     }
 
     var body: some View {
+        // Ranked once per draw and handed to the keys, which would otherwise rank every channel and person again on each press.
+        // Not kept in state: the model's channels and people have no cheap revision, and a kept copy could go stale.
+        let rows = entries
         VStack(spacing: 0) {
             HStack(spacing: Spacing.space3) {
                 Image(systemName: "magnifyingglass").foregroundStyle(NativePalette.secondary.style).imageScale(.large)
@@ -31,15 +34,14 @@ struct PaletteSheet: View {
             }
             .padding(Spacing.space4)
             .focused($focused)
-            .onSubmit(choose)
-            .onKeyPress(.upArrow) { move(-1) }
-            .onKeyPress(.downArrow) { move(1) }
+            .onSubmit { choose(in: rows) }
+            .onKeyPress(.upArrow) { move(-1, in: rows.count) }
+            .onKeyPress(.downArrow) { move(1, in: rows.count) }
             .onChange(of: query) { _, _ in selected = 0 }
             Divider()
-            let rows = entries
             if rows.isEmpty {
                 EmptyState(
-                    "Nothing here yet", systemImage: "number",
+                    "Nothing Here Yet", systemImage: "number",
                     description: Text("Type at least three letters to search messages.")
                 )
                 .frame(maxHeight: .infinity)
@@ -78,15 +80,13 @@ struct PaletteSheet: View {
         .onExitCommand { dismiss() }
     }
 
-    private func move(_ step: Int) -> KeyPress.Result {
-        let count = entries.count
+    private func move(_ step: Int, in count: Int) -> KeyPress.Result {
         guard count > 0 else { return .handled }
         selected = (selected + step + count) % count
         return .handled
     }
 
-    private func choose() {
-        let rows = entries
+    private func choose(in rows: [PaletteEntry]) {
         if rows.indices.contains(selected) { run(rows[selected]) }
     }
 
@@ -163,6 +163,8 @@ struct SearchSheet: View {
     /// at every key typed, and in the person's own language's order (Çağlar before Zeynep, not after).
     @State private var scope = SearchScope()
     @State private var savedFailure: SavedSearchFailure?
+    /// The model guards against a second page asked twice but does not say it is loading one; this greys the button meanwhile.
+    @State private var loadingMore = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -470,7 +472,7 @@ struct SearchSheet: View {
             .listStyle(.plain)
         case .idle:
             EmptyState(
-                "Search messages", systemImage: "magnifyingglass",
+                "Search Messages", systemImage: "magnifyingglass",
                 description: Text(
                     model.searchFilters.rangeIsInverted
                         ? "The end date must come after the start date."
@@ -481,7 +483,7 @@ struct SearchSheet: View {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
         case .failed:
             ContentUnavailableView {
-                Label("Could not search", systemImage: "exclamationmark.triangle")
+                Label("Could Not Search", systemImage: "exclamationmark.triangle")
             } description: {
                 Text("Check your connection and try again.")
             } actions: {
@@ -490,7 +492,7 @@ struct SearchSheet: View {
             .frame(maxHeight: .infinity)
         case .refused:
             ContentUnavailableView {
-                Label("These filters cannot be searched", systemImage: "line.3.horizontal.decrease.circle")
+                Label("These Filters Cannot Be Searched", systemImage: "line.3.horizontal.decrease.circle")
             } description: {
                 Text("Name a repository as owner/name, and make the end date come after the start date.")
             } actions: {
@@ -528,7 +530,15 @@ struct SearchSheet: View {
                     .buttonStyle(.plain)
                 }
                 if model.searchHasMore {
-                    Button("Show more") { Task { await model.loadMoreResults() } }.frame(maxWidth: .infinity)
+                    Button("Show more") {
+                        loadingMore = true
+                        Task {
+                            await model.loadMoreResults()
+                            loadingMore = false
+                        }
+                    }
+                    .disabled(loadingMore || model.searchStatus != .done)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .listStyle(.plain)

@@ -10,6 +10,13 @@ struct SidebarOrganizer: View {
     @State private var name = ""
     @State private var editing: UUID?
     @State private var invalid = false
+    @State private var saving = false
+    @State private var removing: GroupToRemove?
+
+    private struct GroupToRemove {
+        let id: UUID
+        let name: String
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.space4) {
@@ -22,7 +29,7 @@ struct SidebarOrganizer: View {
                     .onSubmit(save)
                     .onChange(of: name) { _, _ in invalid = false }
                 Button(editing == nil ? "Add Group" : "Save", action: save)
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(saving || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 if editing != nil {
                     Button("Cancel Rename") {
                         editing = nil
@@ -51,11 +58,7 @@ struct SidebarOrganizer: View {
                             }
                             .labelStyle(.iconOnly)
                             Button("Remove Group \(name)", systemImage: "trash", role: .destructive) {
-                                Task { await model.removeSidebarGroup(id) }
-                                if editing == id {
-                                    editing = nil
-                                    self.name = ""
-                                }
+                                removing = GroupToRemove(id: id, name: name)
                             }
                             .labelStyle(.iconOnly)
                             .help("Remove the group and return its conversations to their default sections")
@@ -84,10 +87,33 @@ struct SidebarOrganizer: View {
         }
         .padding(Spacing.space5)
         .frame(width: 580, height: 500)
+        .confirmationDialog(
+            "Remove this group?",
+            isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+            titleVisibility: .visible,
+            presenting: removing
+        ) { group in
+            Button("Remove Group", role: .destructive) { remove(group) }
+            Button("Cancel", role: .cancel) {}
+        } message: { group in
+            Text("“\(group.name)” is removed and its conversations return to their default sections.")
+        }
+    }
+
+    private func remove(_ group: GroupToRemove) {
+        Task { await model.removeSidebarGroup(group.id) }
+        if editing == group.id {
+            editing = nil
+            name = ""
+        }
     }
 
     private func save() {
+        // Return in the field and the button can both ask while the first save is still on its way.
+        guard !saving else { return }
+        saving = true
         Task {
+            defer { saving = false }
             if await model.saveSidebarGroup(editing, name: name) {
                 name = ""
                 editing = nil

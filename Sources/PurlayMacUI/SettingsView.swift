@@ -222,6 +222,7 @@ public struct SettingsView: View {
                     LabeledContent("Email", value: me.user.email)
                     LabeledContent("Name", value: me.user.displayName)
                 }
+                DeviceSessionsSection(model: model).id(model.me?.user.id)
             }
             if page.group == .workspace, let workspace = model.workspace {
                 Section {

@@ -451,6 +451,16 @@
         }
       }
     },
+    "Couldn’t send message." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesaj gönderilemedi."
+          }
+        }
+      }
+    },
     "Dismiss" : {
       "localizations" : {
         "tr" : {

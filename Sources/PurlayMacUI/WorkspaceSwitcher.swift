@@ -54,15 +54,30 @@ struct WorkspaceTile: View {
         return url
     }
 
-    /// The tile as a menu item's icon: a menu draws an image, not a view.
-    @MainActor static func menuIcon(_ workspace: Workspace) -> Image {
+    private struct MenuIconKey: Hashable {
+        let workspace: Uuid
+        let name: String
+        let scheme: ColorScheme
+    }
+
+    /// Icons already drawn. A menu's content is built again on every draw of the view that holds it, and rendering a view to an
+    /// image each time is the expensive part; a workspace's tile changes only with its name and the appearance.
+    @MainActor private static var menuIcons: [MenuIconKey: Image] = [:]
+
+    /// The tile as a menu item's icon: a menu draws an image, not a view. The scheme is the caller's, from the environment, so
+    /// the icon is drawn again when the appearance changes.
+    @MainActor static func menuIcon(_ workspace: Workspace, scheme: ColorScheme) -> Image {
+        let key = MenuIconKey(workspace: workspace.id, name: workspace.name, scheme: scheme)
+        if let cached = menuIcons[key] { return cached }
         let renderer = ImageRenderer(
             content: WorkspaceTile(workspace: workspace, size: 18, showsPicture: false)
-                .environment(\.colorScheme, NSApp.effectiveAppearance.name == .darkAqua ? .dark : .light))
+                .environment(\.colorScheme, scheme))
         renderer.scale = 2
         guard let image = renderer.nsImage else { return Image(systemName: "building.2") }
         image.isTemplate = false
-        return Image(nsImage: image)
+        let icon = Image(nsImage: image)
+        menuIcons[key] = icon
+        return icon
     }
 }
 
@@ -81,6 +96,7 @@ extension AppModel {
 struct WorkspaceChoice: View {
     let sessions: DesktopSessions
     let model: AppModel
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         if let memberships = model.me?.memberships, memberships.count > 1 {
@@ -97,7 +113,7 @@ struct WorkspaceChoice: View {
                     Label {
                         Text(title(of: membership.workspace))
                     } icon: {
-                        WorkspaceTile.menuIcon(membership.workspace)
+                        WorkspaceTile.menuIcon(membership.workspace, scheme: colorScheme)
                     }
                     .tag(Optional(membership.workspace.id))
                 }

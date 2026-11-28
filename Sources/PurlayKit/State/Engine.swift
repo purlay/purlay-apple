@@ -110,6 +110,8 @@ public final class Engine {
     private let ids: MessageIDGenerator
     /// When each workspace was last told the person is here, so the word is said at most once per `ACTIVE_EVERY_MS`.
     private var saidActive: [Uuid: Date] = [:]
+    /// When the person was last said to be typing, by channel: the server's own ration, so nothing is sent that it would drop.
+    private var saidTyping: [Uuid: Date] = [:]
 
     public init(_ options: Options) {
         self.options = options
@@ -162,6 +164,7 @@ public final class Engine {
         for cancel in typingEnds.values { cancel() }
         typingEnds.removeAll()
         saidActive.removeAll()
+        saidTyping.removeAll()
         // Who was typing is not known while nothing is heard; the next announcement says again.
         chat.typing.removeAll()
         // Continuations asleep between attempts wake and end; the epoch tells a running one it is stale.
@@ -212,6 +215,20 @@ public final class Engine {
         }
     }
 
+    /// The person is typing in a channel (D-114). Said over an open socket and nowhere else, at most once per half of
+    /// `TYPING_TTL_MS` per channel, so the announcement never runs out while they type; a word that did not leave is not kept.
+    public func announceTyping(channel: Uuid) {
+        let now = options.clock()
+        if let last = saidTyping[channel],
+            now.timeIntervalSince(last) * 1_000 < Double(ContractConstants.typingTtlMs) / 2
+        {
+            return
+        }
+        if connection.send(.typing(TypingFrame(id: ids.next(), payload: .init(channelId: channel)))) {
+            saidTyping[channel] = now
+        }
+    }
+
     /// Who is here, as a snapshot read over HTTP: kept where it is newer than what the socket already said.
     public func hearPresence(_ changes: [PresenceChange]) {
         chat.hear(changes)
@@ -221,7 +238,11 @@ public final class Engine {
     // MARK: A person's own sends
 
     @discardableResult
-    public func send(_ outgoing: Outgoing) -> Uuid { sends.send(outgoing) }
+    public func send(_ outgoing: Outgoing) -> Uuid {
+        // What they were typing is on its way; the next keystroke is news again, as it is to the server.
+        saidTyping[outgoing.channelID] = nil
+        return sends.send(outgoing)
+    }
     public func retry(_ id: Uuid) { sends.retry(id) }
     public func discard(_ id: Uuid) { sends.discard(id) }
     public var pending: [PendingMessage] { sends.pending }

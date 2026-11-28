@@ -25,4 +25,10 @@ extension AppModel {
         guard let api else { throw CancellationError() }
         return try await api.listFiles(channelId: channel.value, query: FileQuery(before: before, limit: 30))
     }
+
+    /// Adds a person of the workspace to a channel the person is in. The server decides who may; a refusal says so and changes nothing.
+    public func addMember(_ person: Uuid, to channel: Uuid) async throws {
+        guard let api else { throw CancellationError() }
+        try await api.addChannelMember(channelId: channel.value, body: AddChannelMemberRequest(userId: person))
+    }
 }

@@ -12,6 +12,7 @@ struct MainView: View {
     @State private var selection: SidebarSelection?
     @State private var sheet: ChannelSheet?
     @State private var leaving: Channel?
+    @State private var confirmingSignOut = false
     @State private var detailsOpen = false
     @State private var detailsTab = ChannelDetailTab.about
     @State private var forward = true
@@ -67,8 +68,10 @@ struct MainView: View {
                     detailsTab = tab
                     detailsOpen = true
                 },
-                leave: { leaving = $0 })
+                leave: { leaving = $0 },
+                signOut: { confirmingSignOut = true })
         )
+        .modifier(SignOutConfirmation(model: model, isPresented: $confirmingSignOut))
         .onExitCommand {
             if model.paletteOpen {
                 model.paletteOpen = false
@@ -383,6 +386,65 @@ private struct MessageDeletionDialog: ViewModifier {
     }
 }
 
+/// The rows of a channel's feed. Equatable on what it draws from, so the day and continuation layout is worked out again only
+/// when the messages or the marks change, not at every change of the chat state (someone typing, someone coming online): each
+/// row still follows what it reads of the model by itself.
+private struct FeedRows: View, @MainActor Equatable {
+    let model: AppModel
+    let messages: [Message]
+    let newAfter: Uuid?
+    let me: Uuid?
+    let marked: Uuid?
+    let keyboard: Uuid?
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.model === rhs.model && lhs.newAfter == rhs.newAfter && lhs.me == rhs.me && lhs.marked == rhs.marked
+            && lhs.keyboard == rhs.keyboard && lhs.messages == rhs.messages
+    }
+
+    var body: some View {
+        ForEach(FeedLayout.items(messages, newAfter: newAfter, me: me)) { item in
+            switch item {
+            case .day(let date): DayDivider(date: date)
+            case .new: NewDivider()
+            case .message(let message, let continuation):
+                MessageRow(
+                    message: message, model: model, continuation: continuation, highlighted: marked == message.id,
+                    keyboard: keyboard == message.id
+                )
+                .id(message.id)
+            }
+        }
+    }
+}
+
+/// Under a window that stops short of the present: the way back to it.
+private struct JumpToPresent: View {
+    let action: () async -> Void
+    @State private var busy = false
+
+    var body: some View {
+        Button {
+            busy = true
+            Task {
+                await action()
+                busy = false
+            }
+        } label: {
+            if busy {
+                ProgressView().controlSize(.small)
+            } else {
+                Label("Jump to Present", systemImage: "arrow.down.to.line")
+            }
+        }
+        .glassButton()
+        .controlSize(.small)
+        .disabled(busy)
+        .padding(Spacing.space3)
+        .frame(maxWidth: .infinity)
+    }
+}
+
 /// What the bars over the feed show, as one value: a change to any of them animates the bars in and out together.
 private struct BarState: Equatable {
     let notices: [Int]
@@ -399,6 +461,8 @@ struct ChannelView: View {
     @State private var atBottom = true
     /// The last message read when the channel was opened: the "New" rule stays there while the channel is open (UX §6.4).
     @State private var newAfter: Uuid?
+    /// A search is taking the reader to what it found: a new message does not pull them down meanwhile.
+    @State private var revealing = false
     @FocusState private var feedFocused: Bool
 
     var body: some View {
@@ -426,17 +490,13 @@ struct ChannelView: View {
                         if window.reachesOldest {
                             ChannelIntro(channel: channel, empty: window.isEmpty && model.selectedPending.isEmpty)
                         }
-                        ForEach(FeedLayout.items(window.messages, newAfter: newAfter, me: model.me?.user.id)) { item in
-                            switch item {
-                            case .day(let date): DayDivider(date: date)
-                            case .new: NewDivider()
-                            case .message(let message, let continuation):
-                                MessageRow(
-                                    message: message, model: model, continuation: continuation,
-                                    highlighted: marked == message.id, keyboard: keyboardFocus == message.id
-                                )
-                                .id(message.id)
-                            }
+                        FeedRows(
+                            model: model, messages: window.messages, newAfter: newAfter, me: model.me?.user.id,
+                            marked: marked, keyboard: keyboardFocus
+                        )
+                        .equatable()
+                        if !window.reachesNewest {
+                            JumpToPresent { await jumpToPresent(proxy) }
                         }
                     } else if model.channelLoadFailed.contains(channel.id) {
                         FeedLoadFailed { Task { await model.open(channel.id) } }
@@ -482,6 +542,8 @@ struct ChannelView: View {
                 guard let focus = model.focus,
                     model.window?.messages.contains(where: { $0.id == focus.message }) == true
                 else { return }
+                revealing = true
+                defer { revealing = false }
                 try? await Task.sleep(for: .milliseconds(150))
                 withAnimation(scrollAnimation) { proxy.scrollTo(focus.message, anchor: .center) }
                 marked = focus.message
@@ -489,8 +551,9 @@ struct ChannelView: View {
                 if marked == focus.message { marked = nil }
             }
             .onChange(of: model.window?.messages.last?.id) { _, _ in
-                // A new message takes the reader down only if they were already there (UX §6.2) and no search sent them up.
-                if atBottom && model.focus == nil {
+                // A new message takes the reader down only if they were already there (UX §6.2), and not while a search is
+                // taking them up to what it found.
+                if atBottom && !revealing {
                     withAnimation(scrollAnimation) { proxy.scrollTo("bottom", anchor: .bottom) }
                 }
             }
@@ -500,9 +563,13 @@ struct ChannelView: View {
                 withAnimation(scrollAnimation) { proxy.scrollTo("bottom", anchor: .bottom) }
             }
             .overlay(alignment: .bottom) {
-                if !atBottom {
+                if !atBottom || model.window?.reachesNewest == false {
                     Button {
-                        withAnimation(scrollAnimation) { proxy.scrollTo("bottom", anchor: .bottom) }
+                        if model.window?.reachesNewest == false {
+                            Task { await jumpToPresent(proxy) }
+                        } else {
+                            withAnimation(scrollAnimation) { proxy.scrollTo("bottom", anchor: .bottom) }
+                        }
                     } label: {
                         Label {
                             Text(SharedWords.jumpToLatest)
@@ -529,6 +596,11 @@ struct ChannelView: View {
         .onAppear {
             newAfter = channel.isUnread ? channel.state?.lastReadMessageId : nil
         }
+        // Handoff: the conversation in front can be picked up in a browser on another device, at the same place.
+        .userActivity(NSUserActivityTypeBrowsingWeb, element: model.webURL(.channel(channel.id))) { url, activity in
+            activity.webpageURL = url
+            activity.title = Words.channelLabel(channel)
+        }
         // Marked unread from a message here: the "New" rule moves to where reading starts again.
         .onChange(of: channel.state?.lastReadMessageId) { _, read in
             if model.isHeldUnread { newAfter = read }
@@ -536,6 +608,13 @@ struct ChannelView: View {
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// A window opened around a message (a search, a link) stops short of the present: live messages do not land in it, and
+    /// nothing is marked read from it. The present is read again, which is what opening the channel does.
+    private func jumpToPresent(_ proxy: ScrollViewProxy) async {
+        await model.open(channel.id)
+        withAnimation(scrollAnimation) { proxy.scrollTo("bottom", anchor: .bottom) }
+    }
 
     private var scrollAnimation: Animation? {
         reduceMotion ? nil : Motion.easingStandard.animation(Motion.durationStep)

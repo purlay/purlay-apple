@@ -132,7 +132,7 @@ struct ProfileForm: View {
     }
 
     private func limitNote(_ text: LocalizedStringKey) -> some View {
-        Text(text).font(.caption).foregroundStyle(.red)
+        Text(text).font(.caption).foregroundStyle(Colors.dangerText.style)
     }
 
     private func load(_ me: MeResponse) {
@@ -157,11 +157,13 @@ struct ProfileForm: View {
         }
     }
 
+    /// Every zone the system knows, sorted once: the picker is drawn again on every keystroke in the form.
+    private static let knownZones = TimeZone.knownTimeZoneIdentifiers.sorted()
+
     /// Every zone the system knows, with one the server holds that this Mac does not list kept in the list.
     private static func zones(including current: String) -> [String] {
-        var all = TimeZone.knownTimeZoneIdentifiers.sorted()
-        if !current.isEmpty, !all.contains(current) { all.insert(current, at: 0) }
-        return all
+        guard !current.isEmpty, !knownZones.contains(current) else { return knownZones }
+        return [current] + knownZones
     }
 }
 #endif

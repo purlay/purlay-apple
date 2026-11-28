@@ -1,3 +1,4 @@
+#if os(macOS)
 import PurlayContract
 import PurlayKit
 import PurlayTokens
@@ -23,11 +24,11 @@ extension ChannelIncident {
         }
     }
 
-    /// The two most serious levels are red; the rest are orange.
-    var tint: Color {
+    /// The two most serious levels are the danger colour; the rest are the warning colour.
+    var tint: TokenStyle {
         switch severity {
-        case .v1, .v2: .red
-        default: .orange
+        case .v1, .v2: Colors.dangerText.style
+        default: Colors.warningText.style
         }
     }
 }
@@ -42,11 +43,16 @@ struct IncidentBar: View {
     var body: some View {
         if let incident = channel.incident {
             HStack(spacing: Spacing.space2) {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(incident.tint)
-                Text("Incident").fontWeight(.semibold)
-                Text(incident.severityName).fontWeight(.semibold).foregroundStyle(incident.tint)
-                Text("·").foregroundStyle(.secondary)
-                Text(incident.statusName).foregroundStyle(.secondary)
+                // The words are one element; the button stays its own, so VoiceOver can still reach and press it.
+                HStack(spacing: Spacing.space2) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(incident.tint)
+                    Text("Incident").fontWeight(.semibold)
+                    Text(incident.severityName).fontWeight(.semibold).foregroundStyle(incident.tint)
+                    Text("·").foregroundStyle(.secondary)
+                    Text(incident.statusName).foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Incident \(incident.severityName), \(incident.statusName)")
                 Spacer()
                 if let url = model.webURL(.channel(channel.id)) {
                     Button("Open in Browser") { openURL(url) }.controlSize(.small)
@@ -56,8 +62,7 @@ struct IncidentBar: View {
             .padding(.horizontal, Spacing.space4)
             .padding(.vertical, Spacing.space1 + Stroke.strokeFocus)
             .background(.bar)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Incident \(incident.severityName), \(incident.statusName)")
         }
     }
 }
+#endif

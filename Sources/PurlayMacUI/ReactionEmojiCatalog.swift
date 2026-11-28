@@ -258,12 +258,16 @@ enum ReactionEmojiCatalog {
         .init(symbol: "🇺🇸", name: "Flag of United States", keywords: "amerika american bayrak", category: .symbols),
     ]
 
+    /// Each emoji with the text a search looks in, folded once: the picker asks on every keystroke and for every section.
+    private static let searchable: [(emoji: ReactionEmoji, text: String)] = all.map { emoji in
+        (emoji, normalized("\(emoji.symbol) \(emoji.name) \(emoji.keywords)"))
+    }
+
     static func matching(_ query: String, category: EmojiCategory? = nil) -> [ReactionEmoji] {
         let terms = normalized(query).split(whereSeparator: \.isWhitespace)
-        return all.filter { emoji in
-            guard category == nil || emoji.category == category else { return false }
-            let text = normalized("\(emoji.symbol) \(emoji.name) \(emoji.keywords)")
-            return terms.allSatisfy { text.contains($0) }
+        return searchable.compactMap { entry in
+            guard category == nil || entry.emoji.category == category else { return nil }
+            return terms.allSatisfy { entry.text.contains($0) } ? entry.emoji : nil
         }
     }
 

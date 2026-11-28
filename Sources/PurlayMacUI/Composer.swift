@@ -15,7 +15,10 @@ struct ComposerView: View {
     let placeholder: String
     /// In the thread panel: a little shorter, and the hint line left out.
     var compact = false
-    @State private var state: ComposerState
+    @State private var state = ComposerState()
+    /// The draft is read once the box appears, not while it is made: a read in `init` is a read in the parent's body, and the
+    /// feed above would be drawn again at every save of the draft.
+    @State private var draftLoaded = false
     /// The formatting row, shown or hidden as the person last left it: out of the way until wanted.
     @AppStorage("composer.formatting") private var formatting = false
     @AppStorage("composer.hints") private var showHints = true
@@ -30,9 +33,6 @@ struct ComposerView: View {
         self.parent = parent
         self.placeholder = placeholder
         self.compact = compact
-        let state = ComposerState()
-        state.text = model.draft(for: channel, parent: parent)
-        _state = State(initialValue: state)
     }
 
     /// Only the channel's own box answers a call for the keyboard: a reply box and an edit box are taken by being pressed.
@@ -46,6 +46,7 @@ struct ComposerView: View {
         VStack(alignment: .leading, spacing: Spacing.space2) {
             if !state.commands.isEmpty { CommandList(state: state) }
             if !state.suggestions.isEmpty { SuggestionList(state: state) }
+            if state.suggestions.isEmpty && !state.emoji.isEmpty { EmojiSuggestionList(state: state) }
             if let notice = state.notice { InlineInformation(text: notice) { state.notice = nil } }
             TypingLine(model: model, channel: channel)
             UploadChips(model: model, channel: channel, parent: parent)
@@ -79,6 +80,10 @@ struct ComposerView: View {
             }
         }
         .onAppear {
+            if !draftLoaded {
+                draftLoaded = true
+                state.text = model.draft(for: channel, parent: parent)
+            }
             state.togglePreview = { previewing.toggle() }
             // Words a waiting send gave back while no box was showing come first, ahead of what was written since. Asked here, not
             // while the view is made: a view that writes to what it watches is drawn again, and again.
@@ -130,6 +135,7 @@ struct ComposerView: View {
                     onPeopleMissing: { Task { await model.refreshPeople() } },
                     onCancel: { model.dismissTopmost() },
                     takesFocus: true,
+                    onEdit: { text in model.noteTyping(text, in: channel, parent: parent) },
                     onEditLast: parent == nil ? { _ = model.editLastMessage() } : nil, onFiles: { files in add(files) },
                     minRows: compact ? 2 : 3
                 )
@@ -358,6 +364,41 @@ private struct SuggestionList: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .accessibilityAddTraits(index == state.highlighted ? .isSelected : [])
+            }
+        }
+        .padding(Spacing.space1)
+        .modifier(ControlSurface(radius: Radius.radiusXl))
+    }
+}
+
+/// The emoji a `:name` could be: Enter or Tab writes the one highlighted, as the list of people does.
+private struct EmojiSuggestionList: View {
+    let state: ComposerState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(state.emoji.enumerated()), id: \.element.id) { index, emoji in
+                Button {
+                    state.chooseEmoji?(emoji)
+                } label: {
+                    HStack(spacing: Spacing.space2) {
+                        Text(emoji.symbol).frame(width: Size.sizeAvatarSm)
+                        Text(emoji.name).foregroundStyle(.primary).lineLimit(1)
+                        Spacer()
+                    }
+                    .typeStyle(Typography.body)
+                    .padding(.horizontal, Spacing.space2)
+                    .padding(.vertical, Spacing.space1)
+                    .contentShape(.rect)
+                    .background {
+                        if index == state.highlighted {
+                            RoundedRectangle(cornerRadius: Radius.radiusMd).fill(.fill.secondary)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("\(emoji.symbol) \(emoji.name)"))
                 .accessibilityAddTraits(index == state.highlighted ? .isSelected : [])
             }
         }

@@ -186,6 +186,12 @@ final class FakeServer: HTTPTransport {
         var unreads: [(channel: String, from: String)] = []
         var readAllStatus = 200
         var readAllCount = 0
+        /// People added to a channel, as channel id and person id.
+        var memberAdds: [(channel: String, user: String)] = []
+        /// What an edited message said before, newest first, by message id.
+        var versions: [String: [MessageVersion]] = [:]
+        var deviceSessions: [DeviceSession] = []
+        var endedSessions: [String] = []
     }
 
     let state = Mutex(State())
@@ -1281,6 +1287,46 @@ final class FakeServer: HTTPTransport {
                 return json(snapshot.readStatus, #"{"error":{"code":"INTERNAL","message":"x"}}"#)
             }
             return json(200, #"{"lastReadMessageId":"\#(id)","unreadCount":0,"unreadMentionCount":0}"#)
+        case ("POST", _) where path.hasPrefix("/api/channels/") && path.hasSuffix("/members"):
+            guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            if snapshot.mutationStatus != 200 {
+                return json(snapshot.mutationStatus, #"{"error":{"code":"FORBIDDEN","message":"x"}}"#)
+            }
+            let id = String(path.dropFirst("/api/channels/".count).dropLast("/members".count))
+            guard let body = request.body,
+                let input = try? JSONDecoder().decode(AddChannelMemberRequest.self, from: body)
+            else { return json(400, #"{"error":{"code":"VALIDATION_FAILED","message":"x"}}"#) }
+            state.withLock { $0.memberAdds.append((id, input.userId.value)) }
+            return HTTPResponse(status: 204)
+        case ("GET", _) where path.hasPrefix("/api/messages/") && path.hasSuffix("/versions"):
+            guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            let id = String(path.dropFirst("/api/messages/".count).dropLast("/versions".count))
+            let all = snapshot.versions[id] ?? []
+            let items = URLComponents(url: request.url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            let limit = items.first { $0.name == "limit" }?.value.flatMap(Int.init) ?? 50
+            let after =
+                items.first { $0.name == "before" }?.value.flatMap { before in
+                    all.firstIndex { $0.id.value == before }.map { $0 + 1 }
+                } ?? 0
+            let page = Array(all.dropFirst(after).prefix(limit))
+            let next = after + page.count < all.count ? page.last?.id : nil
+            return json(200, Self.encoded(MessageVersionPage(data: page, nextCursor: next)))
+        case ("GET", "/api/me/sessions"):
+            guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            return json(200, Self.encoded(DeviceSessionList(data: snapshot.deviceSessions)))
+        case ("DELETE", _) where path.hasPrefix("/api/me/sessions/"):
+            guard hasSession, snapshot.sessionValid else { return unauthenticated() }
+            let id = String(path.dropFirst("/api/me/sessions/".count))
+            guard let ended = snapshot.deviceSessions.first(where: { $0.id.value == id }) else {
+                return json(404, #"{"error":{"code":"SESSION_NOT_FOUND","message":"x"}}"#)
+            }
+            // As the contract says: ending the session the request came in on signs out of it, the cookie kept.
+            state.withLock {
+                $0.endedSessions.append(id)
+                $0.deviceSessions.removeAll { $0.id.value == id }
+                if ended.current { $0.sessionValid = false }
+            }
+            return HTTPResponse(status: 204)
         case ("POST", _)
         where snapshot.sendMessageStatus != nil && path.hasPrefix("/api/channels/") && path.hasSuffix("/messages"):
             return json(snapshot.sendMessageStatus ?? 503, #"{"error":{"code":"DATABASE_UNAVAILABLE","message":"x"}}"#)

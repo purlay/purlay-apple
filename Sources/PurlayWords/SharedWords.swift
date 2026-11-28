@@ -13,6 +13,8 @@ public enum SharedWords {
     public static let loadEarlier = LocalizedStringResource("Load Earlier Messages", bundle: .module)
     public static let sending = LocalizedStringResource("Sending…", bundle: .module)
     public static let sent = LocalizedStringResource("Sent", bundle: .module)
+    /// A message that did not go: a send that failed in a feed, a shortcut that could not send.
+    public static let messageNotSent = LocalizedStringResource("Couldn’t send message.", bundle: .module)
     public static let signOutEverywhere = LocalizedStringResource("Sign Out Everywhere", bundle: .module)
     /// The menu item that asks before it signs out everywhere.
     public static let signOutEverywhereMenu = LocalizedStringResource("Sign Out Everywhere…", bundle: .module)
@@ -27,7 +29,7 @@ public enum SharedWords {
 
     /// The fixed sentences, so a test can look at each in every language.
     public static let fixed: [LocalizedStringResource] = [
-        cancel, refresh, workspace, starred, channels, jumpToLatest, loadEarlier, sending, sent, signOutEverywhere,
-        signOutEverywhereMenu, twoStepVerificationRequired,
+        cancel, refresh, workspace, starred, channels, jumpToLatest, loadEarlier, sending, sent, messageNotSent,
+        signOutEverywhere, signOutEverywhereMenu, twoStepVerificationRequired,
     ]
 }

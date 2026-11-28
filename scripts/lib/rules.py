@@ -28,7 +28,13 @@ CACHE = cache_root() / "parse"
 SPEC = re.compile(r"%(?:\d+\$)?(?:hh|h|ll|l|z|t|j|q)?[diouxX@feEgG]")
 COUNT = re.compile(r"%(?:\d+\$)?(?:hh|h|ll|l|z|t|j|q)?[diu]")
 SUBSTITUTION = re.compile(r"%(?:(\d+)\$)?#@(\w+)@")
-SENTENCE = r"\[?(?:LocalizedStringKey|LocalizedStringResource|String\.LocalizationValue|IntentDialog)\]?\??"
+# App Intents name what a sentence holds by the parameter, `${text}`: an App Shortcut's phrase (`\(.applicationName)`) and an
+# intent's parameter summary (`\(\.$text)`) are looked up by that key, and each translation keeps the same names.
+PARAMETER = re.compile(r"\$\{(\w+)\}")
+# The App Intents calls that take a sentence but not as a type the SDK scan reads: `Summary` takes its own interpolated string,
+# and `AppShortcut`'s phrases are `AppShortcutPhrase`s, kept in their own catalogue (AppShortcuts.xcstrings).
+INTENT_CALLS = {"Summary": {""}, "AppShortcut": {"phrases"}}
+SENTENCE =r"\[?(?:LocalizedStringKey|LocalizedStringResource|String\.LocalizationValue|IntentDialog)\]?\??"
 # The type of a name bound again without one stated: no type declares a property of it, so nothing assigned through it counts.
 UNKNOWN = "<unknown>"
 # A binding's type read from another declaration: the one it unwraps (`if let x = y`), or the element of one it iterates.
@@ -84,9 +90,9 @@ APPS = {"iOS": "Apps/iOS", "macOS": "Apps/macOS"}
 # The counts that change no English word: a number shown as a label, a position, a limit in minutes. Every other count says its
 # number in English plural forms whose `one` differs from `other`. A new entry here is a review point.
 ONE_FORM = {
-    "%@ %@ number %lld, %@: %@", "%@ and %lld more", "%@#%lld · %@", "%@, %lld", "%lld", "%lld min left", "%lld unread",
-    "%lld waiting", "%lld.", "Channel members, %lld", "End Deep Work (%lld min left)", "Filters (%lld)", "Inbox (%lld)",
-    "Updates (%lld)",
+    "%@ %@ number %lld, %@: %@", "%@ and %lld more", "%@#%lld · %@", "%@, %lld", "%lld", "%lld min left", "%lld selected",
+    "%lld unread", "%lld waiting", "%lld.", "Channel members, %lld", "End Deep Work (%lld min left)", "Filters (%lld)",
+    "Inbox (%lld)", "Updates (%lld)",
 }
 # Nothing to translate: only symbols, digits and format specifiers, or a code-like address.
 INERT = re.compile(r"^[^A-Za-z]*$|^[a-z0-9.\-/]+$")
@@ -153,15 +159,18 @@ def addresses_as_sen(value):
 CATALOGUES = {
     "Apps/iOS/App/Resources/Localizable.xcstrings": ("iOS",),
     "Apps/macOS/App/Resources/Localizable.xcstrings": ("macOS",),
+    "Apps/macOS/App/Resources/AppShortcuts.xcstrings": ("macOS",),
     "Sources/PurlayWords/Resources/Localizable.xcstrings": ("iOS", "macOS"),
 }
 
 
 def arguments(text, substitutions=None):
-    """A value's arguments, without their positions: each specifier, and each substitution as the specifier it stands for."""
+    """A value's arguments, without their positions: each specifier, each substitution as the specifier it stands for, and each
+    App Intents parameter by its name."""
     found = [re.sub(r"\d+\$", "", match) for match in SPEC.findall(SUBSTITUTION.sub("", text))]
     for _, name in SUBSTITUTION.findall(text):
         found.append("%" + (substitutions or {}).get(name, {}).get("formatSpecifier", "?"))
+    found += ["${" + name + "}" for name in PARAMETER.findall(text)]
     return sorted(found)
 
 
@@ -175,11 +184,16 @@ def catalogues(root):
         return set(languages)
 
     def units(path, key, language, localization):
-        """Every value a language gives for a key: the one, or one per plural form (which must include `other`), and the
-        forms of each substitution."""
+        """Every value a language gives for a key: the one, one per plural form (which must include `other`), and the forms
+        of each substitution; or, for an App Shortcut, each phrase of its set (at least one)."""
         found = []
         if "stringUnit" in localization:
             found.append(localization["stringUnit"])
+        elif "stringSet" in localization:
+            phrases = localization["stringSet"]
+            found += [{"state": phrases.get("state"), "value": value} for value in phrases.get("values", [])]
+            if not found:
+                problems.append(f"{path}: {key!r} in {language} has no phrase")
         else:
             plural = localization.get("variations", {}).get("plural")
             if plural is None:
@@ -270,6 +284,7 @@ def catalogues(root):
 READERS = {
     "Apps/iOS/App/Resources/Localizable.xcstrings": ["Apps/iOS/App"],
     "Apps/macOS/App/Resources/Localizable.xcstrings": ["Apps/macOS/App", "Sources/PurlayMacUI"],
+    "Apps/macOS/App/Resources/AppShortcuts.xcstrings": ["Apps/macOS/App"],
     "Sources/PurlayWords/Resources/Localizable.xcstrings": ["Sources/PurlayWords"],
 }
 COLOUR_ALLOWED = ("Sources/PurlayDesign/Logo.swift", "Sources/PurlayMacUI/NativePalette.swift")
@@ -478,6 +493,8 @@ def parsed(path, cache):
 def said(root, parses):
     """The catalogue sentences no code says."""
     calls = {name: set(labels) for name, labels in CALLS.items()}
+    for name, labels in INTENT_CALLS.items():
+        calls.setdefault(name, set()).update(labels)
     sentence_properties, property_types = set(), {}
     for result in parses.values():
         for call, label in result["calls"]:
@@ -521,7 +538,8 @@ def said(root, parses):
                 if file.is_relative_to(root / folder):
                     words |= {site["value"] for site in result["sites"] if says(site)}
         for key, entry in json.loads((root / path).read_text())["strings"].items():
-            if entry.get("shouldTranslate") is not False and SPEC.sub("\0", SUBSTITUTION.sub("\0", key)) not in words:
+            if entry.get("shouldTranslate") is not False and SPEC.sub(
+                    "\0", SUBSTITUTION.sub("\0", PARAMETER.sub("\0", key))) not in words:
                 problems.append(
                     f"{path}: {key!r} is said by no code that reads this catalogue: remove it, or, if a call of the SDK says it "
                     "as a sentence, regenerate scripts/lib/sentence_calls.py with scripts/dev/sentence-calls (adding the "

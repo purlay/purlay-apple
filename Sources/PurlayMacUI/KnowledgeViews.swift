@@ -244,6 +244,7 @@ struct KnowledgeSheet: View {
     @State private var peopleFailed = false
     @State private var saving = false
     @State private var conflict = false
+    @State private var failed = false
     private let initial: (question: Bool, owner: Uuid?, note: String, link: String)
 
     init(model: AppModel, root: Message, done: @escaping () -> Void) {
@@ -308,6 +309,14 @@ struct KnowledgeSheet: View {
                 .font(.callout)
                 .foregroundStyle(Colors.warningText.style)
             }
+            if failed {
+                Label(
+                    "Could not save the question or decision. Check your connection and try again.",
+                    systemImage: "exclamationmark.triangle"
+                )
+                .font(.callout)
+                .foregroundStyle(Colors.dangerText.style)
+            }
             HStack {
                 Spacer()
                 Button(role: .cancel, action: done) { Text(SharedWords.cancel) }.keyboardShortcut(.cancelAction)
@@ -337,6 +346,7 @@ struct KnowledgeSheet: View {
         guard !saving else { return }
         saving = true
         conflict = false
+        failed = false
         let question = question
         let owner = owner
         let note = note.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -353,7 +363,7 @@ struct KnowledgeSheet: View {
             switch result {
             case .saved: done()
             case .conflict: conflict = true
-            case .failed: break
+            case .failed: failed = true
             }
         }
     }

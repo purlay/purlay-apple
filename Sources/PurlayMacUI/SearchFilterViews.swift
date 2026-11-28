@@ -1,6 +1,8 @@
+#if os(macOS)
 import Foundation
 import PurlayContract
 import PurlayKit
+import PurlayTokens
 import SwiftUI
 
 extension Words {
@@ -137,7 +139,7 @@ struct SearchFiltersPopover: View {
                 }
             } footer: {
                 if filters.rangeIsInverted {
-                    Text("The end date must come after the start date.").foregroundStyle(.red)
+                    Text("The end date must come after the start date.").foregroundStyle(Colors.dangerText.style)
                 } else {
                     Text("Days are in your time zone; the end date is excluded.").foregroundStyle(.secondary)
                 }
@@ -160,3 +162,4 @@ struct SearchFiltersPopover: View {
         change { $0.repository = typed.isEmpty ? nil : typed }
     }
 }
+#endif

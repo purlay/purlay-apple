@@ -16,10 +16,11 @@ struct ReactionEmojiPicker: View {
     /// Square cells of one size, so what is under the pointer is the same shape for every emoji, whatever its glyph's width.
     static let cell: Double = 34
     private let columns = Array(repeating: GridItem(.fixed(Self.cell), spacing: Spacing.space1), count: 8)
-    private var results: [ReactionEmoji] { ReactionEmojiCatalog.matching(query, category: category) }
     private var isSearching: Bool { !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
+        // Matched once per draw, and handed to everything below that needs it.
+        let results = ReactionEmojiCatalog.matching(query, category: category)
         VStack(alignment: .leading, spacing: Spacing.space3) {
             HStack {
                 Text("Add Reaction").font(.headline)

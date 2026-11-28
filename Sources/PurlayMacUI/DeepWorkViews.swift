@@ -9,23 +9,36 @@ struct DeepWorkBar: View {
 
     var body: some View {
         if let end = model.deepWorkEnds {
-            // The minutes are asked when drawn, and drawn again each half minute, and at the instant it ends the bar is gone.
-            TimelineView(.periodic(from: .now, by: 30)) { _ in
-                HStack(spacing: Spacing.space2) {
-                    Image(systemName: "moon.fill").foregroundStyle(.indigo)
-                    Text("Deep Work until \(end, style: .time)")
-                    Text("·").foregroundStyle(.secondary)
-                    Text("\(model.deepWorkMinutesLeft) min left").foregroundStyle(.secondary)
-                    Spacer()
-                    Button("End") { Task { await model.endDeepWork() } }.controlSize(.small)
+            // The minutes are asked when drawn, and drawn again each half minute and at the end itself. The model compares the end
+            // to the clock but nothing it observes changes when that moment passes, so the timeline is what takes the bar away.
+            TimelineView(DeepWorkBarSchedule(end: end)) { context in
+                if context.date < end, model.deepWorkEnds != nil {
+                    HStack(spacing: Spacing.space2) {
+                        Image(systemName: "moon.fill").foregroundStyle(.indigo)
+                        Text("Deep Work until \(end, style: .time)")
+                        Text("·").foregroundStyle(.secondary)
+                        Text("\(model.deepWorkMinutesLeft) min left").foregroundStyle(.secondary)
+                        Spacer()
+                        Button("End") { Task { await model.endDeepWork() } }.controlSize(.small)
+                    }
+                    .font(.callout)
+                    .padding(.horizontal, Spacing.space4)
+                    .padding(.vertical, Spacing.space1 + Stroke.strokeFocus)
+                    .background(.bar)
+                    .accessibilityElement(children: .combine)
                 }
-                .font(.callout)
-                .padding(.horizontal, Spacing.space4)
-                .padding(.vertical, Spacing.space1 + Stroke.strokeFocus)
-                .background(.bar)
-                .accessibilityElement(children: .combine)
             }
         }
+    }
+}
+
+/// Every half minute from now, and then the end itself, so the bar goes at the instant Deep Work does.
+struct DeepWorkBarSchedule: TimelineSchedule {
+    static let step: TimeInterval = 30
+    let end: Date
+
+    func entries(from startDate: Date, mode: TimelineScheduleMode) -> UnfoldFirstSequence<Date> {
+        sequence(first: startDate) { last in last >= end ? nil : min(last.addingTimeInterval(Self.step), end) }
     }
 }
 

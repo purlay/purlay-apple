@@ -4,11 +4,47 @@ User-facing changes to Purlay for macOS. Releases require macOS 26 or later.
 
 ## [0.3.2] — Unreleased
 
+### New
+
+- **Forward a message** to another channel or conversation, with a note if you want one, from its menu. It is sent as your
+  own message with the original's link, as the web app does.
+- **Share…** a message's link from its menu.
+- **Edit history.** Click a message's "edited" mark, or choose Show Edit History from its menu, to read what it said before.
+- **Add People…** in a channel's members, for the workspace's people who are not in it yet.
+- **Devices.** Settings → Account & Sessions lists where your account is signed in, this Mac first, and signs another device
+  out.
+- **Emoji by name** in the message box: type a colon and two letters (`:rocket`, `:teşekkür`) and choose from the list with
+  Return or Tab.
+- **Others see you typing** in a channel, as they do from the web app.
+- **Reply from a notification.** A conversation's notification has a Reply field; what you type is sent without opening the
+  app, even when the reply is what starts it. If it cannot be sent, it waits in the conversation's message box, after anything
+  you had already written there.
+- **Shortcuts, Spotlight and Siri:** Open Inbox, Open Conversation, Send a Message, Start Deep Work and End Deep Work, in
+  English and Turkish. Send a Message asks you before it sends.
+- **Handoff:** the conversation in front can be picked up in a browser on your other devices.
+
+### Changed
+
+- Sign Out asks first, from the Purlay menu and from the account menu.
+- Empty and failed pages use the same title case throughout; Scheduled and Reminders show one clear failure, with Try Again,
+  instead of an empty list beside it.
+- Pictures in conversations are decoded at the size they are shown, off the main thread, and a picture that scrolled away
+  loads again instead of showing as a file.
+- Quick Look opens the file you chose at once, without waiting for the message's other files.
+
 ### Fixed
 
 - Turkish speaks to you formally ("siz") throughout, and uses the web's names: Thread, Deep Work, Misafir and Bitti.
 - A session the server ends, or one that expires, no longer removes a newer sign-in another workspace kept meanwhile: only
   its own entry leaves the Keychain.
+- After going to a search result, the conversation can return to the present (**Jump to Present**), new messages reach it
+  again, and it is marked read again.
+- A code block in an edited message no longer keeps showing the code it had before the edit.
+- The Deep Work bar goes away when Deep Work ends, instead of staying at "0 min left".
+- Moving through the sidebar with the arrow keys no longer moves the keyboard into the message box at each channel.
+- A Dock menu item opens the main window if it was closed.
+- VoiceOver reads who wrote a message and when for every message in a run, says which Inbox rows are unread, and reaches the
+  incident bar's button.
 - During a server rollout, message search and Chat notifications close cleanly when a server node cannot serve them.
   The session and Updates stay available.
 - Threads, Saved Messages, Open Topics, Scheduled Messages, Reminders and Pins close the same way when a server node does not

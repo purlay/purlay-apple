@@ -93,6 +93,7 @@ private struct CodeBlock: View {
     @State private var hovering = false
     /// The code in colour: plain until the scan is done, with the same layout, so nothing moves when the colours arrive.
     @State private var coloured: AttributedString?
+    @State private var colouredFor: Highlight?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var lines: Int { text.reduce(into: 1) { count, character in if character == "\n" { count += 1 } } }
@@ -152,10 +153,15 @@ private struct CodeBlock: View {
                 .strokeBorder(NativePalette.divider.style, lineWidth: Stroke.strokeHairline)
         }
         .onHover { hovering = $0 }
-        .task(id: text) {
-            let tokens = SyntaxHighlighter.tokens(text, language: language)
-            guard tokens.contains(where: { $0.kind != .plain }) else { return }
-            coloured = Self.attributed(tokens)
+        .task(id: Highlight(text: text, language: language)) {
+            let wanted = Highlight(text: text, language: language)
+            guard colouredFor != wanted else { return }
+            // What was coloured belongs to the words before an edit: they are shown plain until the new ones are coloured.
+            coloured = nil
+            let tokens = await Self.tokens(text, language: language)
+            guard !Task.isCancelled else { return }
+            coloured = tokens.contains(where: { $0.kind != .plain }) ? Self.attributed(tokens) : nil
+            colouredFor = wanted
         }
         .task(id: copied) {
             guard copied else { return }
@@ -164,6 +170,16 @@ private struct CodeBlock: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text(language.map { "\($0) code" } ?? String(localized: "Code")))
+    }
+
+    private struct Highlight: Equatable {
+        let text: String
+        let language: String?
+    }
+
+    /// Off the main actor: a long block scanned while the feed scrolls would hold the scrolling up.
+    @concurrent private nonisolated static func tokens(_ text: String, language: String?) async -> [SyntaxToken] {
+        SyntaxHighlighter.tokens(text, language: language)
     }
 
     private static func attributed(_ tokens: [SyntaxToken]) -> AttributedString {

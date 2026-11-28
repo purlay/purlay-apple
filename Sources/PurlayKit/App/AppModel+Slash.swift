@@ -54,10 +54,8 @@ extension AppModel {
             guard let person = workspacePeople.first(where: { $0.username.lowercased() == handle }) else {
                 return .refused(.nobody(handle))
             }
-            guard let api else { return .refused(.failed) }
             do {
-                try await api.addChannelMember(
-                    channelId: member.id.value, body: AddChannelMemberRequest(userId: person.id))
+                try await addMember(person.id, to: member.id)
                 return .done(.invited(person.displayName))
             } catch {
                 return .refused(.failed)

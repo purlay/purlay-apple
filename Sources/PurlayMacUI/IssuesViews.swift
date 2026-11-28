@@ -146,16 +146,21 @@ private struct IssueRow: View {
         .overlay(alignment: .bottom) {
             Rectangle().fill(NativePalette.divider.style).frame(height: Stroke.strokeHairline)
         }
-        .onContinuousHover { phase in
-            if case .active = phase { hovering = true } else { hovering = false }
-        }
+        .onHover { hovering = $0 }
         .contextMenu {
-            Menu("Assign To", systemImage: "person") {
-                Button("Nobody") { Task { await model.assignIssue(issue, to: nil) } }
-                ForEach(model.workspacePeople, id: \.id) { person in
-                    Button(person.displayName) { Task { await model.assignIssue(issue, to: person.id) } }
+            // A picker rather than buttons, so the menu marks who has it now.
+            Picker(
+                "Assign To", systemImage: "person",
+                selection: Binding(
+                    get: { issue.assigneeId },
+                    set: { person in Task { await model.assignIssue(issue, to: person) } })
+            ) {
+                Text("Nobody").tag(nil as Uuid?)
+                ForEach(model.workspacePeople.sortedByName, id: \.id) { person in
+                    Text(person.displayName).tag(Optional(person.id))
                 }
             }
+            .pickerStyle(.menu)
             if mayDelete {
                 Button("Delete Issue", systemImage: "trash", role: .destructive) { confirmingDelete = true }
             }
@@ -165,8 +170,8 @@ private struct IssueRow: View {
             Task { await model.setIssueStatus(issue, done ? .open : .done) }
         }
         .accessibilityAction(named: Text("Assign To Nobody")) { Task { await model.assignIssue(issue, to: nil) } }
-        .accessibilityAction(named: Text("Delete Issue")) {
-            if mayDelete { confirmingDelete = true }
+        .accessibilityActions {
+            if mayDelete { Button("Delete Issue") { confirmingDelete = true } }
         }
         .confirmationDialog("Delete this issue?", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("Delete Issue", role: .destructive) { Task { await model.deleteIssue(issue) } }
@@ -195,11 +200,11 @@ private struct NewIssueSheet: View {
             TextField("Title", text: $title).purlayTextField().onSubmit(save)
             TextEditor(text: $details)
                 .frame(minHeight: 90)
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(NativePalette.divider.style))
+                .overlay { RoundedRectangle(cornerRadius: 6).stroke(NativePalette.divider.style) }
                 .accessibilityLabel("Details")
             Picker("Give it to", selection: $assignee) {
                 Text("Nobody").tag(nil as Uuid?)
-                ForEach(model.workspacePeople, id: \.id) { person in
+                ForEach(model.workspacePeople.sortedByName, id: \.id) { person in
                     Text(person.displayName).tag(Optional(person.id))
                 }
             }
@@ -224,7 +229,8 @@ private struct NewIssueSheet: View {
     }
 
     private func save() {
-        guard !saving else { return }
+        // Return in the title field reaches here even while the button is disabled for an empty title.
+        guard !saving, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         saving = true
         Task {
             if await model.createIssue(title: title, details: details, assignee: assignee) {
@@ -234,6 +240,13 @@ private struct NewIssueSheet: View {
                 saving = false
             }
         }
+    }
+}
+
+extension [User] {
+    /// People as a person looks for them in a list: by name, the way Finder sorts.
+    fileprivate var sortedByName: [User] {
+        sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
     }
 }
 #endif

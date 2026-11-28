@@ -184,6 +184,13 @@ extension AppModel {
         return true
     }
 
+    /// What an edited message said before, newest first, a page at a time: `before` is the last version of the page already read.
+    public func versions(of message: Uuid, before: Uuid? = nil) async throws -> MessageVersionPage {
+        guard let api else { throw CancellationError() }
+        return try await api.listMessageVersions(
+            messageId: message.value, query: OlderPageQuery(before: before, limit: ContractConstants.pageLimit.default))
+    }
+
     public func retry(_ id: Uuid) {
         if chatAvailable { engine?.retry(id) }
     }

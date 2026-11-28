@@ -20,7 +20,7 @@ replacing the code under test. The conventions are in [conventions.md](../archit
 | What both apps say, in each language (`EngineWordsTests`, `SharedWordsTests`) | `Tests/PurlayWordsTests` | `macOS` | `packages` |
 | The real client against a real server of the pinned version | `Tests/ContractTests` | `macOS` (compiled, and skipped without a server) | `packages`; against a server by hand: `scripts/contract-test` (TD-017) |
 | The rules, each with its violation planted (refused) and, where a rule could refuse good code, valid code written (accepted); each on its own copy, in parallel | `scripts/enforcement`, `--demo` | — | `rules` |
-| The strings: the three catalogues, one checker | `scripts/enforcement` | — | `rules` |
+| The strings: the four catalogues (the Mac's App Shortcut phrases among them), one checker | `scripts/enforcement` | — | `rules` |
 | The built apps: build number, App Transport Security, the Mac's entitlements declared and signed | `scripts/verify ios`, `scripts/verify macos` | — | `ios`, `macos` |
 | Secrets | `scripts/verify security` | — | `security` |
 
@@ -64,6 +64,10 @@ Checked by hand on a signed build, and said so in the pull request:
 - The Mac's notification, Dock-badge and login-item permissions, and Sparkle's update of an installed app (TD-014).
 - Approving the sign-in in the system browser's page (TD-007).
 - VoiceOver by ear, scrolling by touch, and iPad layouts.
+- The Mac's App Intents run through Shortcuts, Spotlight and Siri (in English and Turkish), a reply typed into a notice's
+  Reply field, and Handoff picked up on another device. What they decide is tested in `OutsideRequestsTests` and
+  `WebPageTests`; the system's side is not reachable from a test.
+- The rows a feed draws inside its scroll view: the Mac snapshots leave a scroll view's contents out (TD-032).
 
 ## Tests that need the Keychain
 
